@@ -6,6 +6,7 @@ import { getProvider } from '../../services/providers/registry';
 import { MODEL_TIERS, DEFAULT_GENERATION_MODEL } from '../../lib/constants';
 import type { OutputFormat } from '../../types/provider';
 import ModelSelector from '../shared/ModelSelector';
+import ProviderSelector from './ProviderSelector';
 import VariantGrid from '../output/VariantGrid';
 
 export default function GenerationPanel() {
@@ -20,17 +21,20 @@ export default function GenerationPanel() {
 
   const [format, setFormat] = useState<OutputFormat>('react');
   const [generationModel, setGenerationModel] = useState(DEFAULT_GENERATION_MODEL);
+  const [providerId, setProviderId] = useState('lmstudio');
 
   const handleGenerate = async () => {
-    // Always use OpenRouter provider
-    const provider = getProvider('openrouter');
+    const provider = getProvider(providerId);
     if (!provider || compiledPrompts.length === 0) return;
 
     resetResults();
     setGenerating(true);
 
-    for (const prompt of compiledPrompts) {
+    // Create placeholder results for all prompts
+    const placeholderMap = new Map<string, string>();
+    compiledPrompts.forEach((prompt) => {
       const placeholderId = crypto.randomUUID();
+      placeholderMap.set(prompt.variantStrategyId, placeholderId);
       addResult({
         id: placeholderId,
         variantStrategyId: prompt.variantStrategyId,
@@ -38,21 +42,27 @@ export default function GenerationPanel() {
         status: 'generating',
         metadata: { model: '' },
       });
+    });
 
-      try {
-        const result = await provider.generate(prompt, { format, model: generationModel });
-        updateResult(placeholderId, {
-          ...result,
-          id: placeholderId,
-          status: 'complete',
-        });
-      } catch (err) {
-        updateResult(placeholderId, {
-          status: 'error',
-          error: err instanceof Error ? err.message : 'Generation failed',
-        });
-      }
-    }
+    // Generate all variants in parallel (batch processing)
+    await Promise.all(
+      compiledPrompts.map(async (prompt) => {
+        const placeholderId = placeholderMap.get(prompt.variantStrategyId)!;
+        try {
+          const result = await provider.generate(prompt, { format, model: generationModel });
+          updateResult(placeholderId, {
+            ...result,
+            id: placeholderId,
+            status: 'complete',
+          });
+        } catch (err) {
+          updateResult(placeholderId, {
+            status: 'error',
+            error: err instanceof Error ? err.message : 'Generation failed',
+          });
+        }
+      })
+    );
 
     setGenerating(false);
   };
@@ -84,6 +94,11 @@ export default function GenerationPanel() {
         <div className="rounded-lg border border-gray-200 bg-white px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
+              <ProviderSelector
+                selectedId={providerId}
+                onChange={setProviderId}
+              />
+
               <ModelSelector
                 label="Model"
                 models={MODEL_TIERS}

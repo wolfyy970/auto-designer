@@ -1,6 +1,7 @@
 import type { GenerationProvider } from '../../types/provider';
 import { PreviewProvider } from './preview';
 import { OpenRouterGenerationProvider } from './claude';
+import { LMStudioProvider } from './lmstudio';
 
 const providers = new Map<string, GenerationProvider>();
 
@@ -23,3 +24,4 @@ export function getAllProviders(): GenerationProvider[] {
 // Register built-in providers
 registerProvider(new PreviewProvider());
 registerProvider(new OpenRouterGenerationProvider());
+registerProvider(new LMStudioProvider());
