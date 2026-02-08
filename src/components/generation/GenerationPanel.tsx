@@ -1,0 +1,146 @@
+import { useState } from 'react';
+import { Sparkles, Loader2 } from 'lucide-react';
+import { useCompilerStore } from '../../stores/compiler-store';
+import { useGenerationStore } from '../../stores/generation-store';
+import { getProvider } from '../../services/providers/registry';
+import { MODEL_TIERS, DEFAULT_GENERATION_MODEL } from '../../lib/constants';
+import type { OutputFormat } from '../../types/provider';
+import ModelSelector from '../shared/ModelSelector';
+import VariantGrid from '../output/VariantGrid';
+
+export default function GenerationPanel() {
+  const compiledPrompts = useCompilerStore((s) => s.compiledPrompts);
+  const dimensionMap = useCompilerStore((s) => s.dimensionMap);
+  const results = useGenerationStore((s) => s.results);
+  const isGenerating = useGenerationStore((s) => s.isGenerating);
+  const addResult = useGenerationStore((s) => s.addResult);
+  const updateResult = useGenerationStore((s) => s.updateResult);
+  const setGenerating = useGenerationStore((s) => s.setGenerating);
+  const resetResults = useGenerationStore((s) => s.reset);
+
+  const [format, setFormat] = useState<OutputFormat>('react');
+  const [generationModel, setGenerationModel] = useState(DEFAULT_GENERATION_MODEL);
+
+  const handleGenerate = async () => {
+    // Always use OpenRouter provider
+    const provider = getProvider('openrouter');
+    if (!provider || compiledPrompts.length === 0) return;
+
+    resetResults();
+    setGenerating(true);
+
+    for (const prompt of compiledPrompts) {
+      const placeholderId = crypto.randomUUID();
+      addResult({
+        id: placeholderId,
+        variantStrategyId: prompt.variantStrategyId,
+        providerId: provider.id,
+        status: 'generating',
+        metadata: { model: '' },
+      });
+
+      try {
+        const result = await provider.generate(prompt, { format, model: generationModel });
+        updateResult(placeholderId, {
+          ...result,
+          id: placeholderId,
+          status: 'complete',
+        });
+      } catch (err) {
+        updateResult(placeholderId, {
+          status: 'error',
+          error: err instanceof Error ? err.message : 'Generation failed',
+        });
+      }
+    }
+
+    setGenerating(false);
+  };
+
+  if (compiledPrompts.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32">
+        <div className="text-center">
+          <div className="mb-3 text-4xl">✨</div>
+          <h3 className="mb-2 text-lg font-medium text-gray-900">No Variants Ready</h3>
+          <p className="mb-6 text-sm text-gray-500">
+            Complete your spec, compile it, and approve the exploration space first.
+          </p>
+          <a
+            href="/compiler"
+            className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+          >
+            Go to Exploration Space
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Simplified Controls - Constrained width */}
+      <div className="mx-auto max-w-6xl px-8">
+        <div className="rounded-lg border border-gray-200 bg-white px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <ModelSelector
+                label="Model"
+                models={MODEL_TIERS}
+                selectedId={generationModel}
+                onChange={setGenerationModel}
+              />
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">
+                  Format
+                </label>
+                <select
+                  value={format}
+                  onChange={(e) => setFormat(e.target.value as OutputFormat)}
+                  className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400"
+                >
+                  <option value="react">React</option>
+                  <option value="html">HTML</option>
+                </select>
+              </div>
+
+              <div className="text-sm text-gray-600">
+                {compiledPrompts.length} {compiledPrompts.length === 1 ? 'variant' : 'variants'}
+              </div>
+            </div>
+
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="flex items-center gap-2 rounded-lg bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={18} />
+                  Generate Variants
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Results - Full Width */}
+      {results.length > 0 && dimensionMap && (
+        <div className="mt-6">
+          <VariantGrid
+            results={results}
+            dimensionMap={dimensionMap}
+            isPreview={false}
+          />
+        </div>
+      )}
+    </>
+  );
+}

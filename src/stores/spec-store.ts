@@ -1,0 +1,142 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import type { DesignSpec, ReferenceImage, SpecSection, SpecSectionId } from '../types/spec';
+import { createEmptySections } from '../lib/constants';
+import { generateId, now } from '../lib/utils';
+
+interface SpecStore {
+  spec: DesignSpec;
+  createNewSpec: (title?: string) => void;
+  setTitle: (title: string) => void;
+  updateSection: (sectionId: SpecSectionId, content: string) => void;
+  addImage: (sectionId: SpecSectionId, image: ReferenceImage) => void;
+  updateImageDescription: (sectionId: SpecSectionId, imageId: string, description: string) => void;
+  removeImage: (sectionId: SpecSectionId, imageId: string) => void;
+  loadSpec: (spec: DesignSpec) => void;
+}
+
+function createNewDesignSpec(title: string = 'Untitled Spec'): DesignSpec {
+  return {
+    id: generateId(),
+    title,
+    sections: createEmptySections(),
+    createdAt: now(),
+    lastModified: now(),
+    version: 1,
+  };
+}
+
+export const useSpecStore = create<SpecStore>()(
+  persist(
+    (set) => ({
+      spec: createNewDesignSpec(),
+
+      createNewSpec: (title) =>
+        set({ spec: createNewDesignSpec(title) }),
+
+      setTitle: (title) =>
+        set((state) => ({
+          spec: { ...state.spec, title, lastModified: now() },
+        })),
+
+      updateSection: (sectionId, content) =>
+        set((state) => {
+          const existingSection = state.spec.sections[sectionId];
+          return {
+            spec: {
+              ...state.spec,
+              lastModified: now(),
+              sections: {
+                ...state.spec.sections,
+                [sectionId]: {
+                  id: sectionId,
+                  content,
+                  images: existingSection?.images ?? [],
+                  lastModified: now(),
+                },
+              },
+            },
+          };
+        }),
+
+      addImage: (sectionId, image) =>
+        set((state) => {
+          const existingSection = state.spec.sections[sectionId];
+          return {
+            spec: {
+              ...state.spec,
+              lastModified: now(),
+              sections: {
+                ...state.spec.sections,
+                [sectionId]: {
+                  id: sectionId,
+                  content: existingSection?.content ?? '',
+                  images: [...(existingSection?.images ?? []), image],
+                  lastModified: now(),
+                },
+              },
+            },
+          };
+        }),
+
+      updateImageDescription: (sectionId, imageId, description) =>
+        set((state) => {
+          const existingSection = state.spec.sections[sectionId];
+          if (!existingSection) return state;
+          return {
+            spec: {
+              ...state.spec,
+              lastModified: now(),
+              sections: {
+                ...state.spec.sections,
+                [sectionId]: {
+                  ...existingSection,
+                  images: existingSection.images.map((img) =>
+                    img.id === imageId ? { ...img, description } : img
+                  ),
+                  lastModified: now(),
+                },
+              },
+            },
+          };
+        }),
+
+      removeImage: (sectionId, imageId) =>
+        set((state) => {
+          const existingSection = state.spec.sections[sectionId];
+          if (!existingSection) return state;
+          return {
+            spec: {
+              ...state.spec,
+              lastModified: now(),
+              sections: {
+                ...state.spec.sections,
+                [sectionId]: {
+                  ...existingSection,
+                  images: existingSection.images.filter(
+                    (img) => img.id !== imageId
+                  ),
+                  lastModified: now(),
+                },
+              },
+            },
+          };
+        }),
+
+      loadSpec: (spec) => {
+        // Ensure all required sections exist when loading a spec
+        const normalizedSections: Record<SpecSectionId, SpecSection> = {
+          ...createEmptySections(),
+        };
+        Object.keys(spec.sections).forEach((key) => {
+          const sectionId = key as SpecSectionId;
+          if (spec.sections[sectionId]) {
+            normalizedSections[sectionId] = spec.sections[sectionId];
+          }
+        });
+        set({ spec: { ...spec, sections: normalizedSections } });
+      },
+    }),
+    { name: 'auto-designer-active-spec' }
+  )
+);
