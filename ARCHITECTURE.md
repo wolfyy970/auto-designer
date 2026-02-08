@@ -107,16 +107,19 @@ LLM prompt templates. Separated from services so they can be iterated independen
 
 **Why localStorage, not a database.** MVP is a local-first single-user tool. A spec is ~50KB of JSON. Images are base64 data URLs. localStorage handles this fine up to ~5MB. IndexedDB is the escape hatch if image storage becomes a problem.
 
-**Why API calls from the browser.** No backend server. All LLM calls go through OpenRouter's API directly from the client. Single API key in `.env.local` (build-time injection) or localStorage (runtime). OpenRouter provides access to Claude, GPT-4o, Gemini, and others through one endpoint.
+**Why API calls from the browser.** No backend server. LLM calls go through either OpenRouter's API or LM Studio (local) directly from the client. OpenRouter API key in `.env.local` (build-time injection) or localStorage (runtime). OpenRouter provides access to Claude, GPT-4o, Gemini, and others. LM Studio provides local inference with models like Qwen3 Coder Next.
 
 **Why sandboxed iframes with srcdoc.** Generated code is untrusted. `sandbox="allow-scripts"` enables JS execution but blocks navigation, form submission, and parent DOM access. `allow-same-origin` is deliberately omitted to prevent localStorage/cookie access. The `srcdoc` attribute is used instead of `contentDocument.write()` for more reliable, declarative rendering that works with React's lifecycle.
 
 **Why not React Hook Form or a rich text editor.** All spec inputs are `<textarea>`. Freeform text is the product's design decision -- the act of writing forces precision. No UI complexity needed.
+
+**Why independent provider selection for compiler and generation.** The compiler needs high reasoning ability to analyze specs and create strategic dimension maps. Generation needs consistent code output. These requirements are different. You might want to use OpenRouter Claude Opus for compilation (expensive but smart) and local LM Studio for generation (fast and free). The `.env` schema supports independent provider + model tier configuration for each stage.
 
 ## Adding a New Provider
 
 1. Create `src/services/providers/yourprovider.ts`
 2. Implement the `GenerationProvider` interface from `types/provider.ts`
 3. Register it in `src/services/providers/registry.ts`
+4. Add the provider to `callLLM()` in `src/services/compiler.ts` for compilation support
 
 The provider receives a `CompiledPrompt` (full prompt text + reference images) and returns a `GenerationResult` (code string + metadata). That's the entire contract.

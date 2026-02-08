@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { useCompilerStore } from '../../stores/compiler-store';
 import { useGenerationStore } from '../../stores/generation-store';
 import { getProvider } from '../../services/providers/registry';
-import { MODEL_TIERS, DEFAULT_GENERATION_MODEL } from '../../lib/constants';
+import { getModelTiersForProvider, DEFAULT_GENERATION_MODEL, DEFAULT_GENERATION_PROVIDER } from '../../lib/constants';
 import type { OutputFormat } from '../../types/provider';
 import ModelSelector from '../shared/ModelSelector';
 import ProviderSelector from './ProviderSelector';
@@ -20,8 +20,18 @@ export default function GenerationPanel() {
   const resetResults = useGenerationStore((s) => s.reset);
 
   const [format, setFormat] = useState<OutputFormat>('react');
+  const [providerId, setProviderId] = useState(DEFAULT_GENERATION_PROVIDER);
+
+  // Get model tiers for selected provider
+  const modelTiers = useMemo(() => getModelTiersForProvider(providerId), [providerId]);
   const [generationModel, setGenerationModel] = useState(DEFAULT_GENERATION_MODEL);
-  const [providerId, setProviderId] = useState('lmstudio');
+
+  // Reset model to first tier option when provider changes
+  const handleProviderChange = (newProviderId: string) => {
+    setProviderId(newProviderId);
+    const newTiers = getModelTiersForProvider(newProviderId);
+    setGenerationModel(newTiers[1]?.id || newTiers[0]?.id); // Default to balanced tier
+  };
 
   const handleGenerate = async () => {
     const provider = getProvider(providerId);
@@ -96,12 +106,12 @@ export default function GenerationPanel() {
             <div className="flex items-center gap-6">
               <ProviderSelector
                 selectedId={providerId}
-                onChange={setProviderId}
+                onChange={handleProviderChange}
               />
 
               <ModelSelector
                 label="Model"
-                models={MODEL_TIERS}
+                models={modelTiers}
                 selectedId={generationModel}
                 onChange={setGenerationModel}
               />

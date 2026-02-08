@@ -27,8 +27,11 @@ Eight freeform text sections that define a design problem space:
 ### Spec Compilation
 
 - Compile button at bottom of Spec Editor (`/editor`)
-- Sends full spec to OpenRouter LLM (default: Claude Sonnet)
+- Provider selector: OpenRouter or LM Studio (local)
+- Model selector dynamically loads tiers for selected provider
+- Sends full spec to LLM to generate dimension map
 - Automatically navigates to Exploration Space on success
+- Re-compile available in Exploration Space with same provider/model controls
 
 ### Exploration Space (`/compiler`)
 
@@ -43,11 +46,12 @@ Eight freeform text sections that define a design problem space:
 
 ### Code Generation (`/generation`)
 
-- Always uses OpenRouter (provider selection removed for simplicity)
-- Model selector (Claude, GPT-4o, Gemini, etc.)
+- Provider selector: OpenRouter or LM Studio (local)
+- Model selector dynamically loads tiers for selected provider
 - Output format toggle: HTML or React
 - Per-variant status tracking (generating/complete/error)
-- Generates all variants sequentially
+- Generates all variants in parallel (batch processing)
+- LM Studio uses server-side continuous batching for concurrent requests
 
 ### Variant Rendering
 

@@ -12,13 +12,14 @@ cp .env.example .env.local  # add your API keys
 pnpm dev                     # http://localhost:5173
 ```
 
-### Required API Key
+### API Configuration
 
-| Key | Where to get it | What it does |
-|-----|----------------|--------------|
-| `VITE_OPENROUTER_API_KEY` | [openrouter.ai](https://openrouter.ai) | Powers both the prompt compiler and code generation |
+| Key | Where to get it | Required | What it does |
+|-----|----------------|----------|--------------|
+| `VITE_OPENROUTER_API_KEY` | [openrouter.ai](https://openrouter.ai) | For OpenRouter | Powers compilation and/or generation via Claude, GPT-4o, Gemini, etc. |
+| `VITE_LMSTUDIO_URL` | Local (default: `http://192.168.252.213:1234`) | For LM Studio | Local inference endpoint for compilation and/or generation |
 
-One key for everything. Set it in `.env.local` or via the Settings panel (gear icon). OpenRouter gives access to Claude, GPT-4o, Gemini, and more.
+You can mix and match providers. For example: use OpenRouter Claude Opus for compilation (best reasoning) and local LM Studio for generation (fast and free). Configure defaults in `.env.local` or select per-use in the UI.
 
 ## Workflow
 

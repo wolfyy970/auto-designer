@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { CompiledPrompt, DimensionMap, VariantStrategy } from '../types/compiler';
-import { DEFAULT_COMPILER_MODEL } from '../lib/constants';
+import { DEFAULT_COMPILER_MODEL, DEFAULT_COMPILER_PROVIDER } from '../lib/constants';
 import { generateId, now } from '../lib/utils';
 
 interface CompilerStore {
@@ -8,12 +8,14 @@ interface CompilerStore {
   compiledPrompts: CompiledPrompt[];
   isCompiling: boolean;
   error: string | null;
+  selectedProvider: string;
   selectedModel: string;
 
   setDimensionMap: (map: DimensionMap) => void;
   setCompiledPrompts: (prompts: CompiledPrompt[]) => void;
   setCompiling: (isCompiling: boolean) => void;
   setError: (error: string | null) => void;
+  setSelectedProvider: (provider: string) => void;
   setSelectedModel: (model: string) => void;
 
   updateVariant: (variantId: string, updates: Partial<VariantStrategy>) => void;
@@ -30,12 +32,14 @@ export const useCompilerStore = create<CompilerStore>()((set) => ({
   compiledPrompts: [],
   isCompiling: false,
   error: null,
+  selectedProvider: DEFAULT_COMPILER_PROVIDER,
   selectedModel: DEFAULT_COMPILER_MODEL,
 
   setDimensionMap: (map) => set({ dimensionMap: map, error: null }),
   setCompiledPrompts: (prompts) => set({ compiledPrompts: prompts }),
   setCompiling: (isCompiling) => set({ isCompiling }),
   setError: (error) => set({ error }),
+  setSelectedProvider: (provider) => set({ selectedProvider: provider }),
   setSelectedModel: (model) => set({ selectedModel: model }),
 
   updateVariant: (variantId, updates) =>

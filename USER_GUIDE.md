@@ -39,7 +39,12 @@ Drag-and-drop screenshots onto the Existing Design section. Add a description ex
 
 ## Compiling
 
-At the bottom of the Spec Editor, select a compiler model and click **Compile Spec**. This automatically navigates to the Exploration Space (`/compiler`) where you'll see:
+At the bottom of the Spec Editor:
+1. Select a **provider** (OpenRouter or LM Studio)
+2. Select a **model** from the available tiers for that provider
+3. Click **Compile Spec**
+
+This automatically navigates to the Exploration Space (`/compiler`) where you'll see:
 
 - **Dimensions** -- the variables identified from your Exploration Space section
 - **Variant strategies** -- 4-6 coherent plans, each making a different bet about what matters most
@@ -57,11 +62,12 @@ Click **Approve & Continue** when satisfied. This compiles strategies into full 
 
 After approving the exploration space, navigate to Variants (`/generation`).
 
-1. Choose a **model** (Claude Sonnet, Opus, GPT-4o, Gemini, etc.)
-2. Choose **output format** (HTML or React)
-3. Click **Generate Variants**
+1. Choose a **provider** (OpenRouter or LM Studio)
+2. Choose a **model** from the available tiers for that provider
+3. Choose **output format** (HTML or React)
+4. Click **Generate Variants**
 
-Variants generate sequentially using OpenRouter. Each renders in a full-width tab once complete.
+Variants generate in parallel. Each renders in a full-width tab once complete.
 
 **Tab navigation** appears at the top - click a strategy name to view its generated variant. Toggle between Preview and Source views using the buttons above the preview.
 

@@ -1,12 +1,14 @@
 import { useNavigate } from 'react-router-dom';
+import { useMemo } from 'react';
 import { RefreshCw, ArrowRight } from 'lucide-react';
-import { SPEC_SECTIONS, MODEL_TIERS } from '../../lib/constants';
+import { SPEC_SECTIONS, getModelTiersForProvider } from '../../lib/constants';
 import { useSpecStore } from '../../stores/spec-store';
 import { useCompilerStore } from '../../stores/compiler-store';
 import { compileSpec } from '../../services/compiler';
 import SectionEditor from './SectionEditor';
 import ReferenceImageUpload from './ReferenceImageUpload';
 import ModelSelector from '../shared/ModelSelector';
+import ProviderSelector from '../generation/ProviderSelector';
 
 export default function SpecEditor() {
   const navigate = useNavigate();
@@ -17,14 +19,26 @@ export default function SpecEditor() {
   const setDimensionMap = useCompilerStore((s) => s.setDimensionMap);
   const setCompiling = useCompilerStore((s) => s.setCompiling);
   const setError = useCompilerStore((s) => s.setError);
+  const selectedProvider = useCompilerStore((s) => s.selectedProvider);
+  const setSelectedProvider = useCompilerStore((s) => s.setSelectedProvider);
   const selectedModel = useCompilerStore((s) => s.selectedModel);
   const setSelectedModel = useCompilerStore((s) => s.setSelectedModel);
+
+  // Get model tiers for selected provider
+  const modelTiers = useMemo(() => getModelTiersForProvider(selectedProvider), [selectedProvider]);
+
+  // Reset model to appropriate tier when provider changes
+  const handleProviderChange = (newProviderId: string) => {
+    setSelectedProvider(newProviderId);
+    const newTiers = getModelTiersForProvider(newProviderId);
+    setSelectedModel(newTiers[0]?.id || newTiers[1]?.id); // Default to quality tier for compiler
+  };
 
   const handleCompile = async () => {
     setCompiling(true);
     setError(null);
     try {
-      const map = await compileSpec(spec, selectedModel);
+      const map = await compileSpec(spec, selectedModel, selectedProvider);
       setDimensionMap(map);
       // Navigate to exploration space after successful compile
       navigate('/compiler');
@@ -63,9 +77,14 @@ export default function SpecEditor() {
           )}
 
           <div className="flex items-center gap-4">
+            <ProviderSelector
+              selectedId={selectedProvider}
+              onChange={handleProviderChange}
+            />
+
             <ModelSelector
               label="Model"
-              models={MODEL_TIERS}
+              models={modelTiers}
               selectedId={selectedModel}
               onChange={setSelectedModel}
             />

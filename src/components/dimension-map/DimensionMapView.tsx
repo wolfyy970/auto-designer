@@ -1,9 +1,11 @@
 import { Plus, RefreshCw, Check } from 'lucide-react';
+import { useMemo } from 'react';
 import { useCompilerStore } from '../../stores/compiler-store';
 import { useSpecStore } from '../../stores/spec-store';
 import { compileSpec, compileVariantPrompts } from '../../services/compiler';
-import { MODEL_TIERS } from '../../lib/constants';
+import { getModelTiersForProvider } from '../../lib/constants';
 import ModelSelector from '../shared/ModelSelector';
+import ProviderSelector from '../generation/ProviderSelector';
 import VariantStrategyCard from './VariantStrategyCard';
 
 export default function DimensionMapView() {
@@ -18,14 +20,26 @@ export default function DimensionMapView() {
   const setError = useCompilerStore((s) => s.setError);
   const addVariant = useCompilerStore((s) => s.addVariant);
   const approveMap = useCompilerStore((s) => s.approveMap);
+  const selectedProvider = useCompilerStore((s) => s.selectedProvider);
+  const setSelectedProvider = useCompilerStore((s) => s.setSelectedProvider);
   const selectedModel = useCompilerStore((s) => s.selectedModel);
   const setSelectedModel = useCompilerStore((s) => s.setSelectedModel);
+
+  // Get model tiers for selected provider
+  const modelTiers = useMemo(() => getModelTiersForProvider(selectedProvider), [selectedProvider]);
+
+  // Reset model to appropriate tier when provider changes
+  const handleProviderChange = (newProviderId: string) => {
+    setSelectedProvider(newProviderId);
+    const newTiers = getModelTiersForProvider(newProviderId);
+    setSelectedModel(newTiers[0]?.id || newTiers[1]?.id); // Default to quality tier for compiler
+  };
 
   const handleCompile = async () => {
     setCompiling(true);
     setError(null);
     try {
-      const map = await compileSpec(spec, selectedModel);
+      const map = await compileSpec(spec, selectedModel, selectedProvider);
       setDimensionMap(map);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Compilation failed');
@@ -130,9 +144,13 @@ export default function DimensionMapView() {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <ProviderSelector
+              selectedId={selectedProvider}
+              onChange={handleProviderChange}
+            />
             <ModelSelector
               label="Model"
-              models={MODEL_TIERS}
+              models={modelTiers}
               selectedId={selectedModel}
               onChange={setSelectedModel}
             />
