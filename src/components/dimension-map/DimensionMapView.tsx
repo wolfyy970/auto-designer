@@ -1,38 +1,34 @@
 import { Plus, RefreshCw, Check } from 'lucide-react';
-import { useMemo } from 'react';
-import { useCompilerStore } from '../../stores/compiler-store';
+import { useCompilerStore, selectDimensionMap } from '../../stores/compiler-store';
 import { useSpecStore } from '../../stores/spec-store';
 import { compileSpec, compileVariantPrompts } from '../../services/compiler';
-import { getModelTiersForProvider } from '../../lib/constants';
 import ModelSelector from '../shared/ModelSelector';
 import ProviderSelector from '../generation/ProviderSelector';
 import VariantStrategyCard from './VariantStrategyCard';
 
+/** Key used for dimension maps created from non-canvas views */
+const DEFAULT_NODE_KEY = 'default';
+
 export default function DimensionMapView() {
   const spec = useSpecStore((s) => s.spec);
-  const dimensionMap = useCompilerStore((s) => s.dimensionMap);
+  const dimensionMap = useCompilerStore(selectDimensionMap);
   const compiledPrompts = useCompilerStore((s) => s.compiledPrompts);
   const isCompiling = useCompilerStore((s) => s.isCompiling);
   const error = useCompilerStore((s) => s.error);
-  const setDimensionMap = useCompilerStore((s) => s.setDimensionMap);
+  const setDimensionMapForNode = useCompilerStore((s) => s.setDimensionMapForNode);
   const setCompiledPrompts = useCompilerStore((s) => s.setCompiledPrompts);
   const setCompiling = useCompilerStore((s) => s.setCompiling);
   const setError = useCompilerStore((s) => s.setError);
-  const addVariant = useCompilerStore((s) => s.addVariant);
-  const approveMap = useCompilerStore((s) => s.approveMap);
+  const addVariantToNode = useCompilerStore((s) => s.addVariantToNode);
+  const approveMapForNode = useCompilerStore((s) => s.approveMapForNode);
   const selectedProvider = useCompilerStore((s) => s.selectedProvider);
   const setSelectedProvider = useCompilerStore((s) => s.setSelectedProvider);
   const selectedModel = useCompilerStore((s) => s.selectedModel);
   const setSelectedModel = useCompilerStore((s) => s.setSelectedModel);
 
-  // Get model tiers for selected provider
-  const modelTiers = useMemo(() => getModelTiersForProvider(selectedProvider), [selectedProvider]);
-
-  // Reset model to appropriate tier when provider changes
   const handleProviderChange = (newProviderId: string) => {
     setSelectedProvider(newProviderId);
-    const newTiers = getModelTiersForProvider(newProviderId);
-    setSelectedModel(newTiers[0]?.id || newTiers[1]?.id); // Default to quality tier for compiler
+    setSelectedModel('');
   };
 
   const handleCompile = async () => {
@@ -40,7 +36,7 @@ export default function DimensionMapView() {
     setError(null);
     try {
       const map = await compileSpec(spec, selectedModel, selectedProvider);
-      setDimensionMap(map);
+      setDimensionMapForNode(DEFAULT_NODE_KEY, map);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Compilation failed');
     } finally {
@@ -50,7 +46,7 @@ export default function DimensionMapView() {
 
   const handleApprove = () => {
     if (!dimensionMap) return;
-    approveMap();
+    approveMapForNode(DEFAULT_NODE_KEY);
     const prompts = compileVariantPrompts(spec, dimensionMap);
     setCompiledPrompts(prompts);
   };
@@ -108,7 +104,7 @@ export default function DimensionMapView() {
             Variant Strategies ({dimensionMap.variants.length})
           </h3>
           <button
-            onClick={addVariant}
+            onClick={() => addVariantToNode(DEFAULT_NODE_KEY)}
             className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
           >
             <Plus size={14} />
@@ -150,8 +146,8 @@ export default function DimensionMapView() {
             />
             <ModelSelector
               label="Model"
-              models={modelTiers}
-              selectedId={selectedModel}
+              providerId={selectedProvider}
+              selectedModelId={selectedModel}
               onChange={setSelectedModel}
             />
             <button

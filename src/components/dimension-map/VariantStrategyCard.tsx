@@ -1,4 +1,4 @@
-import { ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import type { VariantStrategy } from '../../types/compiler';
 import { useCompilerStore } from '../../stores/compiler-store';
 
@@ -10,12 +10,9 @@ interface VariantStrategyCardProps {
 
 export default function VariantStrategyCard({
   strategy,
-  index,
-  total,
 }: VariantStrategyCardProps) {
   const updateVariant = useCompilerStore((s) => s.updateVariant);
   const removeVariant = useCompilerStore((s) => s.removeVariant);
-  const reorderVariants = useCompilerStore((s) => s.reorderVariants);
 
   const update = (field: keyof VariantStrategy, value: string) => {
     updateVariant(strategy.id, { [field]: value });
@@ -30,22 +27,6 @@ export default function VariantStrategyCard({
           className="flex-1 rounded border border-transparent px-1 text-base font-semibold text-gray-900 outline-none hover:border-gray-200 focus:border-gray-400"
         />
         <div className="flex shrink-0 items-center gap-1">
-          <button
-            onClick={() => reorderVariants(index, index - 1)}
-            disabled={index === 0}
-            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30"
-            aria-label="Move up"
-          >
-            <ChevronUp size={16} />
-          </button>
-          <button
-            onClick={() => reorderVariants(index, index + 1)}
-            disabled={index === total - 1}
-            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30"
-            aria-label="Move down"
-          >
-            <ChevronDown size={16} />
-          </button>
           <button
             onClick={() => removeVariant(strategy.id)}
             className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"

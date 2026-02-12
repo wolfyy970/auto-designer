@@ -1,81 +1,38 @@
-import { useState, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
-import { useCompilerStore } from '../../stores/compiler-store';
+import { useCompilerStore, selectDimensionMap } from '../../stores/compiler-store';
 import { useGenerationStore } from '../../stores/generation-store';
-import { getProvider } from '../../services/providers/registry';
-import { getModelTiersForProvider, DEFAULT_GENERATION_MODEL, DEFAULT_GENERATION_PROVIDER } from '../../lib/constants';
+import { useGenerate } from '../../hooks/useGenerate';
+import { DEFAULT_GENERATION_PROVIDER } from '../../lib/constants';
 import type { OutputFormat } from '../../types/provider';
+import { useProviderModels } from '../../hooks/useProviderModels';
 import ModelSelector from '../shared/ModelSelector';
 import ProviderSelector from './ProviderSelector';
 import VariantGrid from '../output/VariantGrid';
 
 export default function GenerationPanel() {
   const compiledPrompts = useCompilerStore((s) => s.compiledPrompts);
-  const dimensionMap = useCompilerStore((s) => s.dimensionMap);
+  const dimensionMap = useCompilerStore(selectDimensionMap);
   const results = useGenerationStore((s) => s.results);
   const isGenerating = useGenerationStore((s) => s.isGenerating);
-  const addResult = useGenerationStore((s) => s.addResult);
-  const updateResult = useGenerationStore((s) => s.updateResult);
-  const setGenerating = useGenerationStore((s) => s.setGenerating);
-  const resetResults = useGenerationStore((s) => s.reset);
 
   const [format, setFormat] = useState<OutputFormat>('react');
   const [providerId, setProviderId] = useState(DEFAULT_GENERATION_PROVIDER);
+  const [generationModel, setGenerationModel] = useState('');
+  const { data: models } = useProviderModels(providerId);
 
-  // Get model tiers for selected provider
-  const modelTiers = useMemo(() => getModelTiersForProvider(providerId), [providerId]);
-  const [generationModel, setGenerationModel] = useState(DEFAULT_GENERATION_MODEL);
+  const generate = useGenerate();
 
-  // Reset model to first tier option when provider changes
-  const handleProviderChange = (newProviderId: string) => {
+  const handleProviderChange = useCallback((newProviderId: string) => {
     setProviderId(newProviderId);
-    const newTiers = getModelTiersForProvider(newProviderId);
-    setGenerationModel(newTiers[1]?.id || newTiers[0]?.id); // Default to balanced tier
-  };
+    setGenerationModel('');
+  }, []);
 
-  const handleGenerate = async () => {
-    const provider = getProvider(providerId);
-    if (!provider || compiledPrompts.length === 0) return;
-
-    resetResults();
-    setGenerating(true);
-
-    // Create placeholder results for all prompts
-    const placeholderMap = new Map<string, string>();
-    compiledPrompts.forEach((prompt) => {
-      const placeholderId = crypto.randomUUID();
-      placeholderMap.set(prompt.variantStrategyId, placeholderId);
-      addResult({
-        id: placeholderId,
-        variantStrategyId: prompt.variantStrategyId,
-        providerId: provider.id,
-        status: 'generating',
-        metadata: { model: '' },
-      });
-    });
-
-    // Generate all variants in parallel (batch processing)
-    await Promise.all(
-      compiledPrompts.map(async (prompt) => {
-        const placeholderId = placeholderMap.get(prompt.variantStrategyId)!;
-        try {
-          const result = await provider.generate(prompt, { format, model: generationModel });
-          updateResult(placeholderId, {
-            ...result,
-            id: placeholderId,
-            status: 'complete',
-          });
-        } catch (err) {
-          updateResult(placeholderId, {
-            status: 'error',
-            error: err instanceof Error ? err.message : 'Generation failed',
-          });
-        }
-      })
-    );
-
-    setGenerating(false);
-  };
+  const handleGenerate = useCallback(async () => {
+    const modelData = models?.find((m) => m.id === generationModel);
+    const supportsVision = modelData?.supportsVision ?? false;
+    await generate(providerId, compiledPrompts, { format, model: generationModel, supportsVision });
+  }, [generate, providerId, compiledPrompts, format, generationModel, models]);
 
   if (compiledPrompts.length === 0) {
     return (
@@ -111,8 +68,8 @@ export default function GenerationPanel() {
 
               <ModelSelector
                 label="Model"
-                models={modelTiers}
-                selectedId={generationModel}
+                providerId={providerId}
+                selectedModelId={generationModel}
                 onChange={setGenerationModel}
               />
 

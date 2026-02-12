@@ -1,42 +1,59 @@
-import type { DesignSpec } from '../types/spec';
+import type { DesignSpec, ReferenceImage } from '../types/spec';
 import type { CompiledPrompt, DimensionMap, VariantStrategy } from '../types/compiler';
+import type { ContentPart } from '../types/provider';
 import { COMPILER_SYSTEM_PROMPT } from '../lib/prompts/compiler-system';
-import { buildCompilerUserPrompt } from '../lib/prompts/compiler-user';
+import { buildCompilerUserPrompt, type CritiqueInput } from '../lib/prompts/compiler-user';
 import { buildVariantPrompt } from '../lib/prompts/variant-prompt';
 import { generateId, now } from '../lib/utils';
 
-const DEFAULT_LM_STUDIO_URL = 'http://192.168.252.213:1234';
+// Proxy paths — Vite dev server forwards these with credentials injected
+const OPENROUTER_PROXY = '/openrouter-api';
+const LMSTUDIO_PROXY = '/lmstudio-api';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  content: string | ContentPart[];
+}
+
+/** Build multimodal content: text + image parts for the user message */
+function buildMultimodalContent(text: string, images: ReferenceImage[]): ContentPart[] {
+  return [
+    { type: 'text', text },
+    ...images.map((img) => ({
+      type: 'image_url' as const,
+      image_url: { url: img.dataUrl },
+    })),
+  ];
 }
 
 async function callLLM(
   messages: ChatMessage[],
   model: string,
   providerId: string,
-  options: { temperature?: number; max_tokens?: number } = {}
+  options: { temperature?: number; max_tokens?: number; images?: ReferenceImage[] } = {}
 ): Promise<string> {
-  if (providerId === 'openrouter') {
-    const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        'OpenRouter API key is not configured. Set VITE_OPENROUTER_API_KEY in .env.local'
-      );
-    }
+  const { images, ...requestOptions } = options;
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  // When images are provided, make user messages multimodal
+  const finalMessages = images && images.length > 0
+    ? messages.map((msg) => {
+        if (msg.role === 'user' && typeof msg.content === 'string') {
+          return { ...msg, content: buildMultimodalContent(msg.content, images) };
+        }
+        return msg;
+      })
+    : messages;
+
+  if (providerId === 'openrouter') {
+    const response = await fetch(`${OPENROUTER_PROXY}/api/v1/chat/completions`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': window.location.origin,
       },
       body: JSON.stringify({
         model,
-        messages,
-        ...options,
+        messages: finalMessages,
+        ...requestOptions,
       }),
     });
 
@@ -56,25 +73,23 @@ async function callLLM(
   }
 
   if (providerId === 'lmstudio') {
-    const baseUrl = import.meta.env.VITE_LMSTUDIO_URL || DEFAULT_LM_STUDIO_URL;
-
-    const response = await fetch(`${baseUrl}/api/v1/chat`, {
+    const response = await fetch(`${LMSTUDIO_PROXY}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model,
-        messages,
+        messages: finalMessages,
         stream: false,
-        ...options,
+        ...requestOptions,
       }),
     });
 
     if (!response.ok) {
       const errorBody = await response.text();
       if (response.status === 404) {
-        throw new Error(`LM Studio not available at ${baseUrl}. Make sure LM Studio is running and the server is enabled.`);
+        throw new Error('LM Studio not available. Make sure LM Studio is running and the server is enabled.');
       }
       throw new Error(`LM Studio API error (${response.status}): ${errorBody}`);
     }
@@ -143,9 +158,17 @@ function validateDimensionMap(
 export async function compileSpec(
   spec: DesignSpec,
   model: string,
-  providerId: string
+  providerId: string,
+  referenceDesigns?: { name: string; code: string }[],
+  critiques?: CritiqueInput[],
+  supportsVision?: boolean
 ): Promise<DimensionMap> {
-  const userPrompt = buildCompilerUserPrompt(spec);
+  const userPrompt = buildCompilerUserPrompt(spec, referenceDesigns, critiques);
+
+  // Collect images from all spec sections when model supports vision
+  const images = supportsVision
+    ? Object.values(spec.sections).flatMap((s) => s.images).filter((img) => img.dataUrl)
+    : undefined;
 
   const response = await callLLM(
     [
@@ -154,7 +177,7 @@ export async function compileSpec(
     ],
     model,
     providerId,
-    { temperature: 0.7, max_tokens: 4096 }
+    { temperature: 0.7, max_tokens: 4096, images }
   );
 
   const jsonStr = extractJSON(response);

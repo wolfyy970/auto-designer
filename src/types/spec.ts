@@ -1,4 +1,5 @@
 export type SpecSectionId =
+  | 'design-brief'
   | 'existing-design'
   | 'research-context'
   | 'objectives-metrics'

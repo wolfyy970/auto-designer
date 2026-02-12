@@ -1,22 +1,24 @@
 import { useNavigate } from 'react-router-dom';
-import { useMemo } from 'react';
 import { RefreshCw, ArrowRight } from 'lucide-react';
-import { SPEC_SECTIONS, getModelTiersForProvider } from '../../lib/constants';
+import { SPEC_SECTIONS } from '../../lib/constants';
 import { useSpecStore } from '../../stores/spec-store';
-import { useCompilerStore } from '../../stores/compiler-store';
+import { useCompilerStore, selectDimensionMap } from '../../stores/compiler-store';
 import { compileSpec } from '../../services/compiler';
 import SectionEditor from './SectionEditor';
 import ReferenceImageUpload from './ReferenceImageUpload';
 import ModelSelector from '../shared/ModelSelector';
 import ProviderSelector from '../generation/ProviderSelector';
 
+/** Key used for dimension maps created from non-canvas views */
+const DEFAULT_NODE_KEY = 'default';
+
 export default function SpecEditor() {
   const navigate = useNavigate();
   const spec = useSpecStore((s) => s.spec);
-  const dimensionMap = useCompilerStore((s) => s.dimensionMap);
+  const dimensionMap = useCompilerStore(selectDimensionMap);
   const isCompiling = useCompilerStore((s) => s.isCompiling);
   const error = useCompilerStore((s) => s.error);
-  const setDimensionMap = useCompilerStore((s) => s.setDimensionMap);
+  const setDimensionMapForNode = useCompilerStore((s) => s.setDimensionMapForNode);
   const setCompiling = useCompilerStore((s) => s.setCompiling);
   const setError = useCompilerStore((s) => s.setError);
   const selectedProvider = useCompilerStore((s) => s.selectedProvider);
@@ -24,14 +26,9 @@ export default function SpecEditor() {
   const selectedModel = useCompilerStore((s) => s.selectedModel);
   const setSelectedModel = useCompilerStore((s) => s.setSelectedModel);
 
-  // Get model tiers for selected provider
-  const modelTiers = useMemo(() => getModelTiersForProvider(selectedProvider), [selectedProvider]);
-
-  // Reset model to appropriate tier when provider changes
   const handleProviderChange = (newProviderId: string) => {
     setSelectedProvider(newProviderId);
-    const newTiers = getModelTiersForProvider(newProviderId);
-    setSelectedModel(newTiers[0]?.id || newTiers[1]?.id); // Default to quality tier for compiler
+    setSelectedModel('');
   };
 
   const handleCompile = async () => {
@@ -39,7 +36,7 @@ export default function SpecEditor() {
     setError(null);
     try {
       const map = await compileSpec(spec, selectedModel, selectedProvider);
-      setDimensionMap(map);
+      setDimensionMapForNode(DEFAULT_NODE_KEY, map);
       // Navigate to exploration space after successful compile
       navigate('/compiler');
     } catch (err) {
@@ -84,8 +81,8 @@ export default function SpecEditor() {
 
             <ModelSelector
               label="Model"
-              models={modelTiers}
-              selectedId={selectedModel}
+              providerId={selectedProvider}
+              selectedModelId={selectedModel}
               onChange={setSelectedModel}
             />
 

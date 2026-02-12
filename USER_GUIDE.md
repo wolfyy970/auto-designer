@@ -9,78 +9,89 @@ cp .env.example .env.local
 
 Add your API key to `.env.local`:
 ```
-VITE_OPENROUTER_API_KEY=sk-or-...
+OPENROUTER_API_KEY=sk-or-...
 ```
 
-One key powers everything -- compiler and generation. Get one at [openrouter.ai](https://openrouter.ai). Alternatively, enter the key via the Settings panel (gear icon in the header). Keys entered there are stored in localStorage.
+This key stays server-side (Vite proxy). Alternatively, enter an OpenRouter key via the Settings panel (gear icon in header) — keys entered there are stored in localStorage.
+
+For LM Studio vision models, optionally set:
+```
+VITE_LMSTUDIO_VISION_MODELS=llava,minicpm-v,qwen2-vl
+```
 
 ```bash
 pnpm dev
 ```
 
-## Writing a Spec
+## Canvas Workflow
 
-Navigate to `/editor`. The 8-section editor is the primary workspace.
+The canvas (`/canvas`) is the default interface. Nodes connect left-to-right.
 
-**Start with Need & Insight.** This is the most important input -- it determines whether you're exploring the right space. Everything else supports this.
+### 1. Fill in Input Nodes
 
-**Write in prose, not bullets.** The act of writing forces precision. "WCAG AA" as a checkbox is meaningless. "All form inputs need visible labels not just placeholders, error states must use both color and text" is a specification.
+The canvas starts with a **Design Brief** node, an **Incubator**, and a **Designer**. Add more input nodes from the toolbar:
 
-**Existing Design is optional** -- skip it for greenfield work. When present, upload screenshots and describe what's working and what's failing.
+- **Design Brief** — The primary directive. What are you designing and why?
+- **Existing Design** — Describe what exists today. Drag-and-drop screenshots as reference images.
+- **Research Context** — User research, behavioral insights, qualitative findings.
+- **Objectives & Metrics** — Success criteria, KPIs, evaluation measures.
+- **Design Constraints** — Non-negotiable boundaries + exploration ranges.
 
-**Exploration Space defines the search dimensions.** For each dimension, define a range:
-> "Copy length: 10-40 words. Must not use urgency framing. Can vary in tone from clinical to conversational."
+Write in prose, not bullets. Precision is the product.
 
-Tighter ranges = more focused exploration. Looser ranges = more divergent.
+### 2. Incubate (Compile)
 
-### Reference Images
+Connect input nodes to the **Incubator** (edges auto-connect on add). Select a provider and model, then click **Generate**. The Incubator sends your connected inputs to the LLM and produces hypothesis strategies.
 
-Drag-and-drop screenshots onto the Existing Design section. Add a description explaining what the image shows and what role it plays (current state, competitor reference, etc.). Images are passed to vision-capable providers during generation.
+### 3. Edit Hypotheses
 
-## Compiling
+Hypothesis nodes appear to the right of the Incubator. Each represents a variant strategy with:
+- **Name** — Editable label
+- **Primary Emphasis** — Which dimensions this variant pushes on
+- **Details** (expandable) — Rationale, how it differs, coupled decisions
 
-At the bottom of the Spec Editor:
-1. Select a **provider** (OpenRouter or LM Studio)
-2. Select a **model** from the available tiers for that provider
-3. Click **Compile Spec**
+Edit these before generation. Remove strategies not worth exploring.
 
-This automatically navigates to the Exploration Space (`/compiler`) where you'll see:
+### 4. Generate Variants
 
-- **Dimensions** -- the variables identified from your Exploration Space section
-- **Variant strategies** -- 4-6 coherent plans, each making a different bet about what matters most
+Connect hypotheses to the **Designer** node. Select a provider, model, and output format (HTML or React), then click **Create**. Variants generate sequentially.
 
-Review each strategy. The exploration space is editable:
-- Rename strategies to something meaningful
-- Edit rationales if the LLM misinterpreted your spec
-- Remove strategies that aren't worth exploring
-- Add a manual strategy if you have a specific idea
-- Reorder to prioritize
+### 5. Review Variants
 
-Click **Approve & Continue** when satisfied. This compiles strategies into full generation prompts and enables the Variants page.
+Variant nodes render the generated code in sandboxed iframes:
+- **Zoom** — +/- buttons or auto-fit
+- **Interact mode** — Double-click the preview to interact with it (scroll, click). Press Escape to exit.
+- **Source view** — Toggle Preview/Source to see the raw code
+- **Full-screen** — Click the expand icon for full-viewport preview
 
-## Generating Variants
+### 6. Iterate
 
-After approving the exploration space, navigate to Variants (`/generation`).
+To iterate on results:
+- **Screenshot feedback** — Drag a connection from a variant's right handle to the Existing Design node. This captures a screenshot and adds it as a reference image.
+- **Critique** — Add a Critique node, connect a variant to it, write structured feedback (strengths, improvements, direction), then connect the critique to a new Incubator.
+- **Re-incubate** — The Incubator reads reference designs and critiques from its connected inputs, producing improved hypotheses.
 
-1. Choose a **provider** (OpenRouter or LM Studio)
-2. Choose a **model** from the available tiers for that provider
-3. Choose **output format** (HTML or React)
-4. Click **Generate Variants**
+### Auto-Layout
 
-Variants generate in parallel. Each renders in a full-width tab once complete.
+Toggle the **Auto Layout** checkbox in the header. When on:
+- All nodes are positioned automatically based on their connections
+- Nodes are not draggable (prevents accidental misalignment)
+- Layout updates after compilation, generation, adding/removing nodes, or new connections
 
-**Tab navigation** appears at the top - click a strategy name to view its generated variant. Toggle between Preview and Source views using the buttons above the preview.
-
-**Responsive previews:** Each variant uses the full viewport width, so you can see how designs adapt to the screen size.
+When off, drag nodes freely.
 
 ## Managing Specs
 
 Click **Specs** in the header to open the Spec Manager:
 
-- **Save Current** -- snapshot the active spec to localStorage
-- **New Spec** -- saves the current spec, creates a blank one
-- **Duplicate** -- creates a copy for iteration
-- **Export JSON** -- downloads the spec as a `.json` file
-- **Import JSON** -- loads a previously exported spec
-- **Load** -- switch to a saved spec
-- **Delete** -- remove a saved spec from localStorage
+- **Save Current** — Snapshot the active spec to localStorage
+- **New Spec** — Saves the current spec, creates a blank one
+- **Duplicate** — Creates a copy for iteration
+- **Export JSON** — Downloads the spec as a `.json` file
+- **Import JSON** — Loads a previously exported spec
+- **Load** — Switch to a saved spec
+- **Delete** — Remove a saved spec from localStorage
+
+## Legacy Form Workflow
+
+The original page-based workflow remains at `/editor` → `/compiler` → `/generation`. Same spec model and compiler, different UI.

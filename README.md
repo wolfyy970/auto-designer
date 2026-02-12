@@ -2,7 +2,7 @@
 
 A specification workspace that helps designers define design problem boundaries before AI generation, then compiles those specifications into variant prompts that systematically explore the solution space.
 
-Designers write structured specs. The compiler reasons about the exploration space. Generation providers produce code variants. Rendered side-by-side for comparison.
+Designers write structured specs. The compiler reasons about the exploration space. Generation providers produce code variants. Everything connects on a visual node-graph canvas.
 
 ## Quick Start
 
@@ -16,17 +16,23 @@ pnpm dev                     # http://localhost:5173
 
 | Key | Where to get it | Required | What it does |
 |-----|----------------|----------|--------------|
-| `VITE_OPENROUTER_API_KEY` | [openrouter.ai](https://openrouter.ai) | For OpenRouter | Powers compilation and/or generation via Claude, GPT-4o, Gemini, etc. |
-| `VITE_LMSTUDIO_URL` | Local (default: `http://192.168.252.213:1234`) | For LM Studio | Local inference endpoint for compilation and/or generation |
+| `OPENROUTER_API_KEY` | [openrouter.ai](https://openrouter.ai) | For OpenRouter | Server-side only — proxied via Vite, never exposed to browser |
+| `VITE_LMSTUDIO_URL` | Local (default: `http://192.168.252.213:1234`) | For LM Studio | Local inference endpoint |
+| `VITE_LMSTUDIO_VISION_MODELS` | N/A | Optional | Comma-separated model ID substrings that support vision |
 
-You can mix and match providers. For example: use OpenRouter Claude Opus for compilation (best reasoning) and local LM Studio for generation (fast and free). Configure defaults in `.env.local` or select per-use in the UI.
+You can mix and match providers — e.g. OpenRouter Claude for compilation, LM Studio for generation. See `.env.example` for all options.
 
-## Workflow
+## Canvas Workflow
 
-1. **Write a spec** (`/editor`) -- Fill in the 8-section structured document, then compile at the bottom
-2. **Exploration Space** (`/compiler`) -- Review the LLM-generated dimension map with variant strategies
-3. **Approve** -- Edit strategies as needed, then approve to generate variant prompts
-4. **Variants** (`/generation`) -- Generate code variants, compare in full-width tabs
+The primary interface is a visual node-graph canvas (`/canvas`, the default route):
+
+1. **Input nodes** (left) — Design Brief, Existing Design, Research Context, Objectives & Metrics, Design Constraints
+2. **Incubator** — Connect input nodes, select a model, click Generate to produce hypothesis strategies
+3. **Hypotheses** — Editable strategy cards (name, emphasis, rationale). Edit before proceeding.
+4. **Designer** — Connect hypotheses, select a model + format (HTML/React), click Create
+5. **Variants** — Rendered design previews with zoom, interact mode, source view, and full-screen
+
+Nodes connect left-to-right. Auto-layout arranges everything based on connections. Variants can connect back to Existing Design for iterative feedback loops (captures a screenshot automatically).
 
 ## Scripts
 
@@ -34,6 +40,7 @@ You can mix and match providers. For example: use OpenRouter Claude Opus for com
 |---------|-------------|
 | `pnpm dev` | Start dev server |
 | `pnpm build` | Type-check and production build |
+| `pnpm test` | Run unit tests (Vitest) |
 | `pnpm lint` | Run ESLint |
 | `pnpm preview` | Serve production build locally |
 
@@ -41,12 +48,12 @@ You can mix and match providers. For example: use OpenRouter Claude Opus for com
 
 | Document | Purpose |
 |----------|---------|
-| [PRODUCT.md](PRODUCT.md) | What exists today -- features, sections, providers |
-| [USER_GUIDE.md](USER_GUIDE.md) | How to use each part of the workflow |
+| [PRODUCT.md](PRODUCT.md) | What exists today — features, canvas nodes, providers |
+| [USER_GUIDE.md](USER_GUIDE.md) | How to use the canvas workflow |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, data flow, module boundaries |
 | [DOCUMENTATION.md](DOCUMENTATION.md) | Documentation philosophy and rules |
 | [design-spec-workspace-product-spec.md](design-spec-workspace-product-spec.md) | Original product specification |
 
 ## Tech Stack
 
-Vite + React 19 + TypeScript, Zustand (state), Tailwind CSS v4 (styling), react-router-dom v7 (routing), @tanstack/react-query (async state). See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
+Vite + React 19 + TypeScript, Zustand (state), Tailwind CSS v4 (styling), @xyflow/react v12 (canvas), react-router-dom v7 (routing), @tanstack/react-query (async state), Vitest (testing). See [ARCHITECTURE.md](ARCHITECTURE.md) for details.

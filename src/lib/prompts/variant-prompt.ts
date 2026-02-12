@@ -22,6 +22,9 @@ const DEFAULT = `You are a design generation system. Generate a complete, self-c
 
 ## CONTEXT
 
+### Design Brief
+{{DESIGN_BRIEF}}
+
 ### Research & Context
 {{RESEARCH_CONTEXT}}
 
@@ -78,6 +81,7 @@ export function buildVariantPrompt(
     RATIONALE: strategy.rationale,
     COUPLED_DECISIONS: strategy.coupledDecisions,
     DIMENSION_VALUES: dimensionValuesList || '(Use your judgment within the exploration space ranges)',
+    DESIGN_BRIEF: getSection('design-brief'),
     RESEARCH_CONTEXT: getSection('research-context'),
     IMAGE_BLOCK: imageBlock,
     OBJECTIVES_METRICS: getSection('objectives-metrics'),

@@ -1,5 +1,4 @@
 import type { GenerationProvider } from '../../types/provider';
-import { PreviewProvider } from './preview';
 import { OpenRouterGenerationProvider } from './claude';
 import { LMStudioProvider } from './lmstudio';
 
@@ -17,11 +16,6 @@ export function getAvailableProviders(): GenerationProvider[] {
   return Array.from(providers.values()).filter((p) => p.isAvailable());
 }
 
-export function getAllProviders(): GenerationProvider[] {
-  return Array.from(providers.values());
-}
-
 // Register built-in providers
-registerProvider(new PreviewProvider());
 registerProvider(new OpenRouterGenerationProvider());
 registerProvider(new LMStudioProvider());

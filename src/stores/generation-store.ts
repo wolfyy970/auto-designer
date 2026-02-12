@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { GenerationResult } from '../types/provider';
 
 interface GenerationStore {
@@ -11,21 +12,31 @@ interface GenerationStore {
   reset: () => void;
 }
 
-export const useGenerationStore = create<GenerationStore>()((set) => ({
-  results: [],
-  isGenerating: false,
+export const useGenerationStore = create<GenerationStore>()(
+  persist(
+    (set) => ({
+      results: [],
+      isGenerating: false,
 
-  addResult: (result) =>
-    set((state) => ({ results: [...state.results, result] })),
+      addResult: (result) =>
+        set((state) => ({ results: [...state.results, result] })),
 
-  updateResult: (id, updates) =>
-    set((state) => ({
-      results: state.results.map((r) =>
-        r.id === id ? { ...r, ...updates } : r
-      ),
-    })),
+      updateResult: (id, updates) =>
+        set((state) => ({
+          results: state.results.map((r) =>
+            r.id === id ? { ...r, ...updates } : r
+          ),
+        })),
 
-  setGenerating: (isGenerating) => set({ isGenerating }),
+      setGenerating: (isGenerating) => set({ isGenerating }),
 
-  reset: () => set({ results: [], isGenerating: false }),
-}));
+      reset: () => set({ results: [], isGenerating: false }),
+    }),
+    {
+      name: 'auto-designer-generation',
+      partialize: (state) => ({
+        results: state.results,
+      }),
+    }
+  )
+);

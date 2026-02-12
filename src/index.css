@@ -8,3 +8,10 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* React Flow edge animation */
+@keyframes dashmove {
+  to {
+    stroke-dashoffset: -12;
+  }
+}

@@ -1,60 +1,19 @@
 import type { CompiledPrompt } from '../../types/compiler';
 import type {
+  ContentPart,
   GenerationProvider,
   GenerationResult,
   OutputFormat,
+  ProviderModel,
   ProviderOptions,
 } from '../../types/provider';
+import { GEN_SYSTEM_HTML, GEN_SYSTEM_REACT } from '../../lib/constants';
 import { generateId, now } from '../../lib/utils';
+import { extractCode } from '../../lib/extract-code';
 
-const DEFAULT_LM_STUDIO_URL = 'http://192.168.252.213:1234';
+// In dev, Vite proxy forwards /lmstudio-api/* → VITE_LMSTUDIO_URL/*
+const PROXY_BASE = '/lmstudio-api';
 const DEFAULT_MODEL = 'qwen/qwen3-coder-next';
-
-const DEFAULT_GEN_SYSTEM_HTML =
-  'You are a design generation system. Return ONLY a complete, self-contained HTML document. Include all CSS inline. No external dependencies.';
-
-const DEFAULT_GEN_SYSTEM_REACT =
-  'You are a design generation system. Return ONLY a single self-contained React component as JSX. Include all styles inline or via a <style> tag. The component should be named App and export as default. No imports needed — React is available globally.';
-
-function extractCode(text: string): string {
-  console.log('[LM Studio extractCode] Processing response (first 200 chars):', text.substring(0, 200));
-
-  // Try to extract from markdown code fences
-  const htmlMatch = text.match(/```(?:html|htm)\s*\n([\s\S]*?)\n```/);
-  if (htmlMatch) {
-    console.log('[LM Studio extractCode] Found HTML fence');
-    return htmlMatch[1].trim();
-  }
-
-  const reactMatch = text.match(/```(?:jsx|tsx|react)\s*\n([\s\S]*?)\n```/);
-  if (reactMatch) {
-    console.log('[LM Studio extractCode] Found React fence');
-    return reactMatch[1].trim();
-  }
-
-  const genericMatch = text.match(/```\s*\n([\s\S]*?)\n```/);
-  if (genericMatch) {
-    console.log('[LM Studio extractCode] Found generic fence');
-    return genericMatch[1].trim();
-  }
-
-  // Check if response is already raw HTML/code (no fence)
-  const trimmed = text.trim();
-  if (trimmed.match(/^<!doctype|^<html/i)) {
-    console.log('[LM Studio extractCode] Detected raw HTML');
-    return trimmed;
-  }
-
-  // Check if it starts with common React patterns
-  if (trimmed.match(/^(export\s+default|function\s+App|const\s+App)/)) {
-    console.log('[LM Studio extractCode] Detected raw React code');
-    return trimmed;
-  }
-
-  // Fallback: might include explanatory text - warn about this
-  console.warn('[LM Studio extractCode] No code fence found, returning entire response. This may include non-code text.');
-  return text;
-}
 
 export class LMStudioProvider implements GenerationProvider {
   id = 'lmstudio';
@@ -63,31 +22,74 @@ export class LMStudioProvider implements GenerationProvider {
   supportsImages = false;
   supportedFormats: OutputFormat[] = ['html', 'react'];
 
+  async listModels(): Promise<ProviderModel[]> {
+    const url = `${PROXY_BASE}/v1/models`;
+    console.log('[LMStudio] Fetching models from:', url);
+
+    const visionPrefixes = (import.meta.env.VITE_LMSTUDIO_VISION_MODELS || '')
+      .split(',')
+      .map((s: string) => s.trim().toLowerCase())
+      .filter(Boolean);
+
+    try {
+      const response = await fetch(url);
+      console.log('[LMStudio] Response status:', response.status);
+      if (!response.ok) {
+        console.warn('[LMStudio] Non-OK response:', response.status, response.statusText);
+        return [];
+      }
+
+      const json = await response.json();
+      console.log('[LMStudio] Raw response:', json);
+      const models = (json.data ?? []).map((m: Record<string, unknown>) => {
+        const id = m.id as string;
+        return {
+          id,
+          name: id,
+          supportsVision: visionPrefixes.length > 0 &&
+            visionPrefixes.some((prefix: string) => id.toLowerCase().includes(prefix)),
+        };
+      });
+      console.log('[LMStudio] Found models:', models);
+      return models;
+    } catch (err) {
+      console.error('[LMStudio] Failed to fetch models:', err);
+      return [];
+    }
+  }
+
   async generate(
     prompt: CompiledPrompt,
     options: ProviderOptions
   ): Promise<GenerationResult> {
-    const baseUrl = import.meta.env.VITE_LMSTUDIO_URL || DEFAULT_LM_STUDIO_URL;
     const model = options.model || DEFAULT_MODEL;
     const startTime = Date.now();
 
     const systemPrompt =
-      options.format === 'react' ? DEFAULT_GEN_SYSTEM_REACT : DEFAULT_GEN_SYSTEM_HTML;
+      options.format === 'react' ? GEN_SYSTEM_REACT : GEN_SYSTEM_HTML;
+
+    const userContent: string | ContentPart[] =
+      options.supportsVision && prompt.images.length > 0
+        ? [
+            { type: 'text' as const, text: prompt.prompt },
+            ...prompt.images.map((img) => ({
+              type: 'image_url' as const,
+              image_url: { url: img.dataUrl },
+            })),
+          ]
+        : prompt.prompt;
 
     const requestBody = {
       model,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt.prompt },
+        { role: 'user', content: userContent },
       ],
       temperature: 0.7,
       stream: false,
     };
 
-    console.log('[LM Studio] Sending request to:', `${baseUrl}/api/v1/chat`);
-    console.log('[LM Studio] Model:', model);
-
-    const response = await fetch(`${baseUrl}/api/v1/chat`, {
+    const response = await fetch(`${PROXY_BASE}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -98,7 +100,7 @@ export class LMStudioProvider implements GenerationProvider {
     if (!response.ok) {
       const errorBody = await response.text();
       if (response.status === 404) {
-        throw new Error(`LM Studio not available at ${baseUrl}. Make sure LM Studio is running and the server is enabled.`);
+        throw new Error('LM Studio not available. Make sure LM Studio is running and the server is enabled.');
       }
       throw new Error(`LM Studio API error (${response.status}): ${errorBody}`);
     }
@@ -106,11 +108,8 @@ export class LMStudioProvider implements GenerationProvider {
     const data = await response.json();
     const durationMs = Date.now() - startTime;
 
-    // LM Studio v1 API response format
     const rawText = data.choices?.[0]?.message?.content ?? '';
     const code = extractCode(rawText);
-
-    console.log('[LM Studio] Generation complete in', durationMs, 'ms');
 
     return {
       id: generateId(),
@@ -128,7 +127,6 @@ export class LMStudioProvider implements GenerationProvider {
   }
 
   isAvailable(): boolean {
-    // LM Studio doesn't require an API key, just needs to be running
     return true;
   }
 }

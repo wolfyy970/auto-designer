@@ -1,24 +1,60 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AppShell from './components/layout/AppShell';
-import EditorPage from './pages/EditorPage';
-import CompilerPage from './pages/CompilerPage';
-import GenerationPage from './pages/GenerationPage';
+
+const CanvasPage = lazy(() => import('./pages/CanvasPage'));
+const EditorPage = lazy(() => import('./pages/EditorPage'));
+const CompilerPage = lazy(() => import('./pages/CompilerPage'));
+const GenerationPage = lazy(() => import('./pages/GenerationPage'));
 
 const queryClient = new QueryClient();
+
+function PageLoader() {
+  return (
+    <div className="flex h-screen items-center justify-center">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-900" />
+    </div>
+  );
+}
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AppShell>
+        <Suspense fallback={<PageLoader />}>
           <Routes>
-            <Route path="/editor" element={<EditorPage />} />
-            <Route path="/compiler" element={<CompilerPage />} />
-            <Route path="/generation" element={<GenerationPage />} />
-            <Route path="*" element={<Navigate to="/editor" replace />} />
+            {/* Canvas is the primary workspace */}
+            <Route path="/canvas" element={<CanvasPage />} />
+
+            {/* Legacy page-based routes */}
+            <Route
+              path="/editor"
+              element={
+                <AppShell>
+                  <EditorPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path="/compiler"
+              element={
+                <AppShell>
+                  <CompilerPage />
+                </AppShell>
+              }
+            />
+            <Route
+              path="/generation"
+              element={
+                <AppShell>
+                  <GenerationPage />
+                </AppShell>
+              }
+            />
+            <Route path="*" element={<Navigate to="/canvas" replace />} />
           </Routes>
-        </AppShell>
+        </Suspense>
       </BrowserRouter>
     </QueryClientProvider>
   );

@@ -1,6 +1,14 @@
 import type { SpecSectionId, SpecSectionMeta } from '../types/spec';
+import { envNewlines } from './utils';
 
 export const SPEC_SECTIONS: SpecSectionMeta[] = [
+  {
+    id: 'design-brief',
+    title: 'Design Brief',
+    description:
+      'What do you want to design? The primary directive — describe the design challenge, target experience, and desired outcome.',
+    required: true,
+  },
   {
     id: 'existing-design',
     title: 'Existing Design',
@@ -31,74 +39,24 @@ export const SPEC_SECTIONS: SpecSectionMeta[] = [
   },
 ];
 
-export type ModelTier = 'quality' | 'balanced' | 'speed';
-
-export interface ModelOption {
-  id: string;
-  tier: ModelTier;
-  label: string;
-  description: string;
-}
-
-// OpenRouter model IDs from .env
-const OPENROUTER_MODEL_QUALITY = import.meta.env.VITE_OPENROUTER_MODEL_QUALITY || 'anthropic/claude-opus-4.6';
-const OPENROUTER_MODEL_BALANCED = import.meta.env.VITE_OPENROUTER_MODEL_BALANCED || 'anthropic/claude-sonnet-4.5';
-const OPENROUTER_MODEL_SPEED = import.meta.env.VITE_OPENROUTER_MODEL_SPEED || 'anthropic/claude-haiku-4.5';
-
-// LM Studio model IDs from .env
-const LMSTUDIO_MODEL_QUALITY = import.meta.env.VITE_LMSTUDIO_MODEL_QUALITY || 'qwen/qwen3-coder-next';
-const LMSTUDIO_MODEL_BALANCED = import.meta.env.VITE_LMSTUDIO_MODEL_BALANCED || 'qwen/qwen3-coder-next';
-const LMSTUDIO_MODEL_SPEED = import.meta.env.VITE_LMSTUDIO_MODEL_SPEED || 'qwen/qwen3-coder-next';
-
-function modelName(id: string): string {
-  const parts = id.split('/');
-  return parts.length > 1 ? parts[1] : id;
-}
-
-export const OPENROUTER_MODEL_TIERS: ModelOption[] = [
-  { id: OPENROUTER_MODEL_QUALITY, tier: 'quality', label: 'Quality', description: `Best output — ${modelName(OPENROUTER_MODEL_QUALITY)}` },
-  { id: OPENROUTER_MODEL_BALANCED, tier: 'balanced', label: 'Balanced', description: `Default — ${modelName(OPENROUTER_MODEL_BALANCED)}` },
-  { id: OPENROUTER_MODEL_SPEED, tier: 'speed', label: 'Speed', description: `Fastest — ${modelName(OPENROUTER_MODEL_SPEED)}` },
-];
-
-export const LMSTUDIO_MODEL_TIERS: ModelOption[] = [
-  { id: LMSTUDIO_MODEL_QUALITY, tier: 'quality', label: 'Quality', description: `Best output — ${modelName(LMSTUDIO_MODEL_QUALITY)}` },
-  { id: LMSTUDIO_MODEL_BALANCED, tier: 'balanced', label: 'Balanced', description: `Default — ${modelName(LMSTUDIO_MODEL_BALANCED)}` },
-  { id: LMSTUDIO_MODEL_SPEED, tier: 'speed', label: 'Speed', description: `Fastest — ${modelName(LMSTUDIO_MODEL_SPEED)}` },
-];
-
-// Legacy fallback - defaults to OpenRouter
-export const MODEL_TIERS = OPENROUTER_MODEL_TIERS;
-
-// Helper to get model tiers for a specific provider
-export function getModelTiersForProvider(providerId: string): ModelOption[] {
-  switch (providerId) {
-    case 'lmstudio':
-      return LMSTUDIO_MODEL_TIERS;
-    case 'openrouter':
-      return OPENROUTER_MODEL_TIERS;
-    default:
-      return OPENROUTER_MODEL_TIERS;
-  }
-}
-
-function resolveDefaultTier(envKey: string, fallback: ModelTier, tiers: ModelOption[]): string {
-  const tier = (import.meta.env[envKey] || fallback) as ModelTier;
-  const match = tiers.find((m) => m.tier === tier);
-  return match?.id ?? tiers.find((m) => m.tier === 'balanced')!.id;
-}
-
-// Resolve default provider and model for compiler
+// Default providers
 export const DEFAULT_COMPILER_PROVIDER = import.meta.env.VITE_DEFAULT_COMPILER_PROVIDER || 'openrouter';
-const compilerTiers = getModelTiersForProvider(DEFAULT_COMPILER_PROVIDER);
-export const DEFAULT_COMPILER_MODEL = resolveDefaultTier('VITE_DEFAULT_COMPILER_TIER', 'quality', compilerTiers);
-
-// Resolve default provider and model for generation
 export const DEFAULT_GENERATION_PROVIDER = import.meta.env.VITE_DEFAULT_GENERATION_PROVIDER || 'lmstudio';
-const generationTiers = getModelTiersForProvider(DEFAULT_GENERATION_PROVIDER);
-export const DEFAULT_GENERATION_MODEL = resolveDefaultTier('VITE_DEFAULT_GENERATION_TIER', 'balanced', generationTiers);
 
-export function createEmptySection(id: SpecSectionId) {
+// Generation system prompts (shared by all providers)
+const DEFAULT_GEN_SYSTEM_HTML =
+  'You are a design generation system. Return ONLY a complete, self-contained HTML document. Include all CSS inline. No external dependencies.';
+
+const DEFAULT_GEN_SYSTEM_REACT =
+  'You are a design generation system. Return ONLY a single self-contained React component as JSX. Include all styles inline or via a <style> tag. The component should be named App and export as default. No imports needed — React is available globally.';
+
+const envHtml = import.meta.env.VITE_PROMPT_GEN_SYSTEM_HTML;
+const envReact = import.meta.env.VITE_PROMPT_GEN_SYSTEM_REACT;
+
+export const GEN_SYSTEM_HTML: string = envHtml ? envNewlines(envHtml) : DEFAULT_GEN_SYSTEM_HTML;
+export const GEN_SYSTEM_REACT: string = envReact ? envNewlines(envReact) : DEFAULT_GEN_SYSTEM_REACT;
+
+function createEmptySection(id: SpecSectionId) {
   return {
     id,
     content: '',

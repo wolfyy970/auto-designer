@@ -1,80 +1,71 @@
-# Product -- What Exists Today
+# Product — What Exists Today
 
-**Status:** MVP complete. Not yet tested end-to-end with real API keys.
+**Status:** Canvas interface complete. Vision support implemented. Auto-layout system operational.
 
-## Features
+## Canvas Interface (`/canvas` — default route)
 
-### Spec Editor (`/editor`)
+A visual node-graph workspace built on @xyflow/react v12. Nodes connect left-to-right representing the design exploration pipeline.
 
-Eight freeform text sections that define a design problem space:
+### Node Types
 
-| Section | Required | Purpose |
-|---------|----------|---------|
-| Existing Design | No | What exists today -- screenshots, what works/fails |
-| Decision Context | Yes | User state at moment of interaction -- intent, knowledge, emotion |
-| Need & Insight | Yes | Human need + research insight framing the opportunity |
-| Business Objective | Yes | What the business needs -- metric, time horizon, unit economics |
-| Constraints | Yes | Non-negotiable boundaries -- brand, accessibility, legal, technical |
-| Exploration Space | Yes | What varies across variants and the ranges for each dimension |
-| Evaluation Framework | Yes | How to judge outputs -- metrics, guardrails, thresholds |
-| Ethical Guardrails | Yes | What the system must never produce -- dark patterns, manipulation |
+| Node | Type | Purpose |
+|------|------|---------|
+| Design Brief | Input | Primary directive for the design exploration |
+| Existing Design | Input | What exists today — text + reference images (drag-and-drop) |
+| Research Context | Input | User research, behavioral insights |
+| Objectives & Metrics | Input | Success criteria and evaluation measures |
+| Design Constraints | Input | Non-negotiable boundaries + exploration ranges |
+| Incubator | Processing | Compiles connected inputs → hypothesis strategies via LLM |
+| Hypothesis | Processing | Editable strategy card (name, emphasis, rationale, coupled decisions) |
+| Designer | Processing | Generates code variants from connected hypotheses |
+| Variant | Output | Rendered design preview with zoom, source view, interact mode, full-screen |
+| Critique | Processing | Structured feedback (strengths, improvements, direction) for iteration |
 
-- All fields are freeform text (no checkboxes or dropdowns)
-- Reference image upload via drag-and-drop on the Existing Design section
-- Images stored as base64 data URLs
-- Content auto-saves to localStorage
+### Canvas Features
 
-### Spec Compilation
+- **Auto-layout** — Edge-driven Sugiyama-style layout. Toggleable checkbox in header. Positions all nodes based on connections, prevents overlap, centers layers vertically.
+- **Auto-connect** — Adding a node auto-connects it to the appropriate upstream node
+- **Context menu** — Right-click canvas to add nodes at click position
+- **Node palette** — Grouped picker (input/processing/output) in toolbar
+- **Lineage highlighting** — Select a node to highlight its connected upstream/downstream chain
+- **Edge animations** — Custom DataFlowEdge with status indicators (idle/processing/complete/error)
+- **Variant interaction** — Double-click a variant preview to enter interact mode (clickable, scrollable). Escape or click button to exit.
+- **Full-screen preview** — Expand any variant to full-screen overlay
+- **Screenshot capture** — Connect a variant to Existing Design to automatically capture a screenshot as a reference image for the next iteration
 
-- Compile button at bottom of Spec Editor (`/editor`)
-- Provider selector: OpenRouter or LM Studio (local)
-- Model selector dynamically loads tiers for selected provider
-- Sends full spec to LLM to generate dimension map
-- Automatically navigates to Exploration Space on success
-- Re-compile available in Exploration Space with same provider/model controls
+### Iteration Loop
 
-### Exploration Space (`/compiler`)
+Variants can connect back to Existing Design (or to a Critique node, then to Incubator). This creates a feedback loop:
+1. Generate variants
+2. Connect best variant → Existing Design (captures screenshot) or add Critique
+3. Re-incubate with the new context
+4. Generate improved variants
 
-- Displays **dimension map**: identified dimensions + 4-6 variant strategies
-- Each strategy has: name, primary emphasis, rationale, how it differs, coupled decisions
-- Edit strategy names, emphasis, rationale
-- Add new strategies manually
-- Remove strategies not worth exploring
-- Reorder strategies (up/down)
-- Re-compile to get a fresh map from the LLM
-- **Approve & Continue** compiles strategies into generation prompts
+## Legacy Routes
 
-### Code Generation (`/generation`)
+The original form-based workflow still works at `/editor`, `/compiler`, `/generation`.
 
-- Provider selector: OpenRouter or LM Studio (local)
-- Model selector dynamically loads tiers for selected provider
-- Output format toggle: HTML or React
-- Per-variant status tracking (generating/complete/error)
-- Generates all variants in parallel (batch processing)
-- LM Studio uses server-side continuous batching for concurrent requests
+## Providers
 
-### Variant Rendering
+| Provider | Compilation | Generation | Vision |
+|----------|-------------|------------|--------|
+| OpenRouter | Yes | Yes | Auto-detected from model metadata |
+| LM Studio | Yes | Yes | Configurable via `VITE_LMSTUDIO_VISION_MODELS` env var |
 
-- **Tab-based layout** - one variant visible at a time for full-width viewing
-- Generated code renders in sandboxed iframes using `srcdoc` attribute
-- Sandbox: `allow-scripts` only (no same-origin, no forms, no navigation)
-- Preview/Source toggle per variant
-- Strategy metadata displayed above each variant
-- React output wrapped in CDN-loaded runtime template
-- Responsive: variants use full viewport width
+- Both stages (compilation and generation) support independent provider + model selection
+- Models fetched dynamically via each provider's API
+- Vision-capable models show an eye icon in the model selector
+- When vision is available, reference images are sent as multimodal content alongside text
 
-### Persistence
+## Persistence
 
-- Auto-save via Zustand `persist` middleware (localStorage)
-- Spec Manager modal: save, load, duplicate, delete specs
-- JSON export/import for sharing and backup
-- Settings modal for entering API keys in-browser
+- All stores auto-save via Zustand `persist` middleware (localStorage)
+- Spec Manager: save, load, duplicate, delete, export/import JSON
+- Canvas state persists across sessions (nodes, edges, viewport, layout preferences)
 
 ## What's Not Built Yet
 
-- Image context extraction (vision LLM for design DNA)
-- Canvas/node-based interface (React Flow)
-- Agent orchestration (Aegra/LangGraph)
+- Agent orchestration (LangGraph/Aegra swarms)
 - Self-hosted inference (vLLM)
 - Experimentation/deployment integration
 - Spec version history

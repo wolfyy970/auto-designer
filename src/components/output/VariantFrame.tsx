@@ -2,33 +2,13 @@ import { useMemo, useState } from 'react';
 import { Code, Eye } from 'lucide-react';
 import type { VariantStrategy } from '../../types/compiler';
 import type { GenerationResult } from '../../types/provider';
+import { prepareIframeContent, renderErrorHtml } from '../../lib/iframe-utils';
 import VariantMetadata from './VariantMetadata';
 
 interface VariantFrameProps {
   result: GenerationResult;
   strategy: VariantStrategy;
   isPreview?: boolean;
-}
-
-function wrapReactCode(code: string): string {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="text/babel">
-    ${code}
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(typeof App !== 'undefined' ? App : () => React.createElement('div', null, 'No App component found')));
-  </script>
-</body>
-</html>`;
 }
 
 export default function VariantFrame({
@@ -39,48 +19,13 @@ export default function VariantFrame({
   const [showSource, setShowSource] = useState(false);
 
   const htmlContent = useMemo(() => {
-    if (!result.code) {
-      console.log('[VariantFrame] No code available');
-      return '';
-    }
-
+    if (!result.code) return '';
     try {
-      // Determine if this is React code (improved detection)
-      const codeStr = result.code.trim();
-      const isReact =
-        codeStr.includes('function App') ||
-        codeStr.includes('const App') ||
-        codeStr.includes('export default App') ||
-        codeStr.includes('export default function') ||
-        codeStr.includes('export default () =>') ||
-        /^(function|const|let|var)\s+App/.test(codeStr);
-
-      const isHtml = codeStr.startsWith('<!') || codeStr.toLowerCase().startsWith('<html');
-
-      console.log('[VariantFrame] Preparing content:', {
-        isReact,
-        isHtml,
-        codeLength: result.code.length,
-        codePreview: result.code.substring(0, 100) + '...'
-      });
-
-      const html = isReact && !isHtml
-        ? wrapReactCode(result.code)
-        : result.code;
-
-      console.log('[VariantFrame] HTML content prepared for rendering');
-      return html;
-    } catch (error) {
-      console.error('[VariantFrame] Error preparing content:', error);
-      return `
-        <!DOCTYPE html>
-        <html>
-          <body style="font-family: system-ui; padding: 20px; color: #dc2626;">
-            <h3>Rendering Error</h3>
-            <pre style="background: #fee; padding: 10px; border-radius: 4px; overflow: auto;">${error instanceof Error ? error.message : String(error)}</pre>
-          </body>
-        </html>
-      `;
+      return prepareIframeContent(result.code);
+    } catch (err) {
+      return renderErrorHtml(
+        err instanceof Error ? err.message : String(err)
+      );
     }
   }, [result.code]);
 

@@ -6,6 +6,9 @@ import { generateId, now } from '../lib/utils';
 
 interface SpecStore {
   spec: DesignSpec;
+  /** Transient (not persisted): section currently having an image captured */
+  capturingImage: SpecSectionId | null;
+  setCapturingImage: (sectionId: SpecSectionId | null) => void;
   createNewSpec: (title?: string) => void;
   setTitle: (title: string) => void;
   updateSection: (sectionId: SpecSectionId, content: string) => void;
@@ -30,6 +33,8 @@ export const useSpecStore = create<SpecStore>()(
   persist(
     (set) => ({
       spec: createNewDesignSpec(),
+      capturingImage: null,
+      setCapturingImage: (sectionId) => set({ capturingImage: sectionId }),
 
       createNewSpec: (title) =>
         set({ spec: createNewDesignSpec(title) }),
@@ -137,6 +142,9 @@ export const useSpecStore = create<SpecStore>()(
         set({ spec: { ...spec, sections: normalizedSections } });
       },
     }),
-    { name: 'auto-designer-active-spec' }
+    {
+      name: 'auto-designer-active-spec',
+      partialize: (state) => ({ spec: state.spec }),
+    }
   )
 );
