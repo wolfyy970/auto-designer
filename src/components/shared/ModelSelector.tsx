@@ -61,7 +61,7 @@ export default function ModelSelector({
   // Close on outside click
   useEffect(() => {
     if (!isOpen) return;
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: PointerEvent) {
       if (
         containerRef.current &&
         !containerRef.current.contains(e.target as Node)
@@ -70,8 +70,8 @@ export default function ModelSelector({
         setSearch('');
       }
     }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('pointerdown', handleClick, true);
+    return () => document.removeEventListener('pointerdown', handleClick, true);
   }, [isOpen]);
 
   // Scroll highlighted item into view
@@ -130,7 +130,7 @@ export default function ModelSelector({
 
   return (
     <div className="nodrag nowheel" ref={containerRef}>
-      <label className="mb-1 block text-xs font-medium text-gray-500">
+      <label className="mb-1 block text-xs font-medium text-fg-secondary">
         {label}
       </label>
       <div className="relative">
@@ -150,11 +150,11 @@ export default function ModelSelector({
             onKeyDown={handleKeyDown}
             placeholder={isLoading ? 'Loading models...' : 'Search models...'}
             disabled={isLoading}
-            className="w-full rounded-md border border-gray-200 bg-white py-2 pl-2.5 pr-7 text-xs text-gray-800 outline-none focus:border-gray-400 disabled:opacity-60"
+            className="w-full rounded-md border border-border bg-bg py-2 pl-2.5 pr-7 text-xs text-fg-secondary outline-none focus:border-accent disabled:opacity-60"
           />
-          <span className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 text-gray-400">
+          <span className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 text-fg-muted">
             {!isOpen && selectedModel?.supportsVision && (
-              <Eye size={10} className="text-blue-500" />
+              <Eye size={10} className="text-info" />
             )}
             {isLoading ? (
               <Loader2 size={12} className="animate-spin" />
@@ -167,10 +167,10 @@ export default function ModelSelector({
         {isOpen && (
           <ul
             ref={listRef}
-            className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+            className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-bg py-1 shadow-lg"
           >
             {isError && (
-              <li className="flex items-center gap-1.5 px-2.5 py-2 text-xs text-red-500">
+              <li className="flex items-center gap-1.5 px-2.5 py-2 text-xs text-error">
                 <AlertCircle size={12} />
                 Failed to load
                 <button
@@ -179,39 +179,40 @@ export default function ModelSelector({
                       queryKey: ['provider-models', providerId],
                     })
                   }
-                  className="ml-auto text-blue-500 hover:underline"
+                  className="ml-auto text-info hover:underline"
                 >
                   Retry
                 </button>
               </li>
             )}
             {!isError && filtered.length === 0 && !isLoading && (
-              <li className="px-2.5 py-2 text-xs text-gray-400">
+              <li className="px-2.5 py-2 text-xs text-fg-muted">
                 No models found
               </li>
             )}
             {filtered.map((m, i) => (
               <li
                 key={m.id}
-                onMouseDown={(e) => {
+                onPointerDown={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
                   select(m.id);
                 }}
                 onMouseEnter={() => setHighlightIndex(i)}
                 className={`cursor-pointer px-2.5 py-1.5 text-xs ${
                   i === highlightIndex
-                    ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-700'
+                    ? 'bg-accent/15 text-fg'
+                    : 'text-fg-secondary'
                 } ${m.id === selectedModelId ? 'font-medium' : ''}`}
               >
                 <div className="flex items-center gap-1 truncate">
                   {m.name}
                   {m.supportsVision && (
-                    <Eye size={10} className="shrink-0 text-blue-500" />
+                    <Eye size={10} className="shrink-0 text-info" />
                   )}
                 </div>
                 {m.name !== m.id && (
-                  <div className="truncate text-[10px] text-gray-400">
+                  <div className="truncate text-nano text-fg-muted">
                     {m.id}
                     {m.contextLength
                       ? ` · ${Math.round(m.contextLength / 1024)}k ctx`

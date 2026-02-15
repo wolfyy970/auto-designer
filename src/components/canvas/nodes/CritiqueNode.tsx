@@ -1,15 +1,14 @@
 import { memo, useCallback } from 'react';
-import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
+import { type NodeProps, type Node } from '@xyflow/react';
 import { X } from 'lucide-react';
 import { useCanvasStore, type CanvasNodeData } from '../../../stores/canvas-store';
-import { useLineageDim } from '../../../hooks/useLineageDim';
+import NodeShell from './NodeShell';
 
 type CritiqueNodeType = Node<CanvasNodeData, 'critique'>;
 
 function CritiqueNode({ id, data, selected }: NodeProps<CritiqueNodeType>) {
   const removeNode = useCanvasStore((s) => s.removeNode);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
-  const lineageDim = useLineageDim(id, !!selected);
 
   const title = (data.title as string) || '';
   const strengths = (data.strengths as string) || '';
@@ -22,38 +21,37 @@ function CritiqueNode({ id, data, selected }: NodeProps<CritiqueNodeType>) {
   );
 
   const borderClass = selected
-    ? 'border-amber-400 ring-2 ring-amber-200'
+    ? 'border-warning ring-2 ring-warning/20'
     : (strengths.trim() || improvements.trim() || direction.trim())
-      ? 'border-amber-300'
-      : 'border-dashed border-amber-200';
+      ? 'border-warning/50'
+      : 'border-dashed border-warning/30';
 
   return (
-    <div className={`w-[320px] rounded-lg border bg-white shadow-sm ${borderClass} ${lineageDim}`}>
-      {/* Target handle (left) ← variant */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!h-4 !w-4 !border-2 !border-amber-300 !bg-white"
-      />
-
+    <NodeShell
+      nodeId={id}
+      selected={!!selected}
+      width="w-node"
+      borderClass={borderClass}
+      handleColor={strengths.trim() || improvements.trim() || direction.trim() ? 'green' : 'amber'}
+    >
       {/* Header */}
-      <div className="border-b border-amber-100 bg-amber-50/50 px-3 py-2.5">
+      <div className="border-b border-warning/20 bg-warning-subtle px-3 py-2.5">
         <div className="flex items-center gap-2">
           <input
             value={title}
             onChange={(e) => update('title', e.target.value)}
             placeholder="Critique"
-            className="nodrag nowheel min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-xs font-semibold text-gray-900 placeholder:text-amber-300 outline-none hover:border-amber-200 focus:border-amber-400"
+            className="nodrag nowheel min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-xs font-semibold text-fg placeholder:text-warning/50 outline-none hover:border-warning/30 focus:border-warning"
           />
           <button
             onClick={() => removeNode(id)}
-            className="nodrag shrink-0 rounded p-0.5 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
+            className="nodrag shrink-0 rounded p-0.5 text-fg-faint transition-colors hover:bg-error-subtle hover:text-error"
             title="Remove"
           >
             <X size={12} />
           </button>
         </div>
-        <p className="mt-0.5 text-[10px] leading-tight text-amber-400">
+        <p className="mt-0.5 text-nano leading-tight text-warning">
           Feedback for next iteration
         </p>
       </div>
@@ -79,14 +77,7 @@ function CritiqueNode({ id, data, selected }: NodeProps<CritiqueNodeType>) {
           placeholder="Try this next..."
         />
       </div>
-
-      {/* Source handle (right) → compiler */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!h-4 !w-4 !border-2 !border-amber-300 !bg-white"
-      />
-    </div>
+    </NodeShell>
   );
 }
 
@@ -103,7 +94,7 @@ function CritiqueField({
 }) {
   return (
     <div>
-      <label className="mb-0.5 block text-[10px] font-medium text-amber-500">
+      <label className="mb-0.5 block text-nano font-medium text-warning">
         {label}
       </label>
       <textarea
@@ -111,7 +102,7 @@ function CritiqueField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={2}
-        className="nodrag nowheel w-full resize-none rounded border border-gray-200 px-2.5 py-1.5 text-[11px] text-gray-700 placeholder:text-gray-300 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-200"
+        className="nodrag nowheel w-full resize-none rounded border border-border px-2.5 py-1.5 text-micro text-fg-secondary placeholder:text-fg-faint outline-none focus:border-warning focus:ring-1 focus:ring-warning/20"
       />
     </div>
   );

@@ -123,18 +123,18 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
     <Modal open={open} onClose={onClose} title="Spec Manager">
       <div className="space-y-4">
         {/* Current spec info */}
-        <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-          <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
+        <div className="rounded-md border border-border bg-surface px-3 py-2">
+          <p className="text-nano font-medium uppercase tracking-wide text-fg-muted">
             Currently editing
           </p>
-          <p className="text-sm font-medium text-gray-800">{spec.title}</p>
+          <p className="text-sm font-medium text-fg-secondary">{spec.title}</p>
         </div>
 
         {/* Actions for current spec */}
         <div className="flex flex-wrap gap-2">
           <button
             onClick={handleSave}
-            className="flex items-center gap-1 rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800"
+            className="flex items-center gap-1 rounded-md bg-fg px-3 py-1.5 text-xs font-medium text-bg hover:bg-fg/90"
           >
             {savedFeedback ? (
               <>
@@ -147,25 +147,25 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
           </button>
           <button
             onClick={handleNew}
-            className="rounded-md border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+            className="rounded-md border border-border px-3 py-1.5 text-xs text-fg-secondary hover:bg-surface"
           >
             New Spec
           </button>
           <button
             onClick={handleDuplicate}
-            className="flex items-center gap-1 rounded-md border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+            className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs text-fg-secondary hover:bg-surface"
           >
             <Copy size={12} />
             Duplicate
           </button>
           <button
             onClick={handleExport}
-            className="flex items-center gap-1 rounded-md border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+            className="flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs text-fg-secondary hover:bg-surface"
           >
             <Download size={12} />
             Export JSON
           </button>
-          <label className="flex cursor-pointer items-center gap-1 rounded-md border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50">
+          <label className="flex cursor-pointer items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs text-fg-secondary hover:bg-surface">
             <Upload size={12} />
             Import JSON
             <input
@@ -181,7 +181,7 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
         {/* Saved specs list */}
         {specs.length > 0 ? (
           <div>
-            <h3 className="mb-2 text-xs font-medium text-gray-500">
+            <h3 className="mb-2 text-xs font-medium text-fg-secondary">
               Saved Specs
             </h3>
             <div className="space-y-1">
@@ -192,8 +192,8 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
                     key={s.id}
                     className={`flex items-center justify-between rounded-md border px-3 py-2 ${
                       isActive
-                        ? 'border-blue-200 bg-blue-50'
-                        : 'border-gray-100 hover:bg-gray-50'
+                        ? 'border-accent bg-info-subtle'
+                        : 'border-border-subtle hover:bg-surface'
                     }`}
                   >
                     <button
@@ -202,16 +202,16 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
                       className="flex-1 text-left"
                     >
                       <span
-                        className={`text-sm font-medium ${isActive ? 'text-blue-700' : 'text-gray-800'}`}
+                        className={`text-sm font-medium ${isActive ? 'text-info' : 'text-fg-secondary'}`}
                       >
                         {s.title}
                       </span>
                       {isActive && (
-                        <span className="ml-2 inline-block rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-600">
+                        <span className="ml-2 inline-block rounded bg-accent-subtle px-1.5 py-0.5 text-nano font-medium text-info">
                           Active
                         </span>
                       )}
-                      <span className="ml-2 text-xs text-gray-400">
+                      <span className="ml-2 text-xs text-fg-muted">
                         {new Date(s.lastModified).toLocaleDateString()}
                       </span>
                     </button>
@@ -220,8 +220,8 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
                       disabled={isActive}
                       className={`ml-2 rounded p-1 ${
                         isActive
-                          ? 'cursor-not-allowed text-gray-200'
-                          : 'text-gray-400 hover:bg-red-50 hover:text-red-600'
+                          ? 'cursor-not-allowed text-fg-faint'
+                          : 'text-fg-muted hover:bg-error-subtle hover:text-error'
                       }`}
                       aria-label="Delete spec"
                       title={
@@ -238,7 +238,7 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
             </div>
           </div>
         ) : (
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-fg-muted">
             No saved specs yet. Click &ldquo;Save Current&rdquo; to save your
             work.
           </p>

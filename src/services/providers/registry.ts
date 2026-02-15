@@ -4,7 +4,7 @@ import { LMStudioProvider } from './lmstudio';
 
 const providers = new Map<string, GenerationProvider>();
 
-export function registerProvider(provider: GenerationProvider) {
+function registerProvider(provider: GenerationProvider) {
   providers.set(provider.id, provider);
 }
 

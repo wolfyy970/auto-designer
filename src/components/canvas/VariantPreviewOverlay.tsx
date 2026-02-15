@@ -1,24 +1,111 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, Columns2 } from 'lucide-react';
-import { useGenerationStore } from '../../stores/generation-store';
+import { X, Columns2, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  useGenerationStore,
+  getStack,
+  getActiveResult,
+  getScopedStack,
+  getScopedActiveResult,
+} from '../../stores/generation-store';
 import { useCompilerStore, findVariantStrategy } from '../../stores/compiler-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { prepareIframeContent, renderErrorHtml } from '../../lib/iframe-utils';
+import { useResultCode } from '../../hooks/useResultCode';
+import { badgeColor } from '../../lib/badge-colors';
+import type { GenerationResult } from '../../types/provider';
 
 export default function VariantPreviewOverlay() {
+  // expandedVariantId is now a canvas node ID
   const expandedVariantId = useCanvasStore((s) => s.expandedVariantId);
   const setExpandedVariant = useCanvasStore((s) => s.setExpandedVariant);
-  const results = useGenerationStore((s) => s.results);
   const dimensionMaps = useCompilerStore((s) => s.dimensionMaps);
+
+  // Look up node data from canvas store (primitive selectors for stability)
+  const variantStrategyId = useCanvasStore(
+    (s) => {
+      if (!expandedVariantId) return undefined;
+      return s.nodes.find((n) => n.id === expandedVariantId)?.data.variantStrategyId as string | undefined;
+    },
+  );
+  const pinnedRunId = useCanvasStore(
+    (s) => {
+      if (!expandedVariantId) return undefined;
+      return s.nodes.find((n) => n.id === expandedVariantId)?.data.pinnedRunId as string | undefined;
+    },
+  );
 
   const [compareId, setCompareId] = useState<string | null>(null);
 
-  const result = results.find((r) => r.id === expandedVariantId);
-  const compareResult = compareId ? results.find((r) => r.id === compareId) : null;
+  // Subscribe to stable store references, derive everything via useMemo.
+  const results = useGenerationStore((s) => s.results);
+  const selectedVersions = useGenerationStore((s) => s.selectedVersions);
+  const setSelectedVersion = useGenerationStore((s) => s.setSelectedVersion);
 
-  const completeResults = useMemo(
-    () => results.filter((r) => r.status === 'complete' && r.code && r.id !== expandedVariantId),
-    [results, expandedVariantId]
+  // Use scoped helpers when viewing a pinned (archived) variant
+  const stack = useMemo(
+    () => {
+      if (!variantStrategyId) return [];
+      const state = { results, selectedVersions };
+      return pinnedRunId
+        ? getScopedStack(state, variantStrategyId, pinnedRunId)
+        : getStack(state, variantStrategyId);
+    },
+    [results, selectedVersions, variantStrategyId, pinnedRunId],
+  );
+  const activeResult = useMemo(
+    () => {
+      if (!variantStrategyId) return undefined;
+      const state = { results, selectedVersions };
+      return pinnedRunId
+        ? getScopedActiveResult(state, variantStrategyId, pinnedRunId)
+        : getActiveResult(state, variantStrategyId);
+    },
+    [results, selectedVersions, variantStrategyId, pinnedRunId],
+  );
+  // Legacy fallback: expandedVariantId might be a resultId from old code
+  const legacyResult = useMemo(
+    () =>
+      !activeResult && expandedVariantId
+        ? results.find((r) => r.id === expandedVariantId)
+        : undefined,
+    [activeResult, expandedVariantId, results],
+  );
+  const result = activeResult ?? legacyResult;
+
+  // Load code from IndexedDB
+  const { code } = useResultCode(result?.id);
+  const compareResult = useMemo(
+    () => (compareId ? results.find((r) => r.id === compareId) : undefined),
+    [compareId, results],
+  );
+  const { code: compareCode } = useResultCode(compareResult?.id);
+
+  // Stack navigation — use scoped key for pinned variants
+  const versionKey = pinnedRunId && variantStrategyId
+    ? `${variantStrategyId}:${pinnedRunId}`
+    : variantStrategyId;
+
+  const completedStack = useMemo(
+    () => stack.filter((r) => r.status === 'complete'),
+    [stack],
+  );
+  const stackIndex = completedStack.findIndex((r) => r.id === result?.id);
+  const stackTotal = completedStack.length;
+
+  const goNewer = useCallback(() => {
+    if (!versionKey || stackIndex <= 0) return;
+    setSelectedVersion(versionKey, completedStack[stackIndex - 1].id);
+  }, [versionKey, stackIndex, completedStack, setSelectedVersion]);
+
+  const goOlder = useCallback(() => {
+    if (!versionKey || stackIndex >= completedStack.length - 1) return;
+    setSelectedVersion(versionKey, completedStack[stackIndex + 1].id);
+  }, [versionKey, stackIndex, completedStack, setSelectedVersion]);
+
+  // Other complete results (for compare mode)
+  const otherResults = useMemo(
+    () => results.filter((r) => r.status === 'complete' && r.id !== result?.id),
+    [results, result?.id],
   );
 
   const close = useCallback(() => {
@@ -36,35 +123,54 @@ export default function VariantPreviewOverlay() {
     return () => window.removeEventListener('keydown', handler);
   }, [expandedVariantId, close]);
 
-  if (!expandedVariantId || !result?.code) return null;
+  if (!expandedVariantId || !result) return null;
 
-  const strategy = findVariantStrategy(dimensionMaps, result.variantStrategyId);
+  const strategy = findVariantStrategy(
+    dimensionMaps,
+    result.variantStrategyId,
+  );
 
-  function renderPanel(r: typeof result, label?: string) {
-    if (!r?.code) return null;
+  function renderPanel(
+    r: GenerationResult,
+    panelCode: string | undefined,
+    label?: string,
+  ) {
+    if (!panelCode) return null;
     const strat = findVariantStrategy(dimensionMaps, r.variantStrategyId);
     let content: string;
     try {
-      content = prepareIframeContent(r.code);
+      content = prepareIframeContent(panelCode);
     } catch (err) {
-      content = renderErrorHtml(err instanceof Error ? err.message : String(err));
+      content = renderErrorHtml(
+        err instanceof Error ? err.message : String(err),
+      );
     }
     return (
       <div className="flex flex-1 flex-col overflow-hidden">
         {label && (
-          <div className="shrink-0 border-b border-white/10 px-4 py-1.5 text-[11px] text-white/60">
+          <div className="shrink-0 border-b border-white/10 px-4 py-1.5 text-micro text-white/60">
             {label}
           </div>
         )}
         <div className="shrink-0 border-b border-white/10 px-4 py-2">
           <h3 className="text-sm font-medium text-white">
             {strat?.name ?? 'Variant'}
+            {r.runNumber != null && (
+              <span
+                className={`ml-2 rounded px-1 py-px text-badge font-bold leading-none ${badgeColor(r.runNumber).bg} ${badgeColor(r.runNumber).text}`}
+              >
+                v{r.runNumber}
+              </span>
+            )}
           </h3>
           {r.metadata?.model && (
             <p className="text-xs text-white/50">
               {r.metadata.model}
               {r.metadata.durationMs != null && (
-                <> &middot; {(r.metadata.durationMs / 1000).toFixed(1)}s</>
+                <>
+                  {' '}
+                  &middot; {(r.metadata.durationMs / 1000).toFixed(1)}s
+                </>
               )}
               {r.metadata.tokensUsed != null && (
                 <> &middot; {r.metadata.tokensUsed} tokens</>
@@ -85,22 +191,57 @@ export default function VariantPreviewOverlay() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gray-900/95">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#09090b]/95">
       {/* Top bar */}
       <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-3">
-        <div>
-          <h2 className="text-sm font-semibold text-white">
-            {strategy?.name ?? 'Variant Preview'}
-          </h2>
-          {result.metadata?.model && (
-            <p className="text-xs text-white/40">{result.metadata.model}</p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h2 className="text-sm font-semibold text-white">
+              {strategy?.name ?? 'Variant Preview'}
+              {pinnedRunId && (
+                <span className="ml-2 text-xs font-normal text-white/40">
+                  (Archived)
+                </span>
+              )}
+            </h2>
+            {result.metadata?.model && (
+              <p className="text-xs text-white/40">
+                {result.metadata.model}
+              </p>
+            )}
+          </div>
+
+          {/* Version navigation */}
+          {stackTotal > 1 && (
+            <div className="flex items-center gap-1 text-white/60">
+              <button
+                onClick={goNewer}
+                disabled={stackIndex <= 0}
+                className="rounded p-1 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30"
+                title="Newer version"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-xs tabular-nums">
+                {stackIndex + 1} / {stackTotal}
+              </span>
+              <button
+                onClick={goOlder}
+                disabled={stackIndex >= stackTotal - 1}
+                className="rounded p-1 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30"
+                title="Older version"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
           )}
         </div>
+
         <div className="flex items-center gap-3">
           {/* Compare toggle */}
-          {!compareId && completeResults.length > 0 && (
+          {!compareId && otherResults.length > 0 && (
             <button
-              onClick={() => setCompareId(completeResults[0].id)}
+              onClick={() => setCompareId(otherResults[0].id)}
               className="flex items-center gap-1.5 rounded-md border border-white/20 px-3 py-1.5 text-xs text-white/70 transition-colors hover:border-white/40 hover:text-white"
             >
               <Columns2 size={14} />
@@ -127,9 +268,9 @@ export default function VariantPreviewOverlay() {
 
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">
-        {compareId ? (
+        {compareId && compareResult ? (
           <>
-            {renderPanel(result, 'Original')}
+            {result && code && renderPanel(result, code, 'Original')}
             <div className="w-px bg-white/10" />
             <div className="flex flex-1 flex-col overflow-hidden">
               {/* Compare selector */}
@@ -137,23 +278,33 @@ export default function VariantPreviewOverlay() {
                 <select
                   value={compareId}
                   onChange={(e) => setCompareId(e.target.value)}
-                  className="rounded border border-white/20 bg-transparent px-2 py-0.5 text-[11px] text-white/70 outline-none"
+                  className="rounded border border-white/20 bg-transparent px-2 py-0.5 text-micro text-white/70 outline-none"
                 >
-                  {completeResults.map((r) => {
-                    const s = findVariantStrategy(dimensionMaps, r.variantStrategyId);
+                  {otherResults.map((r) => {
+                    const s = findVariantStrategy(
+                      dimensionMaps,
+                      r.variantStrategyId,
+                    );
                     return (
-                      <option key={r.id} value={r.id} className="bg-gray-900 text-white">
+                      <option
+                        key={r.id}
+                        value={r.id}
+                        className="bg-[#09090b] text-white"
+                      >
                         {s?.name ?? r.metadata?.model ?? r.id}
+                        {r.runNumber != null ? ` (v${r.runNumber})` : ''}
                       </option>
                     );
                   })}
                 </select>
               </div>
-              {compareResult && renderPanel(compareResult)}
+              {compareResult &&
+                compareCode &&
+                renderPanel(compareResult, compareCode)}
             </div>
           </>
         ) : (
-          renderPanel(result)
+          result && code && renderPanel(result, code)
         )}
       </div>
     </div>

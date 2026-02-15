@@ -13,9 +13,14 @@ export function loadSpec(specId: string): DesignSpec | null {
   return specs[specId] ?? null;
 }
 
-export function getAllSpecs(): Record<string, DesignSpec> {
+function getAllSpecs(): Record<string, DesignSpec> {
   const raw = localStorage.getItem(SPECS_KEY);
-  return raw ? JSON.parse(raw) : {};
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
 }
 
 export function deleteSpec(specId: string): void {
@@ -62,15 +67,3 @@ export function importSpec(file: File): Promise<DesignSpec> {
   });
 }
 
-export function getStorageUsage(): { used: number; limit: number; percentage: number } {
-  let used = 0;
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key) {
-      used += localStorage.getItem(key)?.length ?? 0;
-    }
-  }
-  // localStorage limit is typically ~5MB (chars are ~2 bytes each)
-  const limit = 5 * 1024 * 1024;
-  return { used, limit, percentage: (used / limit) * 100 };
-}

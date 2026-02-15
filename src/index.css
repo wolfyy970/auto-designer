@@ -1,15 +1,150 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+/* ── Design System Tokens ────────────────────────────────────────────── */
+
+@theme {
+  /* Fonts */
+  --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+
+  /* Custom font sizes (eliminate magic numbers) */
+  --text-micro: 0.6875rem;  /* 11px */
+  --text-nano: 0.625rem;    /* 10px */
+  --text-badge: 0.5625rem;  /* 9px */
+
+  /* Accent (same in both modes) */
+  --color-accent: #f97316;
+  --color-accent-hover: #ea580c;
+
+  /* Surfaces — light mode defaults, overridden in .dark */
+  --color-bg: #ffffff;
+  --color-surface: #f4f4f5;
+  --color-surface-raised: #ffffff;
+
+  /* Borders */
+  --color-border: #e4e4e7;
+  --color-border-subtle: #f4f4f5;
+
+  /* Foreground */
+  --color-fg: #09090b;
+  --color-fg-secondary: #52525b;
+  --color-fg-muted: #a1a1aa;
+  --color-fg-faint: #d4d4d8;
+
+  /* Accent subtle */
+  --color-accent-subtle: #fff7ed;
+
+  /* Status — derived from accent orange (H25°) via color wheel relationships */
+  --color-error: #e5484d;          /* H358° analogous-warm — warm red */
+  --color-error-subtle: #fef1f0;
+  --color-warning: #e5a000;        /* H42° analogous-cool — golden amber */
+  --color-warning-subtle: #fef6de;
+  --color-success: #2e9e6a;        /* H152° triadic — balanced green */
+  --color-success-subtle: #e8f8f0;
+  --color-info: #3078d0;           /* H213° complementary — azure blue */
+  --color-info-subtle: #edf3fc;
+
+  /* Node widths */
+  --width-node: 320px;
+  --width-node-variant: 480px;
+
+  /* Layout widths */
+  --width-sidebar: 14rem;
+  --width-palette: 13rem;
+  --height-header: 3rem;
+}
+
+/* ── Dark Mode ───────────────────────────────────────────────────────── */
+
+.dark {
+  --color-bg: #09090b;
+  --color-surface: #18181b;
+  --color-surface-raised: #27272a;
+  --color-border: #27272a;
+  --color-border-subtle: #1e1e22;
+  --color-fg: #fafafa;
+  --color-fg-secondary: #a1a1aa;
+  --color-fg-muted: #71717a;
+  --color-fg-faint: #3f3f46;
+
+  --color-accent-subtle: rgba(249, 115, 22, 0.09);
+
+  /* Status — lightened for dark backgrounds, same hue family as light mode */
+  --color-error: #f27477;
+  --color-error-subtle: rgba(229, 72, 77, 0.09);
+  --color-warning: #f0b830;
+  --color-warning-subtle: rgba(229, 160, 0, 0.09);
+  --color-success: #5ec498;
+  --color-success-subtle: rgba(46, 158, 106, 0.09);
+  --color-info: #5b9de0;
+  --color-info-subtle: rgba(48, 120, 208, 0.09);
+}
+
+/* ── Typography Tokens ───────────────────────────────────────────────── */
+
+@layer components {
+  .h1 {
+    font-size: 1.5rem;
+    line-height: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--color-fg);
+  }
+  .h2 {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+    color: var(--color-fg);
+  }
+  .h3 {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 600;
+    color: var(--color-fg);
+  }
+  .h4 {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 500;
+    color: var(--color-fg);
+  }
+  .body-text {
+    font-size: 0.875rem;
+    line-height: 1.5rem;
+    color: var(--color-fg-secondary);
+  }
+  .caption {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    color: var(--color-fg-muted);
+  }
+  .label {
+    font-size: 0.625rem;
+    line-height: 0.875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-fg-muted);
+  }
+}
+
+/* ── Base ────────────────────────────────────────────────────────────── */
 
 body {
   margin: 0;
   min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
 }
 
 #root {
   min-height: 100vh;
 }
 
-/* React Flow edge animation */
+/* ── React Flow Edge Animation ───────────────────────────────────────── */
+
 @keyframes dashmove {
   to {
     stroke-dashoffset: -12;

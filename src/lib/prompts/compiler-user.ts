@@ -1,52 +1,12 @@
 import type { DesignSpec } from '../../types/spec';
-import { interpolate, envNewlines } from '../utils';
-
-const DEFAULT = `Analyze the following design specification and produce a dimension map with variant strategies.
-
-# Design Specification: {{SPEC_TITLE}}
-
-## Design Brief — the primary directive
-{{DESIGN_BRIEF}}
-
-## Existing Design — what exists today and what prompted a redesign
-{{EXISTING_DESIGN}}
-
-## Research & Context — who the user is, what they need, behavioral insights
-Use this to ground every variant rationale in real user needs, not assumptions.
-{{RESEARCH_CONTEXT}}
-
-## Objectives & Metrics — success criteria the variants will be judged against
-Ensure every variant strategy can be evaluated against these measures.
-{{OBJECTIVES_METRICS}}
-
-## Design Constraints — non-negotiable boundaries AND the exploration space
-The constraints define the walls. The exploration ranges within them define where variants may diverge. Extract your dimensions from the exploration ranges here.
-{{DESIGN_CONSTRAINTS}}
-
-{{IMAGE_BLOCK}}
-
----
-
-Produce the dimension map as JSON. Remember: every variant must satisfy all non-negotiable constraints while exploring within the defined ranges.`;
-
-const envVal = import.meta.env.VITE_PROMPT_COMPILER_USER;
-const TEMPLATE: string = envVal ? envNewlines(envVal) : DEFAULT;
-
-function sectionContent(spec: DesignSpec, id: string): string {
-  const section = spec.sections[id as keyof typeof spec.sections];
-  if (!section) return '(Not provided)';
-  return section.content.trim() || '(Not provided)';
-}
+import { interpolate } from '../utils';
+import { getSectionContent, collectImageLines } from './helpers';
+import { getPrompt } from '../../stores/prompt-store';
 
 function imageBlock(spec: DesignSpec): string {
-  const images = Object.values(spec.sections)
-    .flatMap((s) => s.images)
-    .filter((img) => img.description.trim());
-  if (images.length === 0) return '';
-  return (
-    '## Reference Images\n' +
-    images.map((img) => `- [${img.filename}]: ${img.description}`).join('\n')
-  );
+  const lines = collectImageLines(spec);
+  if (lines.length === 0) return '';
+  return '## Reference Images\n' + lines.join('\n');
 }
 
 export interface CritiqueInput {
@@ -62,13 +22,13 @@ export function buildCompilerUserPrompt(
   referenceDesigns?: { name: string; code: string }[],
   critiques?: CritiqueInput[]
 ): string {
-  let prompt = interpolate(TEMPLATE, {
+  let prompt = interpolate(getPrompt('compilerUser'), {
     SPEC_TITLE: spec.title,
-    DESIGN_BRIEF: sectionContent(spec, 'design-brief'),
-    EXISTING_DESIGN: sectionContent(spec, 'existing-design'),
-    RESEARCH_CONTEXT: sectionContent(spec, 'research-context'),
-    OBJECTIVES_METRICS: sectionContent(spec, 'objectives-metrics'),
-    DESIGN_CONSTRAINTS: sectionContent(spec, 'design-constraints'),
+    DESIGN_BRIEF: getSectionContent(spec, 'design-brief'),
+    EXISTING_DESIGN: getSectionContent(spec, 'existing-design'),
+    RESEARCH_CONTEXT: getSectionContent(spec, 'research-context'),
+    OBJECTIVES_METRICS: getSectionContent(spec, 'objectives-metrics'),
+    DESIGN_CONSTRAINTS: getSectionContent(spec, 'design-constraints'),
     IMAGE_BLOCK: imageBlock(spec),
   });
 

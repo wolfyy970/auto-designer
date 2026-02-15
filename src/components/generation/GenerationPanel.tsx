@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { useCompilerStore, selectDimensionMap } from '../../stores/compiler-store';
-import { useGenerationStore } from '../../stores/generation-store';
+import { useGenerationStore, getActiveResult } from '../../stores/generation-store';
 import { useGenerate } from '../../hooks/useGenerate';
 import { DEFAULT_GENERATION_PROVIDER } from '../../lib/constants';
 import type { OutputFormat } from '../../types/provider';
@@ -14,7 +14,17 @@ export default function GenerationPanel() {
   const compiledPrompts = useCompilerStore((s) => s.compiledPrompts);
   const dimensionMap = useCompilerStore(selectDimensionMap);
   const results = useGenerationStore((s) => s.results);
+  const selectedVersions = useGenerationStore((s) => s.selectedVersions);
   const isGenerating = useGenerationStore((s) => s.isGenerating);
+
+  // Show active result per hypothesis (latest or selected version)
+  const activeResults = useMemo(() => {
+    if (!dimensionMap) return [];
+    const vsIds = new Set(dimensionMap.variants.map((v) => v.id));
+    return [...vsIds]
+      .map((vsId) => getActiveResult({ results, selectedVersions }, vsId))
+      .filter((r): r is NonNullable<typeof r> => r != null);
+  }, [results, selectedVersions, dimensionMap]);
 
   const [format, setFormat] = useState<OutputFormat>('react');
   const [providerId, setProviderId] = useState(DEFAULT_GENERATION_PROVIDER);
@@ -39,13 +49,13 @@ export default function GenerationPanel() {
       <div className="flex flex-col items-center justify-center py-32">
         <div className="text-center">
           <div className="mb-3 text-4xl">✨</div>
-          <h3 className="mb-2 text-lg font-medium text-gray-900">No Variants Ready</h3>
-          <p className="mb-6 text-sm text-gray-500">
+          <h3 className="mb-2 text-lg font-medium text-fg">No Variants Ready</h3>
+          <p className="mb-6 text-sm text-fg-secondary">
             Complete your spec, compile it, and approve the exploration space first.
           </p>
           <a
             href="/compiler"
-            className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+            className="inline-flex items-center gap-2 rounded-lg bg-fg px-6 py-2.5 text-sm font-semibold text-bg transition-colors hover:bg-fg/90"
           >
             Go to Exploration Space
           </a>
@@ -58,7 +68,7 @@ export default function GenerationPanel() {
     <>
       {/* Simplified Controls - Constrained width */}
       <div className="mx-auto max-w-6xl px-8">
-        <div className="rounded-lg border border-gray-200 bg-white px-6 py-4">
+        <div className="rounded-lg border border-border bg-bg px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
               <ProviderSelector
@@ -74,20 +84,20 @@ export default function GenerationPanel() {
               />
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">
+                <label className="mb-1 block text-xs font-medium text-fg-secondary">
                   Format
                 </label>
                 <select
                   value={format}
                   onChange={(e) => setFormat(e.target.value as OutputFormat)}
-                  className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400"
+                  className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-fg outline-none focus:border-accent focus:ring-1 focus:ring-accent/40"
                 >
                   <option value="react">React</option>
                   <option value="html">HTML</option>
                 </select>
               </div>
 
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-fg-secondary">
                 {compiledPrompts.length} {compiledPrompts.length === 1 ? 'variant' : 'variants'}
               </div>
             </div>
@@ -95,7 +105,7 @@ export default function GenerationPanel() {
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="flex items-center gap-2 rounded-lg bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg bg-fg px-6 py-2.5 text-sm font-semibold text-bg transition-colors hover:bg-fg/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isGenerating ? (
                 <>
@@ -114,10 +124,10 @@ export default function GenerationPanel() {
       </div>
 
       {/* Results - Full Width */}
-      {results.length > 0 && dimensionMap && (
+      {activeResults.length > 0 && dimensionMap && (
         <div className="mt-6">
           <VariantGrid
-            results={results}
+            results={activeResults}
             dimensionMap={dimensionMap}
             isPreview={false}
           />

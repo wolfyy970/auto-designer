@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Code, Eye } from 'lucide-react';
+import { Code, Eye, Loader2 } from 'lucide-react';
 import type { VariantStrategy } from '../../types/compiler';
 import type { GenerationResult } from '../../types/provider';
 import { prepareIframeContent, renderErrorHtml } from '../../lib/iframe-utils';
+import { useResultCode } from '../../hooks/useResultCode';
 import VariantMetadata from './VariantMetadata';
 
 interface VariantFrameProps {
@@ -17,32 +18,44 @@ export default function VariantFrame({
   isPreview = false,
 }: VariantFrameProps) {
   const [showSource, setShowSource] = useState(false);
+  const { code, isLoading } = useResultCode(result.id);
 
   const htmlContent = useMemo(() => {
-    if (!result.code) return '';
+    if (!code) return '';
     try {
-      return prepareIframeContent(result.code);
+      return prepareIframeContent(code);
     } catch (err) {
       return renderErrorHtml(
         err instanceof Error ? err.message : String(err)
       );
     }
-  }, [result.code]);
+  }, [code]);
 
-  if (!result.code) return null;
+  if (isLoading) {
+    return (
+      <div className="overflow-hidden rounded-lg border border-border">
+        <VariantMetadata strategy={strategy} result={result} />
+        <div className="flex h-96 items-center justify-center">
+          <Loader2 size={20} className="animate-spin text-fg-muted" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!code) return null;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200">
+    <div className="overflow-hidden rounded-lg border border-border">
       <VariantMetadata strategy={strategy} result={result} />
 
       {!isPreview && (
-        <div className="flex border-b border-gray-200 bg-white">
+        <div className="flex border-b border-border bg-bg">
           <button
             onClick={() => setShowSource(false)}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs ${
               !showSource
-                ? 'border-b-2 border-gray-900 font-medium text-gray-900'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'border-b-2 border-fg font-medium text-fg'
+                : 'text-fg-secondary hover:text-fg-secondary'
             }`}
           >
             <Eye size={12} />
@@ -52,8 +65,8 @@ export default function VariantFrame({
             onClick={() => setShowSource(true)}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs ${
               showSource
-                ? 'border-b-2 border-gray-900 font-medium text-gray-900'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'border-b-2 border-fg font-medium text-fg'
+                : 'text-fg-secondary hover:text-fg-secondary'
             }`}
           >
             <Code size={12} />
@@ -63,14 +76,14 @@ export default function VariantFrame({
       )}
 
       {isPreview || showSource ? (
-        <pre className="max-h-[1200px] overflow-auto whitespace-pre-wrap bg-gray-50 px-4 py-3 text-xs text-gray-700">
-          {result.code}
+        <pre className="max-h-[1200px] overflow-auto whitespace-pre-wrap bg-surface px-4 py-3 text-xs text-fg-secondary">
+          {code}
         </pre>
       ) : (
         <iframe
           srcDoc={htmlContent}
           sandbox="allow-scripts"
-          className="h-[1200px] w-full border-0 bg-white"
+          className="h-[1200px] w-full border-0 bg-bg"
           title={`Variant: ${strategy.name}`}
         />
       )}

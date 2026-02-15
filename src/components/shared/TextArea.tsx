@@ -31,7 +31,7 @@ export default function TextArea({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       rows={minRows}
-      className={`w-full resize-none rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-gray-400 focus:ring-1 focus:ring-gray-400 ${className}`}
+      className={`w-full resize-none rounded-lg border border-border bg-bg px-4 py-3 text-sm text-fg placeholder-fg-muted outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent/40 ${className}`}
     />
   );
 }

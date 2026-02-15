@@ -29,7 +29,7 @@ The canvas (`/canvas`) is the default interface. Nodes connect left-to-right.
 
 ### 1. Fill in Input Nodes
 
-The canvas starts with a **Design Brief** node, an **Incubator**, and a **Designer**. Add more input nodes from the toolbar:
+The canvas starts with a **Design Brief** node and an **Incubator**. Add more input nodes from the toolbar:
 
 - **Design Brief** — The primary directive. What are you designing and why?
 - **Existing Design** — Describe what exists today. Drag-and-drop screenshots as reference images.
@@ -52,19 +52,26 @@ Hypothesis nodes appear to the right of the Incubator. Each represents a variant
 
 Edit these before generation. Remove strategies not worth exploring.
 
-### 4. Generate Variants
+### 4. Add Design System (Optional)
 
-Connect hypotheses to the **Designer** node. Select a provider, model, and output format (HTML or React), then click **Create**. Variants generate sequentially.
+Add a **Design System** node from the toolbar (Processing group). It auto-connects to all existing hypotheses. You can have multiple design system nodes — e.g., one for Material Design tokens, another for a custom system. Each hypothesis uses the design tokens from its connected design system(s).
 
-### 5. Review Variants
+- Type or paste design tokens directly into the content area
+- Drag-and-drop screenshots of existing design systems, then click **Extract from Images** to have an LLM read the tokens from the images
+
+### 5. Generate Variants
+
+Each hypothesis has built-in generation controls. Select a provider, model, and output format (HTML or React), then click **Create**. Variants appear to the right. Running generation again adds new versions — use the version navigation arrows to browse previous results.
+
+### 6. Review Variants
 
 Variant nodes render the generated code in sandboxed iframes:
 - **Zoom** — +/- buttons or auto-fit
-- **Interact mode** — Double-click the preview to interact with it (scroll, click). Press Escape to exit.
 - **Source view** — Toggle Preview/Source to see the raw code
-- **Full-screen** — Click the expand icon for full-viewport preview
+- **Full-screen** — Click the expand icon for full-viewport preview with version navigation
+- **Version badges** — v1, v2, etc. with ChevronLeft/Right to browse accumulated versions
 
-### 6. Iterate
+### 7. Iterate
 
 To iterate on results:
 - **Screenshot feedback** — Drag a connection from a variant's right handle to the Existing Design node. This captures a screenshot and adds it as a reference image.

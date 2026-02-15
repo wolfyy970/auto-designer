@@ -17,6 +17,23 @@ import { useCompilerStore, allVariantStrategyIds } from './compiler-store';
 import { useGenerationStore } from './generation-store';
 import { useSpecStore } from './spec-store';
 import { generateId, now } from '../lib/utils';
+import {
+  computeAutoLayout,
+  computeDefaultPosition,
+  computeHypothesisPositions,
+  columnX,
+  snap,
+  DEFAULT_COL_GAP,
+  MIN_COL_GAP,
+  MAX_COL_GAP,
+} from '../lib/canvas-layout';
+import { isValidConnection as checkValidConnection } from '../lib/canvas-connections';
+
+// Debounced auto-layout on dimension changes (avoids infinite loop)
+let dimensionLayoutTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Re-export for consumers
+export { GRID_SIZE } from '../lib/canvas-layout';
 
 // ── Node type system ────────────────────────────────────────────────
 
@@ -26,18 +43,19 @@ export type CanvasNodeType =
   | 'researchContext'
   | 'objectivesMetrics'
   | 'designConstraints'
+  | 'designSystem'
   | 'compiler'
   | 'hypothesis'
-  | 'generator'
   | 'variant'
   | 'critique';
 
 export type CanvasNodeData = Record<string, unknown> & {
   refId?: string;
+  variantStrategyId?: string;
 };
 
-export type CanvasNode = Node<CanvasNodeData, CanvasNodeType>;
-export type CanvasEdge = Edge<{ status: 'idle' | 'processing' | 'complete' | 'error' }>;
+type CanvasNode = Node<CanvasNodeData, CanvasNodeType>;
+type CanvasEdge = Edge<{ status: 'idle' | 'processing' | 'complete' | 'error' }>;
 
 /** Map canvas node types to their spec section IDs */
 export const NODE_TYPE_TO_SECTION: Partial<Record<CanvasNodeType, SpecSectionId>> = {
@@ -56,131 +74,6 @@ export const SECTION_NODE_TYPES = new Set<CanvasNodeType>([
   'designConstraints',
 ]);
 
-// ── Layout constants ────────────────────────────────────────────────
-
-// Node widths (must match the w-[Npx] in each node component)
-const NODE_W = { section: 320, compiler: 280, hypothesis: 300, generator: 280, variant: 480, critique: 320 };
-
-export const GRID_SIZE = 20;
-const NODE_SPACING = 40; // vertical gap between adjacent nodes
-const FALLBACK_H: Record<string, number> = {
-  section: 200, compiler: 220, hypothesis: 140, generator: 300, variant: 400, critique: 260,
-};
-const DEFAULT_COL_GAP = 160;
-const MIN_COL_GAP = 80;
-const MAX_COL_GAP = 320;
-
-/** Get a node's measured height, or a reasonable estimate */
-function nodeH(node: CanvasNode): number {
-  return (node.measured?.height as number | undefined) ?? (
-    SECTION_NODE_TYPES.has(node.type as CanvasNodeType)
-      ? FALLBACK_H.section
-      : FALLBACK_H[node.type as string] ?? 200
-  );
-}
-
-/** Compute column X positions from a given gap */
-function columnX(gap: number) {
-  const s = 0;
-  const c = s + NODE_W.section + gap;
-  const h = c + NODE_W.compiler + gap;
-  const g = h + NODE_W.hypothesis + gap;
-  const v = g + NODE_W.generator + gap;
-  return { sections: s, compiler: c, hypothesis: h, generator: g, variant: v };
-}
-
-/** Snap a position to the nearest grid point */
-function snap(pos: { x: number; y: number }): { x: number; y: number } {
-  return {
-    x: Math.round(pos.x / GRID_SIZE) * GRID_SIZE,
-    y: Math.round(pos.y / GRID_SIZE) * GRID_SIZE,
-  };
-}
-
-// ── Connection validation ───────────────────────────────────────────
-
-/** Valid source→target type pairs for manual edge creation */
-const VALID_CONNECTIONS: Record<string, Set<string>> = {
-  designBrief: new Set(['compiler']),
-  existingDesign: new Set(['compiler']),
-  researchContext: new Set(['compiler']),
-  objectivesMetrics: new Set(['compiler']),
-  designConstraints: new Set(['compiler']),
-  compiler: new Set(['hypothesis']),
-  hypothesis: new Set(['generator']),
-  generator: new Set(['variant']),
-  variant: new Set(['compiler', 'existingDesign', 'critique']),
-  critique: new Set(['compiler']),
-};
-
-// ── Position helpers ────────────────────────────────────────────────
-
-function computeDefaultPosition(
-  type: CanvasNodeType,
-  existingNodes: CanvasNode[],
-  col: ReturnType<typeof columnX>
-): { x: number; y: number } {
-  if (SECTION_NODE_TYPES.has(type)) {
-    const sectionNodes = existingNodes.filter((n) =>
-      SECTION_NODE_TYPES.has(n.type as CanvasNodeType)
-    );
-    let y = 200;
-    for (const sn of sectionNodes) {
-      y += nodeH(sn) + NODE_SPACING;
-    }
-    return snap({ x: col.sections, y });
-  }
-  if (type === 'compiler') {
-    const compilers = existingNodes.filter((n) => n.type === 'compiler');
-    if (compilers.length === 0) return snap({ x: col.compiler, y: 300 });
-    const lastY = Math.max(...compilers.map((n) => n.position.y + nodeH(n)));
-    return snap({ x: col.compiler, y: lastY + NODE_SPACING });
-  }
-  if (type === 'generator') {
-    const generators = existingNodes.filter((n) => n.type === 'generator');
-    if (generators.length === 0) return snap({ x: col.generator, y: 300 });
-    const lastY = Math.max(...generators.map((n) => n.position.y + nodeH(n)));
-    return snap({ x: col.generator, y: lastY + NODE_SPACING });
-  }
-  if (type === 'hypothesis') {
-    const hypNodes = existingNodes.filter((n) => n.type === 'hypothesis');
-    let y = 200;
-    for (const hn of hypNodes) {
-      y += nodeH(hn) + NODE_SPACING;
-    }
-    return snap({ x: col.hypothesis, y });
-  }
-  if (type === 'critique') {
-    // Place critique nodes to the right of variants
-    const critiqueNodes = existingNodes.filter((n) => n.type === 'critique');
-    const variantNodes = existingNodes.filter((n) => n.type === 'variant');
-    const baseY = variantNodes.length > 0
-      ? Math.max(...variantNodes.map((n) => n.position.y + nodeH(n))) + NODE_SPACING
-      : 300;
-    let y = critiqueNodes.length > 0
-      ? Math.max(...critiqueNodes.map((n) => n.position.y + nodeH(n))) + NODE_SPACING
-      : baseY;
-    return snap({ x: col.variant + NODE_W.variant + 80, y });
-  }
-  return snap({ x: col.variant, y: 300 });
-}
-
-function computeHypothesisPositions(
-  count: number,
-  centerY: number,
-  col: ReturnType<typeof columnX>,
-  estimatedHeight = FALLBACK_H.hypothesis
-) {
-  const totalHeight = count * estimatedHeight + (count - 1) * NODE_SPACING;
-  const startY = centerY - totalHeight / 2;
-  return Array.from({ length: count }, (_, i) =>
-    snap({
-      x: col.hypothesis,
-      y: startY + i * (estimatedHeight + NODE_SPACING),
-    })
-  );
-}
-
 // ── Store interface ─────────────────────────────────────────────────
 
 interface CanvasStore {
@@ -192,12 +85,12 @@ interface CanvasStore {
   showGrid: boolean;
   colGap: number;
   autoLayout: boolean;
-  generationCounter: number;
-
   // Non-persisted UI state
   expandedVariantId: string | null;
   lineageNodeIds: Set<string>;
   lineageEdgeIds: Set<string>;
+  /** Transient map: variantStrategyId → canvas nodeId (for edge status callbacks during generation) */
+  variantNodeIdMap: Map<string, string>;
 
   onNodesChange: (changes: NodeChange<CanvasNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<CanvasEdge>[]) => void;
@@ -221,8 +114,11 @@ interface CanvasStore {
 
   initializeCanvas: () => void;
   syncAfterCompile: (dimensionMap: DimensionMap, compilerNodeId: string) => void;
-  syncAfterGenerate: (results: GenerationResult[], generatorNodeId: string) => void;
+  syncAfterGenerate: (results: GenerationResult[], hypothesisNodeId: string) => void;
+  forkHypothesisVariants: (hypothesisNodeId: string) => void;
+  clearVariantNodeIdMap: () => void;
   setEdgeStatusBySource: (sourceId: string, status: 'idle' | 'processing' | 'complete' | 'error') => void;
+  setEdgeStatusByTarget: (targetId: string, status: 'idle' | 'processing' | 'complete' | 'error') => void;
 
   applyAutoLayout: () => void;
   reset: () => void;
@@ -241,15 +137,26 @@ export const useCanvasStore = create<CanvasStore>()(
       showGrid: true,
       colGap: DEFAULT_COL_GAP,
       autoLayout: true,
-      generationCounter: 0,
-
       // Non-persisted UI state
       expandedVariantId: null,
       lineageNodeIds: new Set<string>(),
       lineageEdgeIds: new Set<string>(),
+      variantNodeIdMap: new Map<string, string>(),
 
-      onNodesChange: (changes) =>
-        set({ nodes: applyNodeChanges(changes, get().nodes) }),
+      onNodesChange: (changes) => {
+        set({ nodes: applyNodeChanges(changes, get().nodes) });
+        // Debounced re-layout on dimension changes (e.g. image added makes node taller)
+        if (
+          get().autoLayout &&
+          changes.some((c: NodeChange) => c.type === 'dimensions')
+        ) {
+          if (dimensionLayoutTimer) clearTimeout(dimensionLayoutTimer);
+          dimensionLayoutTimer = setTimeout(() => {
+            dimensionLayoutTimer = null;
+            if (get().autoLayout) get().applyAutoLayout();
+          }, 200);
+        }
+      },
 
       onEdgesChange: (changes) =>
         set({ edges: applyEdgeChanges(changes, get().edges) }),
@@ -276,8 +183,7 @@ export const useCanvasStore = create<CanvasStore>()(
         const sourceNode = nodes.find((n) => n.id === connection.source);
         const targetNode = nodes.find((n) => n.id === connection.target);
         if (!sourceNode || !targetNode) return false;
-        const allowed = VALID_CONNECTIONS[sourceNode.type as string];
-        return allowed?.has(targetNode.type as string) ?? false;
+        return checkValidConnection(sourceNode.type as string, targetNode.type as string);
       },
 
       onConnect: (connection) => {
@@ -343,7 +249,7 @@ export const useCanvasStore = create<CanvasStore>()(
 
         const newEdges = [...state.edges];
 
-        // Auto-connect: section → compiler (only if exactly one compiler)
+        // Auto-connect: section → compiler
         if (SECTION_NODE_TYPES.has(type)) {
           const compilers = state.nodes.filter((n) => n.type === 'compiler');
           if (compilers.length === 1) {
@@ -357,7 +263,7 @@ export const useCanvasStore = create<CanvasStore>()(
           }
         }
 
-        // Auto-connect: all sections → new compiler (only if first compiler)
+        // Auto-connect: all sections → new compiler
         if (type === 'compiler') {
           const existingCompilers = state.nodes.filter((n) => n.type === 'compiler');
           if (existingCompilers.length === 0) {
@@ -376,34 +282,31 @@ export const useCanvasStore = create<CanvasStore>()(
           }
         }
 
-        // Auto-connect: hypothesis → generator (only if exactly one generator)
-        if (type === 'hypothesis') {
-          const generators = state.nodes.filter((n) => n.type === 'generator');
-          if (generators.length === 1) {
+        // Auto-connect: designSystem → all existing hypotheses
+        if (type === 'designSystem') {
+          const hypotheses = state.nodes.filter((n) => n.type === 'hypothesis');
+          for (const hyp of hypotheses) {
             newEdges.push({
-              id: `edge-${id}-to-${generators[0].id}`,
+              id: `edge-${id}-to-${hyp.id}`,
               source: id,
-              target: generators[0].id,
+              target: hyp.id,
               type: 'dataFlow',
               data: { status: 'idle' },
             });
           }
         }
 
-        // Auto-connect: all hypotheses → new generator (only if first generator)
-        if (type === 'generator') {
-          const existingGenerators = state.nodes.filter((n) => n.type === 'generator');
-          if (existingGenerators.length === 0) {
-            const hypothesisNodes = state.nodes.filter((n) => n.type === 'hypothesis');
-            for (const hn of hypothesisNodes) {
-              newEdges.push({
-                id: `edge-${hn.id}-to-${id}`,
-                source: hn.id,
-                target: id,
-                type: 'dataFlow',
-                data: { status: 'idle' },
-              });
-            }
+        // Auto-connect: all existing designSystems → new hypothesis
+        if (type === 'hypothesis') {
+          const dsNodes = state.nodes.filter((n) => n.type === 'designSystem');
+          for (const ds of dsNodes) {
+            newEdges.push({
+              id: `edge-${ds.id}-to-${id}`,
+              source: ds.id,
+              target: id,
+              type: 'dataFlow',
+              data: { status: 'idle' },
+            });
           }
         }
 
@@ -463,6 +366,9 @@ export const useCanvasStore = create<CanvasStore>()(
 
       computeLineage: (selectedNodeId) => {
         if (!selectedNodeId) {
+          // Bail out if lineage is already empty — avoids creating new Set
+          // references that trigger unnecessary re-renders in every node.
+          if (get().lineageNodeIds.size === 0) return;
           set({ lineageNodeIds: new Set(), lineageEdgeIds: new Set() });
           return;
         }
@@ -523,7 +429,7 @@ export const useCanvasStore = create<CanvasStore>()(
           const results = useGenerationStore.getState().results;
 
           const variantStrategyIdSet = allVariantStrategyIds(dimensionMaps);
-          const resultIds = new Set(results.map((r) => r.id));
+          const resultVsIds = new Set(results.map((r) => r.variantStrategyId));
 
           const orphanIds = new Set<string>();
           for (const node of state.nodes) {
@@ -534,10 +440,22 @@ export const useCanvasStore = create<CanvasStore>()(
             ) {
               orphanIds.add(node.id);
             }
+            // Variant nodes are orphaned if their hypothesis has zero results
+            // Skip archived (pinned) variants — they should never be auto-deleted
             if (
               node.type === 'variant' &&
+              !node.data.pinnedRunId &&
+              node.data.variantStrategyId &&
+              !resultVsIds.has(node.data.variantStrategyId as string)
+            ) {
+              orphanIds.add(node.id);
+            }
+            // Legacy variant nodes (no variantStrategyId) — check refId against result IDs
+            if (
+              node.type === 'variant' &&
+              !node.data.variantStrategyId &&
               node.data.refId &&
-              !resultIds.has(node.data.refId as string)
+              !new Set(results.map((r) => r.id)).has(node.data.refId as string)
             ) {
               orphanIds.add(node.id);
             }
@@ -567,11 +485,10 @@ export const useCanvasStore = create<CanvasStore>()(
           return;
         }
 
-        // Template: Design Brief + Compiler + Generator
+        // Template: Design Brief + Compiler
         const col = columnX(state.colGap);
         const briefId = `designBrief-${generateId()}`;
         const compilerId = `compiler-${generateId()}`;
-        const generatorId = `generator-${generateId()}`;
 
         set({
           nodes: [
@@ -585,12 +502,6 @@ export const useCanvasStore = create<CanvasStore>()(
               id: compilerId,
               type: 'compiler',
               position: snap({ x: col.compiler, y: 300 }),
-              data: {},
-            },
-            {
-              id: generatorId,
-              type: 'generator',
-              position: snap({ x: col.generator, y: 300 }),
               data: {},
             },
           ],
@@ -613,9 +524,6 @@ export const useCanvasStore = create<CanvasStore>()(
         const col = columnX(state.colGap);
         const compilerNode = state.nodes.find((n) => n.id === compilerNodeId);
         const compilerY = compilerNode?.position.y ?? 300;
-        const generation = state.generationCounter + 1;
-        set({ generationCounter: generation });
-
         // Find OLD hypothesis nodes produced by this compiler (via outgoing edges)
         const oldHypNodeIds = new Set<string>();
         for (const e of state.edges) {
@@ -625,22 +533,11 @@ export const useCanvasStore = create<CanvasStore>()(
           }
         }
 
-        // Find generators that old hypotheses were connected to (to reconnect new ones)
-        const downstreamGeneratorIds = new Set<string>();
+        // Find OLD variant nodes connected to those hypotheses (direct 1:1)
+        const oldVariantNodeIds = new Set<string>();
         for (const hypId of oldHypNodeIds) {
           for (const e of state.edges) {
             if (e.source === hypId) {
-              const target = state.nodes.find((n) => n.id === e.target && n.type === 'generator');
-              if (target) downstreamGeneratorIds.add(target.id);
-            }
-          }
-        }
-
-        // Find OLD variant nodes produced by those generators from these hypotheses
-        const oldVariantNodeIds = new Set<string>();
-        for (const genId of downstreamGeneratorIds) {
-          for (const e of state.edges) {
-            if (e.source === genId) {
               const target = state.nodes.find((n) => n.id === e.target && n.type === 'variant');
               if (target) oldVariantNodeIds.add(target.id);
             }
@@ -671,7 +568,7 @@ export const useCanvasStore = create<CanvasStore>()(
             id: nodeId,
             type: 'hypothesis',
             position: positions[i],
-            data: { refId: variant.id, generation },
+            data: { refId: variant.id },
           });
 
           // compiler → hypothesis edge
@@ -682,17 +579,6 @@ export const useCanvasStore = create<CanvasStore>()(
             type: 'dataFlow',
             data: { status: 'complete' },
           });
-
-          // hypothesis → downstream generators (reconnect to same generators)
-          for (const genId of downstreamGeneratorIds) {
-            newEdges.push({
-              id: `edge-${nodeId}-to-${genId}`,
-              source: nodeId,
-              target: genId,
-              type: 'dataFlow',
-              data: { status: 'idle' },
-            });
-          }
         });
 
         set({ nodes: newNodes, edges: newEdges });
@@ -700,65 +586,150 @@ export const useCanvasStore = create<CanvasStore>()(
         if (get().autoLayout) get().applyAutoLayout();
       },
 
-      // ── Sync after generation (scoped to a specific generator) ──
+      // ── Sync after generation (scoped to a specific hypothesis) ──
+      // Version-stacking: reuse existing variant node, update refId to latest result.
 
-      syncAfterGenerate: (results, generatorNodeId) => {
+      syncAfterGenerate: (results, hypothesisNodeId) => {
         const state = get();
         const col = columnX(state.colGap);
+        const hypothesisNode = state.nodes.find((n) => n.id === hypothesisNodeId);
 
-        // Find OLD variant nodes produced by this generator
-        const oldVariantNodeIds = new Set<string>();
+        // Find existing variant node connected to this hypothesis (for stacking)
+        const existingVariantByStrategy = new Map<string, string>(); // vsId → nodeId
         for (const e of state.edges) {
-          if (e.source === generatorNodeId) {
-            const target = state.nodes.find((n) => n.id === e.target && n.type === 'variant');
-            if (target) oldVariantNodeIds.add(target.id);
+          if (e.source === hypothesisNodeId) {
+            const target = state.nodes.find(
+              (n) => n.id === e.target && n.type === 'variant',
+            );
+            if (target?.data.variantStrategyId) {
+              existingVariantByStrategy.set(
+                target.data.variantStrategyId as string,
+                target.id,
+              );
+            }
           }
         }
 
-        // Remove old variant nodes and their edges
-        const newNodes = state.nodes.filter((n) => !oldVariantNodeIds.has(n.id));
-        const newEdges = state.edges.filter(
-          (e) => !oldVariantNodeIds.has(e.source) && !oldVariantNodeIds.has(e.target)
-        );
-
-        const hypothesisNodes = state.nodes.filter(
-          (n) => n.type === 'hypothesis'
-        );
+        const newNodes = [...state.nodes];
+        const newEdges = [...state.edges];
+        const nodeIdMap = new Map<string, string>();
 
         results.forEach((result) => {
-          const hypothesisNode = hypothesisNodes.find(
-            (n) => n.data.refId === result.variantStrategyId
+          const existingNodeId = existingVariantByStrategy.get(
+            result.variantStrategyId,
           );
 
-          const nodeId = `variant-${result.id}`;
-          newNodes.push({
-            id: nodeId,
-            type: 'variant',
-            position: snap({
-              x: col.variant,
-              y: hypothesisNode?.position.y ?? 300,
-            }),
-            data: {
-              refId: result.id,
-              generation: hypothesisNode?.data.generation,
-            },
-          });
+          if (existingNodeId) {
+            // UPDATE existing variant node — point refId to the new result
+            const idx = newNodes.findIndex((n) => n.id === existingNodeId);
+            if (idx !== -1) {
+              newNodes[idx] = {
+                ...newNodes[idx],
+                data: {
+                  ...newNodes[idx].data,
+                  refId: result.id,
+                  variantStrategyId: result.variantStrategyId,
+                },
+              };
+            }
+            // Update edge status to processing
+            const edgeIdx = newEdges.findIndex(
+              (e) => e.source === hypothesisNodeId && e.target === existingNodeId,
+            );
+            if (edgeIdx !== -1) {
+              newEdges[edgeIdx] = {
+                ...newEdges[edgeIdx],
+                data: { status: 'processing' },
+              };
+            }
+            nodeIdMap.set(result.variantStrategyId, existingNodeId);
+          } else {
+            // CREATE new variant node with unique ID
+            const nodeId = `variant-${generateId()}`;
+            newNodes.push({
+              id: nodeId,
+              type: 'variant',
+              position: snap({
+                x: col.variant,
+                y: hypothesisNode?.position.y ?? 300,
+              }),
+              data: {
+                refId: result.id,
+                variantStrategyId: result.variantStrategyId,
+              },
+            });
 
-          newEdges.push({
-            id: `edge-${generatorNodeId}-to-${result.id}`,
-            source: generatorNodeId,
-            target: nodeId,
-            type: 'dataFlow',
-            data: {
-              status: result.status === 'complete' ? 'complete' : 'processing',
-            },
-          });
+            newEdges.push({
+              id: `edge-${hypothesisNodeId}-to-${nodeId}`,
+              source: hypothesisNodeId,
+              target: nodeId,
+              type: 'dataFlow',
+              data: { status: 'processing' },
+            });
+            nodeIdMap.set(result.variantStrategyId, nodeId);
+          }
         });
 
-        set({ nodes: newNodes, edges: newEdges });
+        set({ nodes: newNodes, edges: newEdges, variantNodeIdMap: nodeIdMap });
 
         if (get().autoLayout) get().applyAutoLayout();
       },
+
+      // ── Fork: pin existing variants and disconnect from hypothesis ──
+
+      forkHypothesisVariants: (hypothesisNodeId) => {
+        const state = get();
+        const genState = useGenerationStore.getState();
+
+        // Find variant nodes connected to this hypothesis
+        const variantNodeIds: string[] = [];
+        for (const e of state.edges) {
+          if (e.source === hypothesisNodeId) {
+            const target = state.nodes.find(
+              (n) => n.id === e.target && n.type === 'variant',
+            );
+            if (target) variantNodeIds.push(target.id);
+          }
+        }
+
+        if (variantNodeIds.length === 0) return;
+
+        const variantIdSet = new Set(variantNodeIds);
+
+        // Pin each variant with its current active result's runId
+        const newNodes = state.nodes.map((n) => {
+          if (!variantIdSet.has(n.id)) return n;
+          const vsId = n.data.variantStrategyId as string | undefined;
+          if (!vsId) return n;
+
+          // Find the active result's runId for this variant
+          const stack = genState.results
+            .filter((r) => r.variantStrategyId === vsId)
+            .sort((a, b) => b.runNumber - a.runNumber);
+          const selectedId = genState.selectedVersions[vsId];
+          const active = selectedId
+            ? stack.find((r) => r.id === selectedId)
+            : stack.find((r) => r.status === 'complete') ?? stack[0];
+
+          return {
+            ...n,
+            position: { x: n.position.x, y: n.position.y + 200 },
+            data: {
+              ...n.data,
+              pinnedRunId: active?.runId ?? 'unknown',
+            },
+          };
+        });
+
+        // Remove hypothesis → variant edges
+        const newEdges = state.edges.filter(
+          (e) => !(e.source === hypothesisNodeId && variantIdSet.has(e.target)),
+        );
+
+        set({ nodes: newNodes, edges: newEdges });
+      },
+
+      clearVariantNodeIdMap: () => set({ variantNodeIdMap: new Map() }),
 
       // ── Edge status ─────────────────────────────────────────────
 
@@ -769,173 +740,19 @@ export const useCanvasStore = create<CanvasStore>()(
           ),
         }),
 
-      // ── Auto-layout (edge-driven Sugiyama-style) ─────────────────
+      setEdgeStatusByTarget: (targetId, status) =>
+        set({
+          edges: get().edges.map((e) =>
+            e.target === targetId ? { ...e, data: { status } } : e
+          ),
+        }),
+
+      // ── Auto-layout (delegates to pure function) ─────────────────
 
       applyAutoLayout: () => {
-        const { nodes, edges, colGap: gap } = get();
+        const { nodes, edges, colGap } = get();
         if (nodes.length === 0) return;
-
-        // ── 1. Build directed adjacency from edges ──────────────
-        const children = new Map<string, string[]>(); // source → targets
-        const parents = new Map<string, string[]>();   // target → sources
-        const nodeById = new Map<string, CanvasNode>();
-        for (const n of nodes) {
-          nodeById.set(n.id, n);
-          children.set(n.id, []);
-          parents.set(n.id, []);
-        }
-        for (const e of edges) {
-          if (!nodeById.has(e.source) || !nodeById.has(e.target)) continue;
-          children.get(e.source)!.push(e.target);
-          parents.get(e.target)!.push(e.source);
-        }
-
-        // ── 2. Assign ranks via longest-path DFS (cycle-safe) ───
-        const rank = new Map<string, number>();
-        const onStack = new Set<string>();
-        const visited = new Set<string>();
-
-        function dfs(id: string): number {
-          if (rank.has(id)) return rank.get(id)!;
-          if (onStack.has(id)) return 0; // cycle — treat as rank 0
-          onStack.add(id);
-          visited.add(id);
-          let maxParent = -1;
-          for (const pid of parents.get(id) ?? []) {
-            maxParent = Math.max(maxParent, dfs(pid));
-          }
-          const r = maxParent + 1;
-          rank.set(id, r);
-          onStack.delete(id);
-          return r;
-        }
-
-        for (const n of nodes) dfs(n.id);
-
-        // ── 3. Group nodes into layers by rank ──────────────────
-        const maxRank = Math.max(0, ...rank.values());
-        const layers: CanvasNode[][] = Array.from({ length: maxRank + 1 }, () => []);
-        for (const n of nodes) {
-          layers[rank.get(n.id) ?? 0].push(n);
-        }
-
-        // Remove empty layers
-        const nonEmptyLayers = layers.filter((l) => l.length > 0);
-        if (nonEmptyLayers.length === 0) return;
-
-        // ── 4. Sort nodes within each layer by barycenter ───────
-        // Root layer: sort by type order for consistency
-        const TYPE_ORDER: Record<string, number> = {
-          designBrief: 0, existingDesign: 1, researchContext: 2,
-          objectivesMetrics: 3, designConstraints: 4, compiler: 5,
-          hypothesis: 6, generator: 7, variant: 8, critique: 9,
-        };
-
-        nonEmptyLayers[0].sort((a, b) =>
-          (TYPE_ORDER[a.type as string] ?? 99) - (TYPE_ORDER[b.type as string] ?? 99)
-        );
-
-        // For subsequent layers, sort by average Y of parents (barycenter)
-        for (let li = 1; li < nonEmptyLayers.length; li++) {
-          // Build a map of node positions from previous layer placements
-          // (using order index as proxy since we haven't placed yet)
-          const prevLayer = nonEmptyLayers[li - 1];
-          const prevOrder = new Map<string, number>();
-          prevLayer.forEach((n, i) => prevOrder.set(n.id, i));
-
-          nonEmptyLayers[li].sort((a, b) => {
-            const aParents = (parents.get(a.id) ?? []).filter((p) => prevOrder.has(p));
-            const bParents = (parents.get(b.id) ?? []).filter((p) => prevOrder.has(p));
-            const aCenter = aParents.length > 0
-              ? aParents.reduce((s, p) => s + prevOrder.get(p)!, 0) / aParents.length
-              : Infinity;
-            const bCenter = bParents.length > 0
-              ? bParents.reduce((s, p) => s + prevOrder.get(p)!, 0) / bParents.length
-              : Infinity;
-            return aCenter - bCenter;
-          });
-        }
-
-        // ── 5. Compute column X positions (skip empty ranks) ────
-        function nodeWidth(n: CanvasNode): number {
-          if (SECTION_NODE_TYPES.has(n.type as CanvasNodeType)) return NODE_W.section;
-          return NODE_W[n.type as keyof typeof NODE_W] ?? 300;
-        }
-
-        const layerX: number[] = [];
-        let curX = 0;
-        for (const layer of nonEmptyLayers) {
-          layerX.push(curX);
-          const widest = Math.max(...layer.map(nodeWidth));
-          curX += widest + gap;
-        }
-
-        // ── 6. Measure each layer's total height ────────────────
-        const layerHeights = nonEmptyLayers.map((layer) =>
-          layer.reduce((sum, n) => sum + nodeH(n), 0) +
-          Math.max(0, layer.length - 1) * NODE_SPACING
-        );
-        const tallestHeight = Math.max(...layerHeights);
-
-        // ── 7. Stack each layer centered on the tallest layer ───
-        const centerY = 200 + tallestHeight / 2;
-        const positions = new Map<string, { x: number; y: number }>();
-
-        for (let li = 0; li < nonEmptyLayers.length; li++) {
-          const layer = nonEmptyLayers[li];
-          const totalH = layerHeights[li];
-          let y = centerY - totalH / 2;
-
-          for (const n of layer) {
-            positions.set(n.id, snap({ x: layerX[li], y }));
-            y += nodeH(n) + NODE_SPACING;
-          }
-        }
-
-        // ── 8. Nudge single-node layers toward parent/child avg ─
-        for (let li = 0; li < nonEmptyLayers.length; li++) {
-          const layer = nonEmptyLayers[li];
-          if (layer.length !== 1) continue;
-          const n = layer[0];
-          const pIds = parents.get(n.id) ?? [];
-          const cIds = children.get(n.id) ?? [];
-          const anchors: number[] = [];
-          for (const pid of pIds) {
-            const p = positions.get(pid);
-            const pn = nodeById.get(pid);
-            if (p && pn) anchors.push(p.y + nodeH(pn) / 2);
-          }
-          for (const cid of cIds) {
-            const c = positions.get(cid);
-            const cn = nodeById.get(cid);
-            if (c && cn) anchors.push(c.y + nodeH(cn) / 2);
-          }
-          if (anchors.length > 0) {
-            const avgAnchor = anchors.reduce((s, v) => s + v, 0) / anchors.length;
-            const targetY = avgAnchor - nodeH(n) / 2;
-            positions.set(n.id, snap({ x: positions.get(n.id)!.x, y: targetY }));
-          }
-        }
-
-        // ── 9. Normalize Y so topmost node starts at y ≈ 100 ────
-        let minY = Infinity;
-        for (const pos of positions.values()) {
-          if (pos.y < minY) minY = pos.y;
-        }
-        const yShift = 100 - minY;
-        if (Math.abs(yShift) > 1) {
-          for (const [id, pos] of positions) {
-            positions.set(id, snap({ x: pos.x, y: pos.y + yShift }));
-          }
-        }
-
-        // ── 10. Apply positions ─────────────────────────────────
-        const updated = nodes.map((n) => {
-          const pos = positions.get(n.id);
-          return pos ? { ...n, position: pos } : n;
-        });
-
-        set({ nodes: updated });
+        set({ nodes: computeAutoLayout(nodes, edges, colGap) });
       },
 
       // ── Reset ───────────────────────────────────────────────────
@@ -945,7 +762,6 @@ export const useCanvasStore = create<CanvasStore>()(
           nodes: [],
           edges: [],
           viewport: { x: 0, y: 0, zoom: 0.85 },
-          generationCounter: 0,
           expandedVariantId: null,
           lineageNodeIds: new Set(),
           lineageEdgeIds: new Set(),
@@ -953,7 +769,7 @@ export const useCanvasStore = create<CanvasStore>()(
     }),
     {
       name: 'auto-designer-canvas',
-      version: 5,
+      version: 11,
       migrate: (_persistedState: unknown, version: number) => {
         // v0/v1 → v4: complete reset (too old to migrate incrementally)
         if (version < 2) {
@@ -977,7 +793,7 @@ export const useCanvasStore = create<CanvasStore>()(
             ...state,
             nodes: nodes.map((n) => ({
               ...n,
-              type: n.type === 'incubator' ? 'generator' : n.type,
+              type: n.type === 'incubator' ? 'designer' : n.type,
               id: n.id === 'incubator-node' ? 'generator-node' : n.id,
             })),
             edges: edges.map((e) => ({
@@ -985,7 +801,7 @@ export const useCanvasStore = create<CanvasStore>()(
               source: e.source === 'incubator-node' ? 'generator-node' : e.source,
               target: e.target === 'incubator-node' ? 'generator-node' : e.target,
               id: typeof e.id === 'string'
-                ? e.id.replace('incubator', 'generator')
+                ? e.id.replace('incubator', 'designer')
                 : e.id,
             })),
           };
@@ -1001,13 +817,205 @@ export const useCanvasStore = create<CanvasStore>()(
             showGrid: true,
             colGap: DEFAULT_COL_GAP,
             autoLayout: true,
-            generationCounter: 0,
           };
         }
-        // v4 → v5: add generationCounter (default 0)
-        if (version < 5) {
+        // v5 → v6: rename 'generator' node type to 'designer'
+        if (version < 6) {
           const state = _persistedState as Record<string, unknown>;
-          return { ...state, generationCounter: 0 };
+          const nodes = (state.nodes as Array<Record<string, unknown>>) ?? [];
+          const edges = (state.edges as Array<Record<string, unknown>>) ?? [];
+          _persistedState = {
+            ...state,
+            nodes: nodes.map((n) => ({
+              ...n,
+              type: n.type === 'generator' ? 'designer' : n.type,
+            })),
+            edges: edges.map((e) => ({
+              ...e,
+              id: typeof e.id === 'string'
+                ? e.id.replace('generator', 'designer')
+                : e.id,
+            })),
+          };
+        }
+        // v6 → v7: add variantStrategyId to variant nodes (look up from generation store)
+        if (version < 7) {
+          const state = _persistedState as Record<string, unknown>;
+          const nodes = (state.nodes as Array<Record<string, unknown>>) ?? [];
+          // Try to get variantStrategyId from generation results for existing variant nodes
+          const genRaw = localStorage.getItem('auto-designer-generation');
+          const genResults: Array<Record<string, unknown>> = [];
+          if (genRaw) {
+            try {
+              const parsed = JSON.parse(genRaw);
+              genResults.push(...(parsed?.state?.results ?? []));
+            } catch { /* ignore */ }
+          }
+          const resultById = new Map<string, string>();
+          for (const r of genResults) {
+            if (r.id && r.variantStrategyId) {
+              resultById.set(r.id as string, r.variantStrategyId as string);
+            }
+          }
+          _persistedState = {
+            ...state,
+            nodes: nodes.map((n) => {
+              if (n.type === 'variant' && n.data) {
+                const data = n.data as Record<string, unknown>;
+                if (!data.variantStrategyId && data.refId) {
+                  const vsId = resultById.get(data.refId as string);
+                  if (vsId) {
+                    return { ...n, data: { ...data, variantStrategyId: vsId } };
+                  }
+                }
+              }
+              return n;
+            }),
+          };
+        }
+        // v7 → v8: provider/model/format now stored in node data (no transform needed)
+        // v8 → v9: remove designer nodes (merged into hypothesis)
+        if (version < 9) {
+          const state = _persistedState as Record<string, unknown>;
+          const nodes = (state.nodes as Array<Record<string, unknown>>) ?? [];
+          const edges = (state.edges as Array<Record<string, unknown>>) ?? [];
+          const designerIds = new Set(
+            nodes.filter((n) => n.type === 'designer').map((n) => n.id as string),
+          );
+
+          // Build hypothesis→variant edges to replace hypothesis→designer→variant chain
+          const newEdges: Array<Record<string, unknown>> = [];
+          const hypothesisNodes = nodes.filter((n) => n.type === 'hypothesis');
+          const variantNodes = nodes.filter((n) => n.type === 'variant');
+          for (const hyp of hypothesisNodes) {
+            const hypData = hyp.data as Record<string, unknown> | undefined;
+            const hypRefId = hypData?.refId as string | undefined;
+            if (!hypRefId) continue;
+            for (const v of variantNodes) {
+              const vData = v.data as Record<string, unknown> | undefined;
+              if (vData?.variantStrategyId === hypRefId) {
+                newEdges.push({
+                  id: `e-${hyp.id as string}-${v.id as string}`,
+                  source: hyp.id as string,
+                  target: v.id as string,
+                  type: 'dataFlow',
+                });
+              }
+            }
+          }
+
+          _persistedState = {
+            ...state,
+            nodes: nodes.filter((n) => n.type !== 'designer'),
+            edges: [
+              ...edges.filter(
+                (e) => !designerIds.has(e.source as string) && !designerIds.has(e.target as string),
+              ),
+              ...newEdges,
+            ],
+          };
+        }
+        // v9 → v10: ensure hypothesis→variant edges exist
+        // (v9 migration may have run before edge-reconnection was added)
+        if (version < 10) {
+          const state = _persistedState as Record<string, unknown>;
+          const nodes = (state.nodes as Array<Record<string, unknown>>) ?? [];
+          const edges = (state.edges as Array<Record<string, unknown>>) ?? [];
+
+          // Build a set of existing hypothesis→variant edges
+          const existingHypVariantEdges = new Set<string>();
+          for (const e of edges) {
+            existingHypVariantEdges.add(`${e.source as string}→${e.target as string}`);
+          }
+
+          const newEdges: Array<Record<string, unknown>> = [];
+          const hypothesisNodes = nodes.filter((n) => n.type === 'hypothesis');
+          const variantNodes = nodes.filter((n) => n.type === 'variant');
+          for (const hyp of hypothesisNodes) {
+            const hypData = hyp.data as Record<string, unknown> | undefined;
+            const hypRefId = hypData?.refId as string | undefined;
+            if (!hypRefId) continue;
+            for (const v of variantNodes) {
+              const vData = v.data as Record<string, unknown> | undefined;
+              if (vData?.variantStrategyId === hypRefId) {
+                const key = `${hyp.id as string}→${v.id as string}`;
+                if (!existingHypVariantEdges.has(key)) {
+                  newEdges.push({
+                    id: `e-${hyp.id as string}-${v.id as string}`,
+                    source: hyp.id as string,
+                    target: v.id as string,
+                    type: 'dataFlow',
+                  });
+                }
+              }
+            }
+          }
+
+          if (newEdges.length > 0) {
+            _persistedState = {
+              ...state,
+              edges: [...edges, ...newEdges],
+            };
+          }
+        }
+        // v10 → v11: designSystem is now self-contained (content in node.data, not spec store)
+        // Also create designSystem → hypothesis edges
+        if (version < 11) {
+          const state = _persistedState as Record<string, unknown>;
+          const nodes = (state.nodes as Array<Record<string, unknown>>) ?? [];
+          const edges = (state.edges as Array<Record<string, unknown>>) ?? [];
+
+          // Seed designSystem node data from spec store
+          const specRaw = localStorage.getItem('auto-designer-active-spec');
+          let dsContent = '';
+          let dsImages: unknown[] = [];
+          if (specRaw) {
+            try {
+              const parsed = JSON.parse(specRaw);
+              const dsSection = parsed?.state?.spec?.sections?.['design-system'];
+              if (dsSection) {
+                dsContent = dsSection.content || '';
+                dsImages = dsSection.images || [];
+              }
+            } catch { /* ignore */ }
+          }
+
+          const updatedNodes = nodes.map((n) => {
+            if (n.type === 'designSystem') {
+              const existingData = (n.data as Record<string, unknown>) || {};
+              return {
+                ...n,
+                data: {
+                  ...existingData,
+                  title: 'Design System',
+                  content: dsContent,
+                  images: dsImages,
+                },
+              };
+            }
+            return n;
+          });
+
+          // Create designSystem → hypothesis edges
+          const newEdges: Array<Record<string, unknown>> = [];
+          const dsNodeIds = updatedNodes.filter((n) => n.type === 'designSystem').map((n) => n.id as string);
+          const hypNodeIds = updatedNodes.filter((n) => n.type === 'hypothesis').map((n) => n.id as string);
+          for (const dsId of dsNodeIds) {
+            for (const hypId of hypNodeIds) {
+              newEdges.push({
+                id: `edge-${dsId}-to-${hypId}`,
+                source: dsId,
+                target: hypId,
+                type: 'dataFlow',
+              });
+            }
+          }
+
+          _persistedState = {
+            ...state,
+            nodes: updatedNodes,
+            edges: [...edges, ...newEdges],
+          };
         }
         return _persistedState as Record<string, unknown>;
       },
@@ -1019,7 +1027,6 @@ export const useCanvasStore = create<CanvasStore>()(
         showGrid: state.showGrid,
         colGap: state.colGap,
         autoLayout: state.autoLayout,
-        generationCounter: state.generationCounter,
       }),
     }
   )

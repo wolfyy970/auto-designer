@@ -1,29 +1,26 @@
 import type { CompiledPrompt } from '../../types/compiler';
 import type {
-  ContentPart,
   GenerationProvider,
   GenerationResult,
   OutputFormat,
   ProviderModel,
   ProviderOptions,
 } from '../../types/provider';
-import { GEN_SYSTEM_HTML, GEN_SYSTEM_REACT } from '../../lib/constants';
-import { generateId, now } from '../../lib/utils';
-import { extractCode } from '../../lib/extract-code';
-
-// Vite proxy forwards /openrouter-api/* → https://openrouter.ai/* with API key injected
-const PROXY_BASE = '/openrouter-api';
+import { OPENROUTER_PROXY } from '../../lib/constants';
+import { getPrompt } from '../../stores/prompt-store';
+import { buildUserContent, buildChatRequest, parseGenerationResult } from '../../lib/provider-helpers';
 
 export class OpenRouterGenerationProvider implements GenerationProvider {
   id = 'openrouter';
   name = 'OpenRouter';
   description = 'Generates HTML/React code via OpenRouter (Claude, GPT-4o, Gemini, etc.)';
   supportsImages = false;
+  supportsParallel = true;
   supportedFormats: OutputFormat[] = ['html', 'react'];
 
   async listModels(): Promise<ProviderModel[]> {
     try {
-      const response = await fetch(`${PROXY_BASE}/api/v1/models`);
+      const response = await fetch(`${OPENROUTER_PROXY}/api/v1/models`);
       if (!response.ok) return [];
 
       const json = await response.json();
@@ -46,40 +43,14 @@ export class OpenRouterGenerationProvider implements GenerationProvider {
     const startTime = Date.now();
 
     const systemPrompt =
-      options.format === 'react' ? GEN_SYSTEM_REACT : GEN_SYSTEM_HTML;
+      options.format === 'react' ? getPrompt('genSystemReact') : getPrompt('genSystemHtml');
 
-    const maxTokensEnv = import.meta.env.VITE_MAX_OUTPUT_TOKENS;
-    const maxTokens = maxTokensEnv ? parseInt(maxTokensEnv, 10) : undefined;
+    const userContent = buildUserContent(prompt, options.supportsVision ?? false);
+    const requestBody = buildChatRequest(model, systemPrompt, userContent);
 
-    const userContent: string | ContentPart[] =
-      options.supportsVision && prompt.images.length > 0
-        ? [
-            { type: 'text' as const, text: prompt.prompt },
-            ...prompt.images.map((img) => ({
-              type: 'image_url' as const,
-              image_url: { url: img.dataUrl },
-            })),
-          ]
-        : prompt.prompt;
-
-    const requestBody: Record<string, unknown> = {
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent },
-      ],
-      temperature: 0.7,
-    };
-
-    if (maxTokens) {
-      requestBody.max_tokens = maxTokens;
-    }
-
-    const response = await fetch(`${PROXY_BASE}/api/v1/chat/completions`, {
+    const response = await fetch(`${OPENROUTER_PROXY}/api/v1/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
     });
 
@@ -95,33 +66,10 @@ export class OpenRouterGenerationProvider implements GenerationProvider {
     }
 
     const data = await response.json();
-    const durationMs = Date.now() - startTime;
-    const rawText = data.choices?.[0]?.message?.content ?? '';
-    const finishReason = data.choices?.[0]?.finish_reason;
-    const code = extractCode(rawText);
-
-    if (finishReason === 'length') {
-      console.warn('[OpenRouter] Response truncated due to max_tokens limit. Code may be incomplete.');
-    }
-
-    return {
-      id: generateId(),
-      variantStrategyId: prompt.variantStrategyId,
-      providerId: this.id,
-      status: 'complete',
-      code,
-      metadata: {
-        model: data.model ?? model,
-        tokensUsed: data.usage?.completion_tokens,
-        durationMs,
-        completedAt: now(),
-        truncated: finishReason === 'length',
-      },
-    };
+    return parseGenerationResult(data, prompt, this.id, model, startTime);
   }
 
   isAvailable(): boolean {
-    // Proxy handles the key server-side; always available in dev
     return true;
   }
 }

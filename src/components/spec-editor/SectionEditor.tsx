@@ -36,15 +36,15 @@ export default function SectionEditor({ meta }: SectionEditorProps) {
       className="scroll-mt-6"
     >
       <div className="mb-2">
-        <h2 className="text-lg font-semibold text-gray-900">
+        <h2 className="text-lg font-semibold text-fg">
           {meta.title}
           {!meta.required && (
-            <span className="ml-2 text-xs font-normal text-gray-400">
+            <span className="ml-2 text-xs font-normal text-fg-muted">
               optional
             </span>
           )}
         </h2>
-        <p className="mt-0.5 text-sm text-gray-500">{meta.description}</p>
+        <p className="mt-0.5 text-sm text-fg-secondary">{meta.description}</p>
       </div>
       <TextArea
         value={content}

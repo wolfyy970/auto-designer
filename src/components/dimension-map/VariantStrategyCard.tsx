@@ -4,8 +4,6 @@ import { useCompilerStore } from '../../stores/compiler-store';
 
 interface VariantStrategyCardProps {
   strategy: VariantStrategy;
-  index: number;
-  total: number;
 }
 
 export default function VariantStrategyCard({
@@ -19,17 +17,17 @@ export default function VariantStrategyCard({
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5">
+    <div className="rounded-lg border border-border bg-bg p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <input
           value={strategy.name}
           onChange={(e) => update('name', e.target.value)}
-          className="flex-1 rounded border border-transparent px-1 text-base font-semibold text-gray-900 outline-none hover:border-gray-200 focus:border-gray-400"
+          className="flex-1 rounded border border-transparent px-1 text-base font-semibold text-fg outline-none hover:border-border focus:border-accent"
         />
         <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={() => removeVariant(strategy.id)}
-            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+            className="rounded p-1 text-fg-muted hover:bg-error-subtle hover:text-error"
             aria-label="Remove variant"
           >
             <Trash2 size={16} />
@@ -79,7 +77,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-gray-500">
+      <label className="mb-1 block text-xs font-medium text-fg-secondary">
         {label}
       </label>
       {rows > 1 ? (
@@ -87,13 +85,13 @@ function Field({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           rows={rows}
-          className="w-full resize-none rounded border border-gray-200 px-3 py-2 text-sm text-gray-800 outline-none focus:border-gray-400"
+          className="w-full resize-none rounded border border-border px-3 py-2 text-sm text-fg-secondary outline-none focus:border-accent"
         />
       ) : (
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded border border-gray-200 px-3 py-2 text-sm text-gray-800 outline-none focus:border-gray-400"
+          className="w-full rounded border border-border px-3 py-2 text-sm text-fg-secondary outline-none focus:border-accent"
         />
       )}
     </div>

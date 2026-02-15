@@ -50,7 +50,7 @@ export default function CanvasToolbar() {
   }, [showPalette, showGapControl]);
 
   return (
-    <div className="absolute bottom-4 left-4 z-10 flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
+    <div className="absolute bottom-4 left-4 z-10 flex flex-col gap-1 rounded-lg border border-border bg-bg p-1 shadow-sm">
       <div className="relative" ref={paletteRef}>
         <ToolButton
           icon={<Plus size={16} />}
@@ -67,7 +67,7 @@ export default function CanvasToolbar() {
           </div>
         )}
       </div>
-      <div className="my-0.5 border-t border-gray-100" />
+      <div className="my-0.5 border-t border-border-subtle" />
       <ToolButton
         icon={<ZoomIn size={16} />}
         label="Zoom in"
@@ -83,7 +83,7 @@ export default function CanvasToolbar() {
         label="Fit view"
         onClick={() => fitView({ duration: 300, padding: 0.15 })}
       />
-      <div className="my-0.5 border-t border-gray-100" />
+      <div className="my-0.5 border-t border-border-subtle" />
       <ToolButton
         icon={<Map size={16} />}
         label="Toggle minimap"
@@ -96,7 +96,7 @@ export default function CanvasToolbar() {
         onClick={toggleGrid}
         active={showGrid}
       />
-      <div className="my-0.5 border-t border-gray-100" />
+      <div className="my-0.5 border-t border-border-subtle" />
       <ToolButton
         icon={<AlignHorizontalSpaceAround size={16} />}
         label={autoLayout ? 'Auto layout on (click to disable)' : 'Auto layout off (click to enable)'}
@@ -116,19 +116,19 @@ export default function CanvasToolbar() {
           active={showGapControl}
         />
         {showGapControl && (
-          <div className="absolute bottom-0 left-full ml-2 flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 shadow-sm">
+          <div className="absolute bottom-0 left-full ml-2 flex items-center gap-1 rounded-lg border border-border bg-bg px-2 py-1 shadow-sm">
             <button
               onClick={() => setColGap(colGap - GAP_STEP)}
-              className="rounded p-1 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-30"
+              className="rounded p-1 text-fg-secondary hover:bg-surface hover:text-fg-secondary disabled:opacity-30"
               disabled={colGap <= 80}
               title="Decrease spacing"
             >
               <Minus size={14} />
             </button>
-            <span className="min-w-[3ch] text-center text-[10px] text-gray-500">{colGap}</span>
+            <span className="min-w-[3ch] text-center text-nano text-fg-secondary">{colGap}</span>
             <button
               onClick={() => setColGap(colGap + GAP_STEP)}
-              className="rounded p-1 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-30"
+              className="rounded p-1 text-fg-secondary hover:bg-surface hover:text-fg-secondary disabled:opacity-30"
               disabled={colGap >= 320}
               title="Increase spacing"
             >
@@ -158,8 +158,8 @@ function ToolButton({
       title={label}
       className={`rounded p-1.5 transition-colors ${
         active
-          ? 'bg-gray-100 text-gray-900'
-          : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+          ? 'bg-surface-raised text-fg'
+          : 'text-fg-secondary hover:bg-surface hover:text-fg-secondary'
       }`}
     >
       {icon}

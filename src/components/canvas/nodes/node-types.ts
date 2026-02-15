@@ -1,7 +1,7 @@
 import SectionNode from './SectionNode';
 import CompilerNode from './CompilerNode';
+import DesignSystemNode from './DesignSystemNode';
 import HypothesisNode from './HypothesisNode';
-import GeneratorNode from './GeneratorNode';
 import VariantNode from './VariantNode';
 import CritiqueNode from './CritiqueNode';
 
@@ -11,9 +11,9 @@ export const nodeTypes = {
   researchContext: SectionNode,
   objectivesMetrics: SectionNode,
   designConstraints: SectionNode,
+  designSystem: DesignSystemNode,
   compiler: CompilerNode,
   hypothesis: HypothesisNode,
-  generator: GeneratorNode,
   variant: VariantNode,
   critique: CritiqueNode,
 };

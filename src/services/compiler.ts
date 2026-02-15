@@ -1,16 +1,13 @@
 import type { DesignSpec, ReferenceImage } from '../types/spec';
 import type { CompiledPrompt, DimensionMap, VariantStrategy } from '../types/compiler';
 import type { ContentPart } from '../types/provider';
-import { COMPILER_SYSTEM_PROMPT } from '../lib/prompts/compiler-system';
+import { getCompilerSystemPrompt } from '../lib/prompts/compiler-system';
 import { buildCompilerUserPrompt, type CritiqueInput } from '../lib/prompts/compiler-user';
 import { buildVariantPrompt } from '../lib/prompts/variant-prompt';
 import { generateId, now } from '../lib/utils';
+import { OPENROUTER_PROXY, LMSTUDIO_PROXY } from '../lib/constants';
 
-// Proxy paths — Vite dev server forwards these with credentials injected
-const OPENROUTER_PROXY = '/openrouter-api';
-const LMSTUDIO_PROXY = '/lmstudio-api';
-
-interface ChatMessage {
+export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string | ContentPart[];
 }
@@ -26,7 +23,7 @@ function buildMultimodalContent(text: string, images: ReferenceImage[]): Content
   ];
 }
 
-async function callLLM(
+export async function callLLM(
   messages: ChatMessage[],
   model: string,
   providerId: string,
@@ -172,7 +169,7 @@ export async function compileSpec(
 
   const response = await callLLM(
     [
-      { role: 'system', content: COMPILER_SYSTEM_PROMPT },
+      { role: 'system', content: getCompilerSystemPrompt() },
       { role: 'user', content: userPrompt },
     ],
     model,
@@ -196,15 +193,20 @@ export async function compileSpec(
 
 export function compileVariantPrompts(
   spec: DesignSpec,
-  dimensionMap: DimensionMap
+  dimensionMap: DimensionMap,
+  designSystemOverride?: string,
+  extraImages?: ReferenceImage[],
 ): CompiledPrompt[] {
-  const allImages = Object.values(spec.sections).flatMap((s) => s.images);
+  const allImages = [
+    ...Object.values(spec.sections).flatMap((s) => s.images),
+    ...(extraImages ?? []),
+  ];
 
   return dimensionMap.variants.map((strategy: VariantStrategy) => ({
     id: generateId(),
     variantStrategyId: strategy.id,
     specId: spec.id,
-    prompt: buildVariantPrompt(spec, strategy),
+    prompt: buildVariantPrompt(spec, strategy, designSystemOverride),
     images: allImages,
     compiledAt: now(),
   }));

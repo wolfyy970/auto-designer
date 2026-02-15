@@ -63,7 +63,7 @@ interface CompilerStore {
   reset: () => void;
 }
 
-export { type CompilerStore };
+// CompilerStore interface used internally only
 
 // ── Store implementation ────────────────────────────────────────────
 
@@ -193,7 +193,7 @@ export const useCompilerStore = create<CompilerStore>()(
       },
       partialize: (state) => ({
         dimensionMaps: state.dimensionMaps,
-        compiledPrompts: state.compiledPrompts,
+        // compiledPrompts excluded — transient, regenerated each compile/generate
         selectedProvider: state.selectedProvider,
         selectedModel: state.selectedModel,
       }),

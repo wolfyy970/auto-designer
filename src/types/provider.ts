@@ -1,7 +1,7 @@
 import type { CompiledPrompt } from './compiler';
 
 export type OutputFormat = 'html' | 'react';
-export type GenerationStatus = 'pending' | 'generating' | 'complete' | 'error';
+type GenerationStatus = 'pending' | 'generating' | 'complete' | 'error';
 
 export type ContentPart =
   | { type: 'text'; text: string }
@@ -20,6 +20,21 @@ export interface ProviderOptions {
   supportsVision?: boolean;
 }
 
+export interface Provenance {
+  hypothesisSnapshot: {
+    name: string;
+    primaryEmphasis: string;
+    rationale: string;
+    dimensionValues: Record<string, string>;
+  };
+  designSystemSnapshot?: string;
+  compiledPrompt: string;
+  provider: string;
+  model: string;
+  format: OutputFormat;
+  timestamp: string;
+}
+
 export interface GenerationResult {
   id: string;
   variantStrategyId: string;
@@ -27,6 +42,8 @@ export interface GenerationResult {
   status: GenerationStatus;
   code?: string;
   error?: string;
+  runId: string;
+  runNumber: number;
   metadata: {
     model: string;
     tokensUsed?: number;
@@ -41,6 +58,7 @@ export interface GenerationProvider {
   name: string;
   description: string;
   supportsImages: boolean;
+  supportsParallel: boolean;
   supportedFormats: OutputFormat[];
   generate(prompt: CompiledPrompt, options: ProviderOptions): Promise<GenerationResult>;
   listModels(): Promise<ProviderModel[]>;

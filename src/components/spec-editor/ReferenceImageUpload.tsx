@@ -6,6 +6,8 @@ import { useSpecStore } from '../../stores/spec-store';
 import { generateId, now } from '../../lib/utils';
 import ImagePreview from './ImagePreview';
 
+const EMPTY_IMAGES: never[] = [];
+
 interface ReferenceImageUploadProps {
   sectionId: SpecSectionId;
 }
@@ -13,7 +15,7 @@ interface ReferenceImageUploadProps {
 export default function ReferenceImageUpload({
   sectionId,
 }: ReferenceImageUploadProps) {
-  const images = useSpecStore((s) => s.spec.sections[sectionId].images);
+  const images = useSpecStore((s) => s.spec.sections[sectionId]?.images ?? EMPTY_IMAGES);
   const addImage = useSpecStore((s) => s.addImage);
 
   const onDrop = useCallback(
@@ -53,16 +55,16 @@ export default function ReferenceImageUpload({
         {...getRootProps()}
         className={`cursor-pointer rounded-lg border-2 border-dashed p-4 text-center transition-colors ${
           isDragActive
-            ? 'border-gray-500 bg-gray-50'
-            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+            ? 'border-accent bg-surface'
+            : 'border-border hover:border-border hover:bg-surface'
         }`}
       >
         <input {...getInputProps()} />
         <ImagePlus
           size={20}
-          className="mx-auto mb-1 text-gray-400"
+          className="mx-auto mb-1 text-fg-muted"
         />
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-fg-secondary">
           {isDragActive
             ? 'Drop images here'
             : 'Drop reference images or click to upload'}

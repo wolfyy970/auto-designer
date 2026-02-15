@@ -56,13 +56,13 @@ export default function DimensionMapView() {
       <div className="flex flex-col items-center justify-center py-32">
         <div className="text-center">
           <div className="mb-3 text-4xl">🧭</div>
-          <h3 className="mb-2 text-lg font-medium text-gray-900">No Exploration Space Yet</h3>
-          <p className="mb-6 max-w-md text-sm text-gray-500">
+          <h3 className="mb-2 text-lg font-medium text-fg">No Exploration Space Yet</h3>
+          <p className="mb-6 max-w-md text-sm text-fg-secondary">
             Go to the Spec page and compile your specification to create the exploration space.
           </p>
           <a
             href="/editor"
-            className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+            className="inline-flex items-center gap-2 rounded-lg bg-fg px-6 py-2.5 text-sm font-semibold text-bg transition-colors hover:bg-fg/90"
           >
             Go to Spec
           </a>
@@ -76,7 +76,7 @@ export default function DimensionMapView() {
       {/* Dimensions overview */}
       {dimensionMap.dimensions.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-medium text-gray-700">
+          <h3 className="mb-2 text-sm font-medium text-fg-secondary">
             Identified Dimensions
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -85,8 +85,8 @@ export default function DimensionMapView() {
                 key={dim.name}
                 className={`rounded-full px-3 py-1 text-xs ${
                   dim.isConstant
-                    ? 'bg-gray-100 text-gray-500'
-                    : 'bg-blue-50 text-blue-700'
+                    ? 'bg-surface-raised text-fg-secondary'
+                    : 'bg-info-subtle text-info'
                 }`}
               >
                 {dim.name}
@@ -100,24 +100,22 @@ export default function DimensionMapView() {
       {/* Variant strategy cards */}
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-medium text-gray-700">
+          <h3 className="text-sm font-medium text-fg-secondary">
             Variant Strategies ({dimensionMap.variants.length})
           </h3>
           <button
             onClick={() => addVariantToNode(DEFAULT_NODE_KEY)}
-            className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+            className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-fg-secondary hover:bg-surface-raised"
           >
             <Plus size={14} />
             Add Variant
           </button>
         </div>
         <div className="space-y-4">
-          {dimensionMap.variants.map((strategy, i) => (
+          {dimensionMap.variants.map((strategy) => (
             <VariantStrategyCard
               key={strategy.id}
               strategy={strategy}
-              index={i}
-              total={dimensionMap.variants.length}
             />
           ))}
         </div>
@@ -125,15 +123,15 @@ export default function DimensionMapView() {
 
       {/* Error display */}
       {error && (
-        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p className="rounded-md bg-error-subtle px-4 py-3 text-sm text-error">
           {error}
         </p>
       )}
 
       {/* Actions */}
-      <div className="space-y-4 border-t border-gray-200 pt-6">
+      <div className="space-y-4 border-t border-border pt-6">
         {error && (
-          <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p className="rounded-md bg-error-subtle px-4 py-3 text-sm text-error">
             {error}
           </p>
         )}
@@ -153,7 +151,7 @@ export default function DimensionMapView() {
             <button
               onClick={handleCompile}
               disabled={isCompiling}
-              className="flex items-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm text-fg-secondary transition-colors hover:bg-surface disabled:opacity-50"
             >
               <RefreshCw size={16} className={isCompiling ? 'animate-spin' : ''} />
               Re-compile
@@ -163,7 +161,7 @@ export default function DimensionMapView() {
           <button
             onClick={handleApprove}
             disabled={dimensionMap.variants.length === 0}
-            className="flex items-center gap-2 rounded-lg bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg bg-fg px-6 py-2.5 text-sm font-semibold text-bg transition-colors hover:bg-fg/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Check size={18} />
             {compiledPrompts.length > 0 ? 'Update & Continue' : 'Approve & Continue'}
@@ -171,7 +169,7 @@ export default function DimensionMapView() {
         </div>
 
         {compiledPrompts.length > 0 && (
-          <p className="text-sm text-green-700">
+          <p className="text-sm text-success">
             ✓ {compiledPrompts.length} {compiledPrompts.length === 1 ? 'variant' : 'variants'} ready for generation
           </p>
         )}

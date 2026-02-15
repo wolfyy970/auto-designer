@@ -1,12 +1,30 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
-import { Code, Eye, Loader2, AlertCircle, RotateCcw, X, Minus, Plus, MousePointer, Maximize2 } from 'lucide-react';
-import { useGenerationStore } from '../../../stores/generation-store';
+import { type NodeProps, type Node } from '@xyflow/react';
+import {
+  Download,
+  Loader2,
+  AlertCircle,
+  X,
+  Minus,
+  Plus,
+  Maximize2,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+} from 'lucide-react';
+import {
+  useGenerationStore,
+  getStack,
+  getActiveResult,
+  getScopedStack,
+  getScopedActiveResult,
+} from '../../../stores/generation-store';
 import { useCompilerStore, findVariantStrategy } from '../../../stores/compiler-store';
 import { prepareIframeContent, renderErrorHtml } from '../../../lib/iframe-utils';
 import { useCanvasStore, type CanvasNodeData } from '../../../stores/canvas-store';
-import { useLineageDim } from '../../../hooks/useLineageDim';
-import { badgeColor } from '../../../lib/generation-badge-colors';
+import { useResultCode } from '../../../hooks/useResultCode';
+import { badgeColor } from '../../../lib/badge-colors';
+import NodeShell from './NodeShell';
 
 type VariantNodeType = Node<CanvasNodeData, 'variant'>;
 
@@ -17,40 +35,128 @@ const ZOOM_MAX = 1.5;
 const ZOOM_STEP = 0.05;
 
 function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
-  const resultId = data.refId as string;
-  const generation = data.generation as number | undefined;
-  const lineageDim = useLineageDim(id, !!selected);
-  const result = useGenerationStore(
-    (s) => s.results.find((r) => r.id === resultId)
+  const variantStrategyId = data.variantStrategyId as string | undefined;
+  const pinnedRunId = data.pinnedRunId as string | undefined;
+  const isArchived = !!pinnedRunId;
+
+  // Subscribe to primitive values to avoid re-renders from new array references.
+  // getStack/getActiveResult create new objects; we derive stable primitives here.
+  const results = useGenerationStore((s) => s.results);
+  const selectedVersions = useGenerationStore((s) => s.selectedVersions);
+
+  // Use scoped helpers when this variant is pinned (archived)
+  const stack = useMemo(
+    () => {
+      if (!variantStrategyId) return [];
+      const state = { results, selectedVersions };
+      return pinnedRunId
+        ? getScopedStack(state, variantStrategyId, pinnedRunId)
+        : getStack(state, variantStrategyId);
+    },
+    [results, selectedVersions, variantStrategyId, pinnedRunId],
   );
+  const activeResult = useMemo(
+    () => {
+      if (!variantStrategyId) return undefined;
+      const state = { results, selectedVersions };
+      return pinnedRunId
+        ? getScopedActiveResult(state, variantStrategyId, pinnedRunId)
+        : getActiveResult(state, variantStrategyId);
+    },
+    [results, selectedVersions, variantStrategyId, pinnedRunId],
+  );
+  // Legacy fallback: if no variantStrategyId, use refId directly
+  const legacyResult = useMemo(
+    () =>
+      !variantStrategyId && data.refId
+        ? results.find((r) => r.id === data.refId)
+        : undefined,
+    [variantStrategyId, data.refId, results],
+  );
+  const result = activeResult ?? legacyResult;
+
+  const setSelectedVersion = useGenerationStore(
+    (s) => s.setSelectedVersion,
+  );
+  const deleteResult = useGenerationStore((s) => s.deleteResult);
+
+  // Load code from IndexedDB
+  const { code, isLoading: codeLoading } = useResultCode(result?.id);
+
   const strategy = useCompilerStore((s) => {
-    if (!result) return undefined;
-    return findVariantStrategy(s.dimensionMaps, result.variantStrategyId);
+    const vsId = variantStrategyId ?? result?.variantStrategyId;
+    if (!vsId) return undefined;
+    return findVariantStrategy(s.dimensionMaps, vsId);
   });
 
   const removeNode = useCanvasStore((s) => s.removeNode);
   const setExpandedVariant = useCanvasStore((s) => s.setExpandedVariant);
-  const [showSource, setShowSource] = useState(false);
-  const [interacting, setInteracting] = useState(false);
 
-  // Exit interact mode when node is deselected or Escape is pressed
-  useEffect(() => {
-    if (!selected) setInteracting(false);
-  }, [selected]);
+  const variantName = strategy?.name ?? 'Variant';
 
-  useEffect(() => {
-    if (!interacting) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setInteracting(false);
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [interacting]);
+  // Stack navigation — use scoped key for pinned variants to avoid collision
+  const versionKey = pinnedRunId && variantStrategyId
+    ? `${variantStrategyId}:${pinnedRunId}`
+    : variantStrategyId;
+
+  const completedStack = useMemo(
+    () => stack.filter((r) => r.status === 'complete'),
+    [stack],
+  );
+  const stackIndex = completedStack.findIndex((r) => r.id === result?.id);
+  const stackTotal = completedStack.length;
+
+  const goNewer = useCallback(() => {
+    if (!versionKey || stackIndex <= 0) return;
+    setSelectedVersion(versionKey, completedStack[stackIndex - 1].id);
+  }, [versionKey, stackIndex, completedStack, setSelectedVersion]);
+
+  const goOlder = useCallback(() => {
+    if (!versionKey || stackIndex >= completedStack.length - 1) return;
+    setSelectedVersion(versionKey, completedStack[stackIndex + 1].id);
+  }, [versionKey, stackIndex, completedStack, setSelectedVersion]);
+
+  const handleDeleteVersion = useCallback(async () => {
+    if (!result || !versionKey) return;
+    const resultId = result.id;
+    // Select next version before deleting
+    if (stackTotal > 1) {
+      const nextResult =
+        completedStack.find((r) => r.id !== resultId) ?? stack.find((r) => r.id !== resultId);
+      if (nextResult) {
+        setSelectedVersion(versionKey, nextResult.id);
+      }
+    }
+    deleteResult(resultId);
+  }, [
+    result,
+    versionKey,
+    stackTotal,
+    completedStack,
+    stack,
+    setSelectedVersion,
+    deleteResult,
+  ]);
+
+  const handleDownload = useCallback(() => {
+    if (!code) return;
+    const slug = variantName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    const blob = new Blob([code], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${slug}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [code, variantName]);
 
   // Auto-zoom: measure container width and fit to REFERENCE_WIDTH
   const contentRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [zoomOffset, setZoomOffset] = useState(0); // manual adjustment on top of auto
+  const [zoomOffset, setZoomOffset] = useState(0);
 
   useEffect(() => {
     const el = contentRef.current;
@@ -62,241 +168,292 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
     return () => observer.disconnect();
   }, []);
 
-  const autoZoom = containerWidth > 0 ? containerWidth / REFERENCE_WIDTH : 0.4;
-  const zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, autoZoom + zoomOffset));
+  const autoZoom =
+    containerWidth > 0 ? containerWidth / REFERENCE_WIDTH : 0.4;
+  const zoom = Math.max(
+    ZOOM_MIN,
+    Math.min(ZOOM_MAX, autoZoom + zoomOffset),
+  );
 
   const zoomIn = useCallback(() => setZoomOffset((o) => o + ZOOM_STEP), []);
-  const zoomOut = useCallback(() => setZoomOffset((o) => o - ZOOM_STEP), []);
+  const zoomOut = useCallback(
+    () => setZoomOffset((o) => o - ZOOM_STEP),
+    [],
+  );
   const resetZoom = useCallback(() => setZoomOffset(0), []);
 
   const htmlContent = useMemo(() => {
-    if (!result?.code) return '';
+    if (!code) return '';
     try {
-      return prepareIframeContent(result.code);
+      return prepareIframeContent(code);
     } catch (err) {
       return renderErrorHtml(
-        err instanceof Error ? err.message : String(err)
+        err instanceof Error ? err.message : String(err),
       );
     }
-  }, [result?.code]);
+  }, [code]);
+
+  const hasCode = result?.status === 'complete' && !!code;
 
   const borderClass = selected
-    ? 'border-blue-400 ring-2 ring-blue-200'
-    : result?.status === 'error'
-      ? 'border-red-300'
-      : result?.status === 'complete'
-        ? 'border-gray-200'
-        : 'border-dashed border-gray-300';
+    ? 'border-accent ring-2 ring-accent/20'
+    : isArchived
+      ? 'border-border/50'
+      : result?.status === 'error'
+        ? 'border-error/50'
+        : result?.status === 'generating'
+          ? 'border-accent/50 animate-pulse'
+          : hasCode
+            ? 'border-border'
+            : 'border-dashed border-border';
 
   return (
-    <>
-      <div className={`relative flex h-full min-h-[420px] w-[480px] flex-col rounded-lg border bg-white shadow-sm ${borderClass} ${lineageDim}`}>
-        {/* Generation badge */}
-        {generation != null && (
-          <span className={`absolute -right-2 -top-2 z-10 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${badgeColor(generation).bg} ${badgeColor(generation).text}`}>
-            G{generation}
+    <NodeShell
+      nodeId={id}
+      selected={!!selected}
+      width="w-node-variant"
+      borderClass={borderClass}
+      className={`relative flex h-full min-h-[420px] flex-col${isArchived ? ' opacity-75' : ''}`}
+      handleColor={hasCode ? 'green' : 'amber'}
+    >
+      {/* ── Header ──────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 border-b border-border-subtle px-2.5 py-1">
+        <h4 className="min-w-0 flex-1 truncate text-sm font-semibold text-fg">
+          {variantName}
+        </h4>
+        {isArchived && (
+          <span className="shrink-0 rounded bg-fg-faint/10 px-1.5 py-px text-badge font-medium text-fg-muted">
+            Archived
           </span>
         )}
 
-        {/* Input handle */}
-        <Handle
-          type="target"
-          position={Position.Left}
-          className="!h-4 !w-4 !border-2 !border-gray-300 !bg-white"
-        />
-
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2">
-          <div className="min-w-0 flex-1">
-            <h4 className="truncate text-xs font-semibold text-gray-900">
-              {strategy?.name ?? 'Variant'}
-            </h4>
-            {result?.metadata?.model && (
-              <p className="text-[10px] text-gray-400">
-                {result.metadata.model}
-                {result.metadata.durationMs != null && (
-                  <> &middot; {(result.metadata.durationMs / 1000).toFixed(1)}s</>
-                )}
-                {result.metadata.tokensUsed != null && (
-                  <> &middot; {result.metadata.tokensUsed} tokens</>
-                )}
-                {result.metadata.truncated && (
-                  <span className="ml-1 text-amber-500">(truncated)</span>
-                )}
-              </p>
-            )}
-          </div>
-
-          <div className="flex shrink-0 items-center gap-1.5">
-            {/* Zoom control */}
-            {result?.status === 'complete' && result.code && !showSource && (
-              <div className="nodrag flex items-center rounded border border-gray-200">
-                <button
-                  onClick={zoomOut}
-                  disabled={zoom <= ZOOM_MIN + 0.01}
-                  className="px-1 py-0.5 text-gray-400 hover:text-gray-700 disabled:opacity-30"
-                  title="Zoom out"
-                >
-                  <Minus size={10} />
-                </button>
-                <button
-                  onClick={resetZoom}
-                  className="min-w-[32px] text-center text-[10px] tabular-nums text-gray-500 hover:text-gray-900"
-                  title="Reset to auto-fit"
-                >
-                  {Math.round(zoom * 100)}%
-                </button>
-                <button
-                  onClick={zoomIn}
-                  disabled={zoom >= ZOOM_MAX - 0.01}
-                  className="px-1 py-0.5 text-gray-400 hover:text-gray-700 disabled:opacity-30"
-                  title="Zoom in"
-                >
-                  <Plus size={10} />
-                </button>
-              </div>
-            )}
-
-            {/* Expand to full-screen */}
-            {result?.status === 'complete' && result.code && (
-              <button
-                onClick={() => setExpandedVariant(resultId)}
-                className="nodrag rounded border border-gray-200 p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                title="Full-screen preview"
-              >
-                <Maximize2 size={10} />
-              </button>
-            )}
-
-            {/* Preview/Source toggle */}
-            {result?.status === 'complete' && result.code && (
-              <div className="nodrag flex rounded border border-gray-200">
-                <button
-                  onClick={() => setShowSource(false)}
-                  className={`flex items-center gap-1 px-2 py-1 text-[10px] ${
-                    !showSource
-                      ? 'bg-gray-100 font-medium text-gray-900'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Eye size={10} />
-                  Preview
-                </button>
-                <button
-                  onClick={() => setShowSource(true)}
-                  className={`flex items-center gap-1 px-2 py-1 text-[10px] ${
-                    showSource
-                      ? 'bg-gray-100 font-medium text-gray-900'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Code size={10} />
-                  Source
-                </button>
-              </div>
-            )}
-
-            {/* Remove button */}
+        {/* Stack navigation */}
+        {stackTotal > 1 && (
+          <div className="nodrag flex items-center gap-0.5 text-fg-faint">
             <button
-              onClick={() => removeNode(id)}
-              className="nodrag shrink-0 rounded p-0.5 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
-              title="Remove"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                goNewer();
+              }}
+              disabled={stackIndex <= 0}
+              className="rounded p-px transition-colors hover:text-fg-muted disabled:opacity-30"
+              title="Newer version"
             >
-              <X size={12} />
+              <ChevronLeft size={10} />
+            </button>
+            <span className="px-0.5 text-badge tabular-nums">
+              {stackIndex + 1}/{stackTotal}
+            </span>
+            <button
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                goOlder();
+              }}
+              disabled={stackIndex >= stackTotal - 1}
+              className="rounded p-px transition-colors hover:text-fg-muted disabled:opacity-30"
+              title="Older version"
+            >
+              <ChevronRight size={10} />
             </button>
           </div>
-        </div>
+        )}
 
-        {/* Content area */}
-        <div ref={contentRef} className="relative flex-1 overflow-hidden rounded-b-lg">
-          {/* Generating state */}
-          {result?.status === 'generating' && (
-            <div className="flex h-full items-center justify-center bg-gray-50">
-              <div className="text-center">
-                <Loader2
-                  size={24}
-                  className="mx-auto mb-2 animate-spin text-gray-400"
-                />
-                <p className="text-xs text-gray-500">Generating...</p>
-              </div>
-            </div>
-          )}
+        {/* Zoom — whisper-quiet utility */}
+        {hasCode && (
+          <div className="nodrag flex items-center text-fg-faint">
+            <button
+              onClick={zoomOut}
+              disabled={zoom <= ZOOM_MIN + 0.01}
+              className="rounded p-px transition-colors hover:text-fg-muted disabled:opacity-30"
+              title="Zoom out"
+            >
+              <Minus size={8} />
+            </button>
+            <span
+              onClick={resetZoom}
+              className="cursor-pointer px-px text-badge font-light tabular-nums transition-colors hover:text-fg-muted"
+              title="Reset to auto-fit"
+            >
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              onClick={zoomIn}
+              disabled={zoom >= ZOOM_MAX - 0.01}
+              className="rounded p-px transition-colors hover:text-fg-muted disabled:opacity-30"
+              title="Zoom in"
+            >
+              <Plus size={8} />
+            </button>
+          </div>
+        )}
 
-          {/* Error state */}
-          {result?.status === 'error' && (
-            <div className="flex h-full flex-col items-center justify-center bg-red-50 p-4">
-              <AlertCircle size={20} className="mb-2 text-red-400" />
-              <p className="mb-2 text-center text-xs text-red-600">
-                {result.error ?? 'Generation failed'}
-              </p>
-              <button className="nodrag flex items-center gap-1 rounded bg-red-100 px-2.5 py-1 text-[10px] text-red-700 hover:bg-red-200">
-                <RotateCcw size={10} />
-                Retry
+        {/* Actions */}
+        {hasCode && (
+          <>
+            <div className="h-3 w-px bg-border-subtle" />
+            <button
+              onClick={handleDownload}
+              className="nodrag rounded p-0.5 text-fg-faint transition-colors hover:text-fg-muted"
+              title={`Download ${variantName}`}
+            >
+              <Download size={10} />
+            </button>
+            <button
+              onClick={() =>
+                setExpandedVariant(id)
+              }
+              className="nodrag rounded p-0.5 text-fg-faint transition-colors hover:text-fg-muted"
+              title="Full-screen preview"
+            >
+              <Maximize2 size={10} />
+            </button>
+            {stackTotal > 1 && (
+              <button
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleDeleteVersion();
+                }}
+                className="nodrag rounded p-0.5 text-fg-faint transition-colors hover:bg-error-subtle hover:text-error"
+                title="Delete this version"
+              >
+                <Trash2 size={10} />
               </button>
-            </div>
-          )}
+            )}
+          </>
+        )}
 
-          {/* Pending state */}
-          {(!result || result.status === 'pending') && (
-            <div className="flex h-full items-center justify-center bg-gray-50">
-              <p className="text-xs text-gray-400">Waiting...</p>
-            </div>
-          )}
+        <button
+          onClick={() => removeNode(id)}
+          className="nodrag shrink-0 rounded p-0.5 text-fg-faint transition-colors hover:bg-error-subtle hover:text-error"
+          title="Remove"
+        >
+          <X size={10} />
+        </button>
+      </div>
 
-          {/* Complete: preview or source */}
-          {result?.status === 'complete' && result.code && (
+      {/* ── Content area ──────────────────────────────────────── */}
+      <div ref={contentRef} className="relative flex-1 overflow-hidden">
+        {/* Generating state — skeleton shimmer */}
+        {result?.status === 'generating' && (
+          <div className="flex h-full flex-col gap-3 bg-surface p-4">
+            <div className="h-5 w-3/4 animate-pulse rounded bg-border" />
+            <div
+              className="h-3 w-full animate-pulse rounded bg-border/60"
+              style={{ animationDelay: '75ms' }}
+            />
+            <div
+              className="h-3 w-5/6 animate-pulse rounded bg-border/60"
+              style={{ animationDelay: '150ms' }}
+            />
+            <div
+              className="mt-1 h-24 w-full animate-pulse rounded bg-border/40"
+              style={{ animationDelay: '225ms' }}
+            />
+            <div
+              className="h-3 w-2/3 animate-pulse rounded bg-border/60"
+              style={{ animationDelay: '300ms' }}
+            />
+            <div
+              className="h-3 w-4/5 animate-pulse rounded bg-border/60"
+              style={{ animationDelay: '375ms' }}
+            />
+            <div
+              className="mt-1 h-16 w-full animate-pulse rounded bg-border/40"
+              style={{ animationDelay: '450ms' }}
+            />
+            <div
+              className="h-3 w-1/2 animate-pulse rounded bg-border/60"
+              style={{ animationDelay: '525ms' }}
+            />
+            <div className="mt-auto flex items-center justify-center gap-1.5 text-fg-muted">
+              <Loader2 size={12} className="animate-spin" />
+              <span className="text-xs">Generating...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Error state */}
+        {result?.status === 'error' && (
+          <div className="flex h-full flex-col items-center justify-center bg-error-subtle p-4">
+            <AlertCircle size={16} className="mb-2 text-error" />
+            <p className="text-center text-xs text-error">
+              {result.error ?? 'Generation failed'}
+            </p>
+          </div>
+        )}
+
+        {/* Pending / no result */}
+        {(!result || result.status === 'pending') && (
+          <div className="flex h-full items-center justify-center bg-surface">
+            <p className="text-xs text-fg-muted">Waiting...</p>
+          </div>
+        )}
+
+        {/* Loading code from IndexedDB */}
+        {result?.status === 'complete' && codeLoading && !code && (
+          <div className="flex h-full items-center justify-center bg-surface">
+            <Loader2 size={14} className="animate-spin text-fg-muted" />
+          </div>
+        )}
+
+        {/* Complete: rendered preview */}
+        {hasCode && (
+          <>
+            <iframe
+              srcDoc={htmlContent}
+              sandbox="allow-scripts"
+              title={`Variant: ${variantName}`}
+              className="absolute left-0 top-0 border-0 bg-white"
+              style={{
+                width: `${100 / zoom}%`,
+                height: `${100 / zoom}%`,
+                transform: `scale(${zoom})`,
+                transformOrigin: '0 0',
+                pointerEvents: 'auto',
+              }}
+            />
+          </>
+        )}
+      </div>
+
+      {/* ── Metadata footer ─────────────────────────────────── */}
+      {(hasCode || (result?.status === 'complete' && codeLoading)) && (
+        <div className="flex items-center gap-1.5 border-t border-border-subtle px-2.5 py-1 text-badge text-fg-faint">
+          {result?.runNumber != null && (
+            <span
+              className={`rounded px-1 py-px font-bold leading-none ${badgeColor(result.runNumber).bg} ${badgeColor(result.runNumber).text}`}
+            >
+              v{result.runNumber}
+            </span>
+          )}
+          {result?.metadata?.model && (
+            <span className="truncate">{result.metadata.model}</span>
+          )}
+          {result?.metadata?.durationMs != null && (
             <>
-              {showSource ? (
-                <pre className="nodrag nowheel h-full overflow-auto whitespace-pre-wrap bg-gray-50 px-3 py-2 text-[10px] text-gray-700">
-                  {result.code}
-                </pre>
-              ) : (
-                <>
-                  <iframe
-                    srcDoc={htmlContent}
-                    sandbox="allow-scripts"
-                    title={`Variant: ${strategy?.name ?? 'preview'}`}
-                    className="absolute left-0 top-0 border-0 bg-white"
-                    style={{
-                      width: `${100 / zoom}%`,
-                      height: `${100 / zoom}%`,
-                      transform: `scale(${zoom})`,
-                      transformOrigin: '0 0',
-                      pointerEvents: interacting ? 'auto' : 'none',
-                    }}
-                  />
-                  {/* Overlay: blocks iframe events so node is draggable */}
-                  {!interacting && (
-                    <div
-                      className="absolute inset-0 z-10"
-                      onDoubleClick={() => setInteracting(true)}
-                    />
-                  )}
-                  {/* Interact mode indicator + exit */}
-                  {interacting && (
-                    <button
-                      className="nodrag absolute right-2 top-2 z-10 flex items-center gap-1 rounded bg-blue-500 px-2 py-1 text-[10px] font-medium text-white shadow-sm transition-colors hover:bg-blue-600"
-                      onClick={() => setInteracting(false)}
-                      title="Exit interact mode (Esc)"
-                    >
-                      <MousePointer size={10} />
-                      Interactive — click to exit
-                    </button>
-                  )}
-                </>
-              )}
+              <span>&middot;</span>
+              <span>
+                {(result.metadata.durationMs / 1000).toFixed(1)}s
+              </span>
             </>
           )}
+          {result?.metadata?.tokensUsed != null && (
+            <>
+              <span>&middot;</span>
+              <span>
+                {result.metadata.tokensUsed.toLocaleString()} tok
+              </span>
+            </>
+          )}
+          {result?.metadata?.truncated && (
+            <span className="text-warning">(truncated)</span>
+          )}
         </div>
-
-        {/* Source handle (right) → can connect to next compiler for iteration */}
-        <Handle
-          type="source"
-          position={Position.Right}
-          className="!h-4 !w-4 !border-2 !border-gray-300 !bg-white"
-        />
-      </div>
-    </>
+      )}
+    </NodeShell>
   );
 }
 

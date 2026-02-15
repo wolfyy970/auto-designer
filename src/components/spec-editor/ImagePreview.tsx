@@ -12,14 +12,14 @@ export default function ImagePreview({ image, sectionId }: ImagePreviewProps) {
   const removeImage = useSpecStore((s) => s.removeImage);
 
   return (
-    <div className="group relative flex gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+    <div className="group relative flex gap-3 rounded-lg border border-border bg-surface p-3">
       <img
         src={image.dataUrl}
         alt={image.filename}
-        className="h-20 w-20 shrink-0 rounded-md border border-gray-200 object-cover"
+        className="h-20 w-20 shrink-0 rounded-md border border-border object-cover"
       />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="truncate text-xs font-medium text-gray-600">
+        <span className="truncate text-xs font-medium text-fg-secondary">
           {image.filename}
         </span>
         <textarea
@@ -29,12 +29,12 @@ export default function ImagePreview({ image, sectionId }: ImagePreviewProps) {
           }
           placeholder="Describe what this image shows..."
           rows={2}
-          className="w-full resize-none rounded border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-800 placeholder-gray-400 outline-none focus:border-gray-400"
+          className="w-full resize-none rounded border border-border bg-bg px-2 py-1.5 text-xs text-fg-secondary placeholder-fg-muted outline-none focus:border-accent"
         />
       </div>
       <button
         onClick={() => removeImage(sectionId, image.id)}
-        className="absolute -right-2 -top-2 hidden rounded-full bg-gray-800 p-0.5 text-white hover:bg-red-600 group-hover:block"
+        className="absolute -right-2 -top-2 hidden rounded-full bg-fg p-0.5 text-bg hover:bg-error group-hover:block"
         aria-label="Remove image"
       >
         <X size={12} />

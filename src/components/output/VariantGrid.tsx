@@ -28,7 +28,7 @@ export default function VariantGrid({
   return (
     <div className="flex flex-col">
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200 bg-white">
+      <div className="border-b border-border bg-bg">
         <div className="flex overflow-x-auto">
           {results.map((result, index) => {
             const strategy = getStrategy(result.variantStrategyId);
@@ -44,9 +44,9 @@ export default function VariantGrid({
                 onClick={() => setActiveTabIndex(index)}
                 className={`relative flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
                   isActive
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                } ${isError ? 'text-red-600' : ''}`}
+                    ? 'border-fg text-fg'
+                    : 'border-transparent text-fg-secondary hover:border-border hover:text-fg-secondary'
+                } ${isError ? 'text-error' : ''}`}
               >
                 {isGenerating && (
                   <Loader2 size={14} className="animate-spin" />
@@ -64,8 +64,8 @@ export default function VariantGrid({
         {activeResult && activeStrategy && (
           <>
             {activeResult.status === 'generating' && (
-              <div className="flex h-96 items-center justify-center rounded-lg border border-gray-200">
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+              <div className="flex h-96 items-center justify-center rounded-lg border border-border">
+                <div className="flex items-center gap-2 text-sm text-fg-secondary">
                   <Loader2 size={16} className="animate-spin" />
                   Generating {activeStrategy.name}...
                 </div>
@@ -73,11 +73,11 @@ export default function VariantGrid({
             )}
 
             {activeResult.status === 'error' && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-6">
-                <p className="text-sm font-medium text-red-800">
+              <div className="rounded-lg border border-error/30 bg-error-subtle px-4 py-6">
+                <p className="text-sm font-medium text-error">
                   {activeStrategy.name}
                 </p>
-                <p className="mt-1 text-xs text-red-600">{activeResult.error}</p>
+                <p className="mt-1 text-xs text-error">{activeResult.error}</p>
               </div>
             )}
 

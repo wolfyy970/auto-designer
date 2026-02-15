@@ -15,23 +15,23 @@ A visual node-graph workspace built on @xyflow/react v12. Nodes connect left-to-
 | Research Context | Input | User research, behavioral insights |
 | Objectives & Metrics | Input | Success criteria and evaluation measures |
 | Design Constraints | Input | Non-negotiable boundaries + exploration ranges |
+| Design System | Processing | Self-contained design token definitions. Supports multiple instances (e.g., Material Design vs custom tokens). Content stored in node data, not spec store. Optional vision-based extraction from uploaded images. |
 | Incubator | Processing | Compiles connected inputs → hypothesis strategies via LLM |
-| Hypothesis | Processing | Editable strategy card (name, emphasis, rationale, coupled decisions) |
-| Designer | Processing | Generates code variants from connected hypotheses |
-| Variant | Output | Rendered design preview with zoom, source view, interact mode, full-screen |
+| Hypothesis | Processing | Editable strategy card with built-in generation controls. Select provider, model, and format (HTML/React), then click Create to generate variants directly. |
+| Variant | Output | Rendered design preview with zoom, source view, full-screen, and version navigation |
 | Critique | Processing | Structured feedback (strengths, improvements, direction) for iteration |
 
 ### Canvas Features
 
 - **Auto-layout** — Edge-driven Sugiyama-style layout. Toggleable checkbox in header. Positions all nodes based on connections, prevents overlap, centers layers vertically.
-- **Auto-connect** — Adding a node auto-connects it to the appropriate upstream node
+- **Auto-connect** — Adding a node auto-connects it to the appropriate upstream node (sections→incubator, design systems→hypotheses)
 - **Context menu** — Right-click canvas to add nodes at click position
 - **Node palette** — Grouped picker (input/processing/output) in toolbar
 - **Lineage highlighting** — Select a node to highlight its connected upstream/downstream chain
 - **Edge animations** — Custom DataFlowEdge with status indicators (idle/processing/complete/error)
-- **Variant interaction** — Double-click a variant preview to enter interact mode (clickable, scrollable). Escape or click button to exit.
-- **Full-screen preview** — Expand any variant to full-screen overlay
+- **Full-screen preview** — Expand any variant to full-screen overlay with version navigation
 - **Screenshot capture** — Connect a variant to Existing Design to automatically capture a screenshot as a reference image for the next iteration
+- **Version stacking** — Results accumulate across generation runs. Each variant shows version badges (v1, v2, ...) with ChevronLeft/Right navigation to browse previous versions.
 
 ### Iteration Loop
 
@@ -59,9 +59,11 @@ The original form-based workflow still works at `/editor`, `/compiler`, `/genera
 
 ## Persistence
 
-- All stores auto-save via Zustand `persist` middleware (localStorage)
+- Store metadata auto-saves via Zustand `persist` middleware (localStorage)
+- Generated code and provenance snapshots stored in IndexedDB (avoids localStorage size limits)
 - Spec Manager: save, load, duplicate, delete, export/import JSON
 - Canvas state persists across sessions (nodes, edges, viewport, layout preferences)
+- Automatic garbage collection removes orphaned IndexedDB entries on app startup
 
 ## What's Not Built Yet
 

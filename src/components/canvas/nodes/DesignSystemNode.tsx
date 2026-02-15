@@ -1,0 +1,263 @@
+import { memo, useState, useCallback } from 'react';
+import { type NodeProps, type Node } from '@xyflow/react';
+import { useDropzone } from 'react-dropzone';
+import { X, ImagePlus, Sparkles, Loader2 } from 'lucide-react';
+import { useCanvasStore, type CanvasNodeData } from '../../../stores/canvas-store';
+import { DEFAULT_COMPILER_PROVIDER } from '../../../lib/constants';
+import { callLLM } from '../../../services/compiler';
+import { getPrompt } from '../../../stores/prompt-store';
+import { generateId, now } from '../../../lib/utils';
+import { useNodeProviderModel } from '../../../hooks/useNodeProviderModel';
+import ProviderSelector from '../../generation/ProviderSelector';
+import ModelSelector from '../../shared/ModelSelector';
+import NodeShell from './NodeShell';
+import type { ReferenceImage } from '../../../types/spec';
+
+type DesignSystemNodeType = Node<CanvasNodeData, 'designSystem'>;
+
+function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType>) {
+  const removeNode = useCanvasStore((s) => s.removeNode);
+  const updateNodeData = useCanvasStore((s) => s.updateNodeData);
+
+  const title = (data.title as string) || 'Design System';
+  const content = (data.content as string) || '';
+  const images = (data.images as ReferenceImage[]) || [];
+
+  const {
+    providerId,
+    modelId,
+    supportsVision,
+    handleProviderChange,
+    handleModelChange,
+  } = useNodeProviderModel(DEFAULT_COMPILER_PROVIDER, id);
+
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
+
+  const update = useCallback(
+    (field: string, value: unknown) => updateNodeData(id, { [field]: value }),
+    [id, updateNodeData],
+  );
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      acceptedFiles.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const newImage: ReferenceImage = {
+            id: generateId(),
+            filename: file.name,
+            dataUrl: reader.result as string,
+            description: '',
+            createdAt: now(),
+          };
+          const current = (useCanvasStore.getState().nodes.find((n) => n.id === id)?.data.images as ReferenceImage[]) || [];
+          updateNodeData(id, { images: [...current, newImage] });
+        };
+        reader.readAsDataURL(file);
+      });
+    },
+    [id, updateNodeData],
+  );
+
+  const removeImage = useCallback(
+    (imageId: string) => {
+      const current = (useCanvasStore.getState().nodes.find((n) => n.id === id)?.data.images as ReferenceImage[]) || [];
+      updateNodeData(id, { images: current.filter((img) => img.id !== imageId) });
+    },
+    [id, updateNodeData],
+  );
+
+  const updateImageDescription = useCallback(
+    (imageId: string, description: string) => {
+      const current = (useCanvasStore.getState().nodes.find((n) => n.id === id)?.data.images as ReferenceImage[]) || [];
+      updateNodeData(id, {
+        images: current.map((img) =>
+          img.id === imageId ? { ...img, description } : img,
+        ),
+      });
+    },
+    [id, updateNodeData],
+  );
+
+  const handleExtract = useCallback(async () => {
+    if (images.length === 0 || !modelId) return;
+    setExtracting(true);
+    setExtractError(null);
+    try {
+      const systemPrompt = getPrompt('designSystemExtract');
+      const result = await callLLM(
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: 'Extract the design system from the provided images.' },
+        ],
+        modelId,
+        providerId,
+        { temperature: 0.3, max_tokens: 4096, images },
+      );
+
+      if (content.trim()) {
+        update('content', content + '\n\n---\n\n' + result);
+      } else {
+        update('content', result);
+      }
+    } catch (err) {
+      setExtractError(err instanceof Error ? err.message : 'Extraction failed');
+    } finally {
+      setExtracting(false);
+    }
+  }, [images, modelId, providerId, content, update]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'] },
+  });
+
+  const borderClass = selected
+    ? 'border-accent ring-2 ring-accent/20'
+    : content.trim()
+      ? 'border-border'
+      : 'border-dashed border-border';
+
+  return (
+    <NodeShell
+      nodeId={id}
+      selected={!!selected}
+      width="w-node"
+      borderClass={borderClass}
+      hasTarget={false}
+      handleColor={content.trim() ? 'green' : 'amber'}
+    >
+      {/* Header */}
+      <div className="border-b border-border-subtle px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <input
+            value={title}
+            onChange={(e) => update('title', e.target.value)}
+            placeholder="Design System"
+            className="nodrag nowheel min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-xs font-semibold text-fg placeholder:text-fg-faint outline-none hover:border-border focus:border-accent"
+          />
+          <button
+            onClick={() => removeNode(id)}
+            className="nodrag shrink-0 rounded p-0.5 text-fg-faint transition-colors hover:bg-error-subtle hover:text-error"
+            title="Remove"
+          >
+            <X size={12} />
+          </button>
+        </div>
+        <p className="mt-0.5 text-nano leading-tight text-fg-muted">
+          Design tokens, components, and patterns
+        </p>
+      </div>
+
+      {/* Content */}
+      <div className="px-3 py-2.5">
+        <textarea
+          value={content}
+          onChange={(e) => update('content', e.target.value)}
+          placeholder="Paste design system tokens, or drop images below and click Extract..."
+          rows={4}
+          className="nodrag nowheel w-full resize-none rounded border border-border px-2.5 py-2 text-xs text-fg-secondary placeholder:text-fg-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent/20"
+        />
+
+        {/* Image upload */}
+        <div className="nodrag nowheel mt-2">
+          {images.length > 0 && (
+            <div className="mb-2 grid gap-2">
+              {images.map((img) => (
+                <div
+                  key={img.id}
+                  className="group relative flex gap-2 rounded-lg border border-border bg-surface p-2"
+                >
+                  <img
+                    src={img.dataUrl}
+                    alt={img.filename}
+                    className="h-16 w-16 shrink-0 rounded border border-border object-cover"
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="truncate text-nano font-medium text-fg-secondary">
+                      {img.filename}
+                    </span>
+                    <textarea
+                      value={img.description}
+                      onChange={(e) => updateImageDescription(img.id, e.target.value)}
+                      placeholder="Describe what this image shows..."
+                      rows={2}
+                      className="w-full resize-none rounded border border-border bg-bg px-2 py-1 text-nano text-fg-secondary placeholder-fg-muted outline-none focus:border-accent"
+                    />
+                  </div>
+                  <button
+                    onClick={() => removeImage(img.id)}
+                    className="absolute -right-1.5 -top-1.5 hidden rounded-full bg-fg p-0.5 text-bg hover:bg-error group-hover:block"
+                    aria-label="Remove image"
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div
+            {...getRootProps()}
+            className={`cursor-pointer rounded-lg border-2 border-dashed p-3 text-center transition-colors ${
+              isDragActive
+                ? 'border-accent bg-surface'
+                : 'border-border hover:border-border hover:bg-surface'
+            }`}
+          >
+            <input {...getInputProps()} />
+            <ImagePlus size={16} className="mx-auto mb-0.5 text-fg-muted" />
+            <p className="text-nano text-fg-secondary">
+              {isDragActive ? 'Drop images here' : 'Drop reference images or click'}
+            </p>
+          </div>
+        </div>
+
+        {/* Extraction controls */}
+        {images.length > 0 && (
+          <div className="nodrag nowheel mt-2.5 space-y-2 border-t border-border-subtle pt-2.5">
+            <ProviderSelector
+              label="Provider"
+              selectedId={providerId}
+              onChange={handleProviderChange}
+            />
+            <ModelSelector
+              label="Vision Model"
+              providerId={providerId}
+              selectedModelId={modelId}
+              onChange={handleModelChange}
+            />
+            <button
+              onClick={handleExtract}
+              disabled={extracting || !modelId}
+              title={!modelId ? 'Select a vision model first' : 'Extract design system from uploaded images'}
+              className="flex w-full items-center justify-center gap-1.5 rounded-md bg-fg px-3 py-1.5 text-xs font-medium text-bg transition-colors hover:bg-fg/90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {extracting ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Sparkles size={12} />
+              )}
+              {extracting ? 'Extracting...' : 'Extract from Images'}
+            </button>
+
+            {!supportsVision && modelId && (
+              <p className="text-nano text-warning">
+                Model may not support vision.
+              </p>
+            )}
+
+            {extractError && (
+              <p className="rounded bg-error-subtle px-2 py-1 text-micro text-error">
+                {extractError}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </NodeShell>
+  );
+}
+
+export default memo(DesignSystemNode);

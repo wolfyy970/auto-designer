@@ -1,14 +1,20 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { GenerationResult } from '../types/provider';
+import { deleteCode, deleteProvenance, clearAllCodes } from '../services/idb-storage';
 
 interface GenerationStore {
   results: GenerationResult[];
   isGenerating: boolean;
+  /** Which version is currently displayed per hypothesis (variantStrategyId → resultId) */
+  selectedVersions: Record<string, string>;
 
   addResult: (result: GenerationResult) => void;
   updateResult: (id: string, updates: Partial<GenerationResult>) => void;
   setGenerating: (isGenerating: boolean) => void;
+  setSelectedVersion: (variantStrategyId: string, resultId: string) => void;
+  deleteResult: (resultId: string) => void;
+  deleteRun: (runId: string) => void;
   reset: () => void;
 }
 
@@ -17,6 +23,7 @@ export const useGenerationStore = create<GenerationStore>()(
     (set) => ({
       results: [],
       isGenerating: false,
+      selectedVersions: {},
 
       addResult: (result) =>
         set((state) => ({ results: [...state.results, result] })),
@@ -24,19 +31,163 @@ export const useGenerationStore = create<GenerationStore>()(
       updateResult: (id, updates) =>
         set((state) => ({
           results: state.results.map((r) =>
-            r.id === id ? { ...r, ...updates } : r
+            r.id === id ? { ...r, ...updates } : r,
           ),
         })),
 
       setGenerating: (isGenerating) => set({ isGenerating }),
 
-      reset: () => set({ results: [], isGenerating: false }),
+      setSelectedVersion: (variantStrategyId, resultId) =>
+        set((state) => ({
+          selectedVersions: {
+            ...state.selectedVersions,
+            [variantStrategyId]: resultId,
+          },
+        })),
+
+      deleteResult: (resultId) => {
+        // Clean up IndexedDB (fire-and-forget)
+        deleteCode(resultId).catch(() => {});
+        deleteProvenance(resultId).catch(() => {});
+
+        set((state) => {
+          const filtered = state.results.filter((r) => r.id !== resultId);
+          const sv = { ...state.selectedVersions };
+          for (const [vsId, rId] of Object.entries(sv)) {
+            if (rId === resultId) delete sv[vsId];
+          }
+          return { results: filtered, selectedVersions: sv };
+        });
+      },
+
+      deleteRun: (runId) => {
+        set((state) => {
+          const toDelete = new Set(
+            state.results.filter((r) => r.runId === runId).map((r) => r.id),
+          );
+          const filtered = state.results.filter((r) => !toDelete.has(r.id));
+          const sv = { ...state.selectedVersions };
+          for (const [vsId, rId] of Object.entries(sv)) {
+            if (toDelete.has(rId)) delete sv[vsId];
+          }
+
+          // Clean up IndexedDB for all deleted results (fire-and-forget)
+          for (const id of toDelete) {
+            deleteCode(id).catch(() => {});
+            deleteProvenance(id).catch(() => {});
+          }
+
+          return { results: filtered, selectedVersions: sv };
+        });
+      },
+
+      reset: () => {
+        set({ results: [], isGenerating: false, selectedVersions: {} });
+        clearAllCodes().catch(() => {});
+      },
     }),
     {
       name: 'auto-designer-generation',
+      version: 2,
       partialize: (state) => ({
-        results: state.results,
+        // Strip `code` from persisted results — code lives in IndexedDB
+        results: state.results.map(({ code: _, ...rest }) => rest),
+        selectedVersions: state.selectedVersions,
       }),
-    }
-  )
+      migrate: (persisted, version) => {
+        const state = persisted as Record<string, unknown>;
+        if (version < 2) {
+          // v1 → v2: add runId and runNumber to existing results
+          const results = (state.results as GenerationResult[]) ?? [];
+          state.results = results.map((r) => ({
+            ...r,
+            runId: r.runId ?? 'legacy',
+            runNumber: r.runNumber ?? 1,
+          }));
+          state.selectedVersions = state.selectedVersions ?? {};
+        }
+        return state as unknown as GenerationStore;
+      },
+    },
+  ),
 );
+
+// ── Derived helpers (not stored, computed from state) ──────────────────
+
+/** Minimal state shape needed by derived helpers */
+export interface GenerationState {
+  results: GenerationResult[];
+  selectedVersions: Record<string, string>;
+}
+
+/** Get all results for a hypothesis, newest first */
+export function getStack(
+  state: GenerationState,
+  variantStrategyId: string,
+): GenerationResult[] {
+  return state.results
+    .filter((r) => r.variantStrategyId === variantStrategyId)
+    .sort((a, b) => b.runNumber - a.runNumber);
+}
+
+/** Get the active result for a hypothesis (selected or latest complete) */
+export function getActiveResult(
+  state: GenerationState,
+  variantStrategyId: string,
+): GenerationResult | undefined {
+  const selectedId = state.selectedVersions[variantStrategyId];
+  if (selectedId) {
+    const selected = state.results.find((r) => r.id === selectedId);
+    if (selected) return selected;
+  }
+  // Fall back to latest complete or generating result
+  const stack = getStack(state, variantStrategyId);
+  return (
+    stack.find((r) => r.status === 'complete') ??
+    stack.find((r) => r.status === 'generating') ??
+    stack[0]
+  );
+}
+
+/** Get all results for a hypothesis scoped to a specific run, newest first */
+export function getScopedStack(
+  state: GenerationState,
+  variantStrategyId: string,
+  runId: string,
+): GenerationResult[] {
+  return state.results
+    .filter((r) => r.variantStrategyId === variantStrategyId && r.runId === runId)
+    .sort((a, b) => b.runNumber - a.runNumber);
+}
+
+/** Get the active result for a hypothesis scoped to a specific run */
+export function getScopedActiveResult(
+  state: GenerationState,
+  variantStrategyId: string,
+  runId: string,
+): GenerationResult | undefined {
+  // Scoped key: "vsId:runId" to avoid collision with live variants
+  const scopedKey = `${variantStrategyId}:${runId}`;
+  const selectedId = state.selectedVersions[scopedKey];
+  if (selectedId) {
+    const selected = state.results.find((r) => r.id === selectedId);
+    if (selected) return selected;
+  }
+  const stack = getScopedStack(state, variantStrategyId, runId);
+  return (
+    stack.find((r) => r.status === 'complete') ??
+    stack[0]
+  );
+}
+
+/** Next run number for a hypothesis */
+export function nextRunNumber(
+  state: Pick<GenerationState, 'results'>,
+  variantStrategyId: string,
+): number {
+  const existing = state.results.filter(
+    (r) => r.variantStrategyId === variantStrategyId,
+  );
+  if (existing.length === 0) return 1;
+  return Math.max(...existing.map((r) => r.runNumber)) + 1;
+}

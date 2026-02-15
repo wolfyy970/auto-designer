@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
+import { type NodeProps, type Node } from '@xyflow/react';
 import { X, Loader2 } from 'lucide-react';
 import { useSpecStore } from '../../../stores/spec-store';
 import {
@@ -9,8 +9,8 @@ import {
   type CanvasNodeType,
 } from '../../../stores/canvas-store';
 import { SPEC_SECTIONS } from '../../../lib/constants';
-import { useLineageDim } from '../../../hooks/useLineageDim';
 import ReferenceImageUpload from '../../spec-editor/ReferenceImageUpload';
+import NodeShell from './NodeShell';
 
 type SectionNodeType = Node<CanvasNodeData, CanvasNodeType>;
 
@@ -24,45 +24,40 @@ function SectionNode({ id, type, selected }: NodeProps<SectionNodeType>) {
   const content = section?.content ?? '';
   const isDesignBrief = type === 'designBrief';
   const isExistingDesign = type === 'existingDesign';
+  const hasImages = isExistingDesign;
   const isCapturing = isExistingDesign && capturingImage === sectionId;
-  const lineageDim = useLineageDim(id, !!selected);
 
   const borderClass = selected
-    ? 'border-blue-400 ring-2 ring-blue-200'
+    ? 'border-accent ring-2 ring-accent/20'
     : content.trim()
-      ? 'border-gray-300'
-      : 'border-dashed border-gray-300';
+      ? 'border-border'
+      : 'border-dashed border-border';
 
   return (
-    <div className={`w-[320px] rounded-lg border bg-white shadow-sm ${borderClass} ${lineageDim}`}>
-      {/* Target handle (left) ← variant nodes can feed into Existing Design */}
-      {isExistingDesign && (
-        <Handle
-          type="target"
-          position={Position.Left}
-          className="!h-4 !w-4 !border-2 !border-gray-300 !bg-white"
-        />
-      )}
-
+    <NodeShell
+      nodeId={id}
+      selected={!!selected}
+      width="w-node"
+      borderClass={borderClass}
+      hasTarget={isExistingDesign}
+      handleColor={content.trim() ? 'green' : 'amber'}
+    >
       {/* Header */}
-      <div className="border-b border-gray-100 px-3 py-2.5">
+      <div className="border-b border-border-subtle px-3 py-2.5">
         <div className="flex items-center gap-1.5">
-          <h3 className="text-xs font-semibold text-gray-900">{meta.title}</h3>
+          <h3 className="text-xs font-semibold text-fg">{meta.title}</h3>
           {!meta.required && (
-            <span className="text-[10px] text-gray-300">optional</span>
-          )}
-          {content.trim() && (
-            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-blue-400" />
+            <span className="text-nano text-fg-faint">optional</span>
           )}
           <button
             onClick={() => removeNode(id)}
-            className={`nodrag ${content.trim() ? '' : 'ml-auto '}shrink-0 rounded p-0.5 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500`}
+            className="nodrag ml-auto shrink-0 rounded p-0.5 text-fg-faint transition-colors hover:bg-error-subtle hover:text-error"
             title="Remove"
           >
             <X size={12} />
           </button>
         </div>
-        <p className="mt-0.5 text-[10px] leading-tight text-gray-400">
+        <p className="mt-0.5 text-nano leading-tight text-fg-muted">
           {meta.description}
         </p>
       </div>
@@ -78,30 +73,23 @@ function SectionNode({ id, type, selected }: NodeProps<SectionNodeType>) {
               : `Describe the ${meta.title.toLowerCase()}...`
           }
           rows={isDesignBrief ? 5 : 3}
-          className="nodrag nowheel w-full resize-none rounded border border-gray-200 px-2.5 py-2 text-xs text-gray-800 placeholder:text-gray-300 outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200"
+          className="nodrag nowheel w-full resize-none rounded border border-border px-2.5 py-2 text-xs text-fg-secondary placeholder:text-fg-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent/20"
         />
 
-        {/* Reference images for existing design (ReferenceImageUpload renders its own previews) */}
-        {isExistingDesign && (
+        {/* Reference images for existing design */}
+        {hasImages && (
           <div className="nodrag nowheel mt-2">
             <ReferenceImageUpload sectionId={sectionId} />
             {isCapturing && (
-              <div className="mt-2 flex items-center gap-2 rounded-md border border-dashed border-blue-300 bg-blue-50 px-3 py-2.5">
-                <Loader2 size={14} className="animate-spin text-blue-500" />
-                <span className="text-[11px] text-blue-600">Capturing screenshot...</span>
+              <div className="mt-2 flex items-center gap-2 rounded-md border border-dashed border-accent bg-info-subtle px-3 py-2.5">
+                <Loader2 size={14} className="animate-spin text-info" />
+                <span className="text-micro text-info">Capturing screenshot...</span>
               </div>
             )}
           </div>
         )}
       </div>
-
-      {/* Source handle (right) → connects to Compiler */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!h-4 !w-4 !border-2 !border-gray-300 !bg-white"
-      />
-    </div>
+    </NodeShell>
   );
 }
 

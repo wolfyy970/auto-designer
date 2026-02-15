@@ -24,9 +24,9 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="flex h-full w-56 shrink-0 flex-col border-r border-gray-200 bg-gray-50">
-      <div className="border-b border-gray-200 px-4 py-3">
-        <h1 className="text-sm font-semibold text-gray-900">Auto Designer</h1>
+    <aside className="flex h-full w-sidebar shrink-0 flex-col border-r border-border bg-surface">
+      <div className="border-b border-border px-4 py-3">
+        <h1 className="text-sm font-semibold text-fg">Auto Designer</h1>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
@@ -39,8 +39,8 @@ export default function Sidebar() {
               className={({ isActive }) =>
                 `flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
                   isActive
-                    ? 'bg-gray-200 font-medium text-gray-900'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    ? 'bg-surface-raised font-medium text-fg'
+                    : 'text-fg-secondary hover:bg-surface-raised hover:text-fg'
                 }`
               }
             >
@@ -52,7 +52,7 @@ export default function Sidebar() {
 
         {currentPath === '/editor' && (
           <div className="mt-6">
-            <p className="mb-1 px-3 text-xs font-medium uppercase tracking-wider text-gray-400">
+            <p className="mb-1 px-3 text-xs font-medium uppercase tracking-wider text-fg-muted">
               Sections
             </p>
             <div className="space-y-0.5">
@@ -62,8 +62,8 @@ export default function Sidebar() {
                   onClick={() => scrollToSection(section.id)}
                   className={`w-full rounded-md px-3 py-1.5 text-left text-xs transition-colors ${
                     activeSectionId === section.id
-                      ? 'bg-gray-200 font-medium text-gray-900'
-                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                      ? 'bg-surface-raised font-medium text-fg'
+                      : 'text-fg-secondary hover:bg-surface-raised hover:text-fg-secondary'
                   }`}
                 >
                   {section.title}

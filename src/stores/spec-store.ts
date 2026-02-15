@@ -9,6 +9,9 @@ interface SpecStore {
   /** Transient (not persisted): section currently having an image captured */
   capturingImage: SpecSectionId | null;
   setCapturingImage: (sectionId: SpecSectionId | null) => void;
+  /** Transient (not persisted): whether design system extraction is running */
+  extractingDesignSystem: boolean;
+  setExtractingDesignSystem: (v: boolean) => void;
   createNewSpec: (title?: string) => void;
   setTitle: (title: string) => void;
   updateSection: (sectionId: SpecSectionId, content: string) => void;
@@ -35,6 +38,8 @@ export const useSpecStore = create<SpecStore>()(
       spec: createNewDesignSpec(),
       capturingImage: null,
       setCapturingImage: (sectionId) => set({ capturingImage: sectionId }),
+      extractingDesignSystem: false,
+      setExtractingDesignSystem: (v) => set({ extractingDesignSystem: v }),
 
       createNewSpec: (title) =>
         set({ spec: createNewDesignSpec(title) }),
@@ -144,7 +149,17 @@ export const useSpecStore = create<SpecStore>()(
     }),
     {
       name: 'auto-designer-active-spec',
+      version: 1,
       partialize: (state) => ({ spec: state.spec }),
+      migrate: (persisted: unknown) => {
+        const state = persisted as { spec?: DesignSpec };
+        if (state?.spec?.sections) {
+          // Ensure all section keys exist (handles new sections like design-system)
+          const emptySections = createEmptySections();
+          state.spec.sections = { ...emptySections, ...state.spec.sections };
+        }
+        return state;
+      },
     }
   )
 );

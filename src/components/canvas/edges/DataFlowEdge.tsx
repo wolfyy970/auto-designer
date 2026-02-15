@@ -12,10 +12,10 @@ type DataFlowEdgeData = { status: 'idle' | 'processing' | 'complete' | 'error' }
 type DataFlowEdge = Edge<DataFlowEdgeData, 'dataFlow'>;
 
 const STATUS_COLORS: Record<string, string> = {
-  idle: '#94a3b8',
-  processing: '#3b82f6',
-  complete: '#94a3b8',
-  error: '#ef4444',
+  idle: 'var(--color-fg-muted)',
+  processing: 'var(--color-info)',
+  complete: 'var(--color-fg-muted)',
+  error: 'var(--color-error)',
 };
 
 export default function DataFlowEdge({
@@ -47,9 +47,9 @@ export default function DataFlowEdge({
 
   const baseColor = STATUS_COLORS[status] ?? STATUS_COLORS.idle;
   const color = selected
-    ? '#3b82f6'
+    ? 'var(--color-info)'
     : lineageActive && inLineage
-      ? '#6366f1'
+      ? 'var(--color-accent)'
       : baseColor;
   const opacity = lineageActive && !inLineage && !selected ? 0.15 : 1;
   const isProcessing = status === 'processing';
@@ -75,7 +75,7 @@ export default function DataFlowEdge({
           opacity,
           transition: 'opacity 0.3s, stroke 0.3s',
           filter: lineageActive && inLineage && !selected
-            ? 'drop-shadow(0 0 3px rgba(99, 102, 241, 0.4))'
+            ? 'drop-shadow(0 0 3px rgba(249, 115, 22, 0.4))'
             : undefined,
         }}
       />
@@ -101,7 +101,7 @@ export default function DataFlowEdge({
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
               pointerEvents: 'all',
             }}
-            className="nodrag nopan flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-500 shadow-sm transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+            className="nodrag nopan flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-fg-muted shadow-sm transition-colors hover:border-error/30 hover:bg-error-subtle hover:text-error"
             onClick={() => removeEdge(id)}
             title="Remove connection"
           >

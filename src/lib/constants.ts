@@ -1,5 +1,4 @@
 import type { SpecSectionId, SpecSectionMeta } from '../types/spec';
-import { envNewlines } from './utils';
 
 export const SPEC_SECTIONS: SpecSectionMeta[] = [
   {
@@ -37,24 +36,23 @@ export const SPEC_SECTIONS: SpecSectionMeta[] = [
       'Boundaries and exploration space. Non-negotiable requirements (brand, accessibility, legal, ethical) plus what may vary across variants (layout, messaging, interaction patterns, visual treatment).',
     required: true,
   },
+  {
+    id: 'design-system',
+    title: 'Design System',
+    description:
+      'Design tokens, components, patterns, and visual language. Drop screenshots to auto-extract, or describe manually.',
+    required: false,
+  },
 ];
+
+// Proxy base paths (must match vite.config.ts proxy entries)
+export const OPENROUTER_PROXY = '/openrouter-api';
+export const LMSTUDIO_PROXY = '/lmstudio-api';
 
 // Default providers
 export const DEFAULT_COMPILER_PROVIDER = import.meta.env.VITE_DEFAULT_COMPILER_PROVIDER || 'openrouter';
 export const DEFAULT_GENERATION_PROVIDER = import.meta.env.VITE_DEFAULT_GENERATION_PROVIDER || 'lmstudio';
 
-// Generation system prompts (shared by all providers)
-const DEFAULT_GEN_SYSTEM_HTML =
-  'You are a design generation system. Return ONLY a complete, self-contained HTML document. Include all CSS inline. No external dependencies.';
-
-const DEFAULT_GEN_SYSTEM_REACT =
-  'You are a design generation system. Return ONLY a single self-contained React component as JSX. Include all styles inline or via a <style> tag. The component should be named App and export as default. No imports needed — React is available globally.';
-
-const envHtml = import.meta.env.VITE_PROMPT_GEN_SYSTEM_HTML;
-const envReact = import.meta.env.VITE_PROMPT_GEN_SYSTEM_REACT;
-
-export const GEN_SYSTEM_HTML: string = envHtml ? envNewlines(envHtml) : DEFAULT_GEN_SYSTEM_HTML;
-export const GEN_SYSTEM_REACT: string = envReact ? envNewlines(envReact) : DEFAULT_GEN_SYSTEM_REACT;
 
 function createEmptySection(id: SpecSectionId) {
   return {

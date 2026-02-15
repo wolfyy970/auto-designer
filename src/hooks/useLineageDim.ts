@@ -5,12 +5,19 @@ import { useCanvasStore } from '../stores/canvas-store';
  * - When no lineage is active: returns ''
  * - When lineage is active and this node IS in lineage: returns accent ring
  * - When lineage is active and this node is NOT in lineage: returns dim opacity
+ *
+ * Uses primitive selectors (booleans) instead of the Set reference to avoid
+ * re-renders caused by Set identity changes.
  */
 export function useLineageDim(nodeId: string, isSelected: boolean): string {
-  const lineageNodeIds = useCanvasStore((s) => s.lineageNodeIds);
-  if (lineageNodeIds.size === 0) return '';
-  if (lineageNodeIds.has(nodeId)) {
+  const inLineage = useCanvasStore(
+    (s) => s.lineageNodeIds.size > 0 && s.lineageNodeIds.has(nodeId),
+  );
+  const lineageActive = useCanvasStore((s) => s.lineageNodeIds.size > 0);
+
+  if (!lineageActive) return '';
+  if (inLineage) {
     return isSelected ? '' : 'ring-1 ring-indigo-300';
   }
-  return '';
+  return 'opacity-40';
 }

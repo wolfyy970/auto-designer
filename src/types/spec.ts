@@ -3,7 +3,8 @@ export type SpecSectionId =
   | 'existing-design'
   | 'research-context'
   | 'objectives-metrics'
-  | 'design-constraints';
+  | 'design-constraints'
+  | 'design-system';
 
 export interface SpecSectionMeta {
   id: SpecSectionId;

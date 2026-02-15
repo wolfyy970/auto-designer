@@ -10,7 +10,7 @@ export interface VariantStrategy {
   dimensionValues: Record<string, string>;
 }
 
-export interface Dimension {
+interface Dimension {
   name: string;
   range: string;
   isConstant: boolean;

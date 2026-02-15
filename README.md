@@ -28,9 +28,9 @@ The primary interface is a visual node-graph canvas (`/canvas`, the default rout
 
 1. **Input nodes** (left) — Design Brief, Existing Design, Research Context, Objectives & Metrics, Design Constraints
 2. **Incubator** — Connect input nodes, select a model, click Generate to produce hypothesis strategies
-3. **Hypotheses** — Editable strategy cards (name, emphasis, rationale). Edit before proceeding.
-4. **Designer** — Connect hypotheses, select a model + format (HTML/React), click Create
-5. **Variants** — Rendered design previews with zoom, interact mode, source view, and full-screen
+3. **Hypotheses** — Editable strategy cards with built-in generation controls. Select a provider, model, and format, then click Create.
+4. **Design System** (optional) — Connect to hypotheses to inject design tokens into generation. Supports multiple systems for A/B exploration.
+5. **Variants** — Rendered design previews with zoom, version navigation, and full-screen. Results accumulate across runs.
 
 Nodes connect left-to-right. Auto-layout arranges everything based on connections. Variants can connect back to Existing Design for iterative feedback loops (captures a screenshot automatically).
 

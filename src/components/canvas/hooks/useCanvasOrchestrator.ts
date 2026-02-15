@@ -9,7 +9,7 @@ import { useCanvasStore } from '../../../stores/canvas-store';
  *
  * Node creation/sync is now driven by the nodes themselves:
  * - CompilerNode.handleCompile → syncAfterCompile
- * - GeneratorNode.handleGenerate → syncAfterGenerate
+ * - HypothesisNode.handleGenerate → syncAfterGenerate
  */
 export function useCanvasOrchestrator() {
   const dimensionMaps = useCompilerStore((s) => s.dimensionMaps);
@@ -18,7 +18,11 @@ export function useCanvasOrchestrator() {
   useEffect(() => {
     const { nodes, edges } = useCanvasStore.getState();
     const validStrategyIds = allVariantStrategyIds(dimensionMaps);
-    const resultIds = new Set(results.map((r) => r.id));
+    // For variant orphan detection, check if ANY result exists for the
+    // hypothesis (variantStrategyId), not just the specific refId.
+    // With version stacking, refId points to the active result which can
+    // change or be deleted while other versions still exist.
+    const resultVsIds = new Set(results.map((r) => r.variantStrategyId));
 
     const orphanIds = new Set<string>();
     for (const node of nodes) {
@@ -29,10 +33,12 @@ export function useCanvasOrchestrator() {
       ) {
         orphanIds.add(node.id);
       }
+      // Skip archived (pinned) variants — they should never be auto-deleted
       if (
         node.type === 'variant' &&
-        node.data.refId &&
-        !resultIds.has(node.data.refId as string)
+        !node.data.pinnedRunId &&
+        node.data.variantStrategyId &&
+        !resultVsIds.has(node.data.variantStrategyId as string)
       ) {
         orphanIds.add(node.id);
       }

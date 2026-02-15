@@ -6,8 +6,8 @@ import {
   ShieldCheck,
   Cpu,
   Lightbulb,
-  Sparkles,
   MessageSquareDiff,
+  SwatchBook,
 } from 'lucide-react';
 import {
   useCanvasStore,
@@ -29,8 +29,8 @@ const NODE_ENTRIES: NodeEntry[] = [
   { type: 'objectivesMetrics', label: 'Objectives & Metrics', icon: <Target size={14} />, group: 'input' },
   { type: 'designConstraints', label: 'Design Constraints', icon: <ShieldCheck size={14} />, group: 'input' },
   { type: 'compiler', label: 'Incubator', icon: <Cpu size={14} />, group: 'processing' },
+  { type: 'designSystem', label: 'Design System', icon: <SwatchBook size={14} />, group: 'processing' },
   { type: 'hypothesis', label: 'Hypothesis', icon: <Lightbulb size={14} />, group: 'output' },
-  { type: 'generator', label: 'Designer', icon: <Sparkles size={14} />, group: 'processing' },
   { type: 'critique', label: 'Critique', icon: <MessageSquareDiff size={14} />, group: 'processing' },
 ];
 
@@ -50,7 +50,7 @@ export default function NodePalette({ onAdd, position }: NodePaletteProps) {
   const addNode = useCanvasStore((s) => s.addNode);
 
   function isSingleton(type: CanvasNodeType): boolean {
-    // Sections are still singletons; compilers and generators can be multiple
+    // Sections are still singletons; compilers and designers can be multiple
     if (SECTION_NODE_TYPES.has(type)) return true;
     return false;
   }
@@ -70,13 +70,13 @@ export default function NodePalette({ onAdd, position }: NodePaletteProps) {
   const groups = ['input', 'processing', 'output'] as const;
 
   return (
-    <div className="w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+    <div className="w-palette rounded-lg border border-border bg-surface py-1 shadow-lg">
       {groups.map((group) => {
         const entries = NODE_ENTRIES.filter((e) => e.group === group);
         if (entries.length === 0) return null;
         return (
           <div key={group}>
-            <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+            <div className="px-3 py-1.5 text-nano font-semibold uppercase tracking-wider text-fg-muted">
               {GROUP_LABELS[group]}
             </div>
             {entries.map((entry) => {
@@ -86,12 +86,12 @@ export default function NodePalette({ onAdd, position }: NodePaletteProps) {
                   key={entry.type}
                   onClick={() => handleClick(entry.type)}
                   disabled={disabled}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-fg-secondary transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <span className="text-gray-400">{entry.icon}</span>
+                  <span className="text-fg-muted">{entry.icon}</span>
                   {entry.label}
                   {disabled && (
-                    <span className="ml-auto text-[10px] text-gray-300">added</span>
+                    <span className="ml-auto text-nano text-fg-faint">added</span>
                   )}
                 </button>
               );
