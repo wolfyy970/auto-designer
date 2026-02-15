@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { DesignSpec, ReferenceImage, SpecSection, SpecSectionId } from '../types/spec';
 import { createEmptySections } from '../lib/constants';
+import { STORAGE_KEYS } from '../lib/storage-keys';
 import { generateId, now } from '../lib/utils';
 
 interface SpecStore {
@@ -9,9 +10,6 @@ interface SpecStore {
   /** Transient (not persisted): section currently having an image captured */
   capturingImage: SpecSectionId | null;
   setCapturingImage: (sectionId: SpecSectionId | null) => void;
-  /** Transient (not persisted): whether design system extraction is running */
-  extractingDesignSystem: boolean;
-  setExtractingDesignSystem: (v: boolean) => void;
   createNewSpec: (title?: string) => void;
   setTitle: (title: string) => void;
   updateSection: (sectionId: SpecSectionId, content: string) => void;
@@ -38,9 +36,6 @@ export const useSpecStore = create<SpecStore>()(
       spec: createNewDesignSpec(),
       capturingImage: null,
       setCapturingImage: (sectionId) => set({ capturingImage: sectionId }),
-      extractingDesignSystem: false,
-      setExtractingDesignSystem: (v) => set({ extractingDesignSystem: v }),
-
       createNewSpec: (title) =>
         set({ spec: createNewDesignSpec(title) }),
 
@@ -148,7 +143,7 @@ export const useSpecStore = create<SpecStore>()(
       },
     }),
     {
-      name: 'auto-designer-active-spec',
+      name: STORAGE_KEYS.ACTIVE_SPEC,
       version: 1,
       partialize: (state) => ({ spec: state.spec }),
       migrate: (persisted: unknown) => {

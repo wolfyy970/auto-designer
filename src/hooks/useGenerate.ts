@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { normalizeError } from '../lib/error-utils';
 import {
   useGenerationStore,
   nextRunNumber,
@@ -122,7 +123,7 @@ export function useGenerate() {
         } catch (err) {
           updateResult(placeholderId, {
             status: 'error',
-            error: err instanceof Error ? err.message : 'Generation failed',
+            error: normalizeError(err, 'Generation failed'),
           });
         }
       };

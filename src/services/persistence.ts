@@ -1,6 +1,7 @@
 import type { DesignSpec } from '../types/spec';
+import { STORAGE_KEYS } from '../lib/storage-keys';
 
-const SPECS_KEY = 'auto-designer-specs';
+const SPECS_KEY = STORAGE_KEYS.SPECS;
 
 export function saveSpec(spec: DesignSpec): void {
   const specs = getAllSpecs();
@@ -17,7 +18,9 @@ function getAllSpecs(): Record<string, DesignSpec> {
   const raw = localStorage.getItem(SPECS_KEY);
   if (!raw) return {};
   try {
-    return JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
+    return parsed as Record<string, DesignSpec>;
   } catch {
     return {};
   }
@@ -54,7 +57,7 @@ export function importSpec(file: File): Promise<DesignSpec> {
     reader.onload = () => {
       try {
         const spec = JSON.parse(reader.result as string) as DesignSpec;
-        if (!spec.id || !spec.title || !spec.sections) {
+        if (!spec.id || !spec.title || typeof spec.sections !== 'object' || spec.sections === null) {
           reject(new Error('Invalid spec file: missing required fields'));
           return;
         }

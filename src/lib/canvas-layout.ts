@@ -17,7 +17,7 @@ type CanvasNodeType =
 type CanvasNodeData = Record<string, unknown> & { refId?: string };
 type CanvasNode = Node<CanvasNodeData, CanvasNodeType>;
 
-const SECTION_TYPES = new Set<CanvasNodeType>([
+export const SECTION_NODE_TYPES = new Set<CanvasNodeType>([
   'designBrief', 'existingDesign', 'researchContext',
   'objectivesMetrics', 'designConstraints',
 ]);
@@ -42,7 +42,7 @@ export const MAX_COL_GAP = 320;
 /** Get a node's measured height, or a reasonable estimate */
 function nodeH(node: CanvasNode): number {
   return (node.measured?.height as number | undefined) ?? (
-    SECTION_TYPES.has(node.type as CanvasNodeType)
+    SECTION_NODE_TYPES.has(node.type as CanvasNodeType)
       ? FALLBACK_H.section
       : FALLBACK_H[node.type as string] ?? 200
   );
@@ -87,9 +87,9 @@ export function computeDefaultPosition(
     }
     return snap({ x: col.compiler, y });
   }
-  if (SECTION_TYPES.has(type)) {
+  if (SECTION_NODE_TYPES.has(type)) {
     const sectionNodes = existingNodes.filter((n) =>
-      SECTION_TYPES.has(n.type as CanvasNodeType)
+      SECTION_NODE_TYPES.has(n.type as CanvasNodeType)
     );
     let y = 200;
     for (const sn of sectionNodes) {

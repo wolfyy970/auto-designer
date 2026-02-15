@@ -67,7 +67,7 @@ The primary interface is a node-graph canvas built on `@xyflow/react` v12.
 
 ### Node Types
 
-10 node types in 3 categories: 5 input nodes rendered by shared `SectionNode.tsx`, plus `DesignSystemNode`, `CompilerNode`, `HypothesisNode`, `VariantNode`, and `CritiqueNode`. Design System is a self-contained processing node (data in `node.data`, not spec store). Hypotheses have built-in generation controls — no separate Designer node.
+10 node types in 3 categories: 5 input nodes rendered by shared `SectionNode.tsx`, plus `DesignSystemNode`, `CompilerNode`, `HypothesisNode`, `VariantNode`, and `CritiqueNode`. Design System is a self-contained processing node (data in `node.data`, not spec store). Hypotheses have built-in generation controls — no separate Designer node. Each node component uses a typed data interface from `types/canvas-data.ts` and a shared `NodeHeader` component for consistent headers.
 
 ### Auto-Layout
 
@@ -87,7 +87,7 @@ Results accumulate across generation runs. Each result has a `runId` (UUID) and 
 
 ### State Management
 
-`canvas-store.ts` — Zustand with persist. Owns nodes, edges, viewport, layout preferences. Provides orchestration actions: `syncAfterCompile`, `syncAfterGenerate`, `applyAutoLayout`, `forkHypothesisVariants`.
+`canvas-store.ts` — Zustand with persist. Owns nodes, edges, viewport, layout preferences. Provides orchestration actions: `syncAfterCompile`, `syncAfterGenerate`, `applyAutoLayout`, `forkHypothesisVariants`. Migration logic extracted to `canvas-migrations.ts` (version chain v0→v12).
 
 ## Module Boundaries
 
@@ -98,6 +98,7 @@ Results accumulate across generation runs. Each result has a `runId` (UUID) and 
 | `spec.ts` | `DesignSpec`, `SpecSection`, `ReferenceImage`, `SpecSectionId` |
 | `compiler.ts` | `DimensionMap`, `VariantStrategy`, `Dimension`, `CompiledPrompt` |
 | `provider.ts` | `GenerationProvider`, `GenerationResult`, `ProviderOptions`, `ContentPart`, `ProviderModel` |
+| `canvas-data.ts` | Per-node typed data interfaces (`HypothesisNodeData`, `VariantNodeData`, `DesignSystemNodeData`, etc.) — eliminates `as` casts in node components |
 
 ### Stores (`src/stores/`)
 
@@ -128,13 +129,16 @@ Results accumulate across generation runs. Each result has a `runId` (UUID) and 
 | `extract-code.ts` | LLM response → code extraction (fence detection, raw code fallback) |
 | `iframe-utils.ts` | React code wrapping, HTML detection, screenshot capture |
 | `constants.ts` | Provider defaults, env overrides |
+| `storage-keys.ts` | Centralized localStorage key constants (single source of truth for all store keys) |
 | `prompts/` | System/user prompts for compiler and variant generation |
+| `prompts/defaults.ts` | Default prompt text extracted from stores (pure data, no runtime deps) |
 | `prompts/helpers.ts` | Spec section content extraction, image line collection |
 | `badge-colors.ts` | Version badge color cycling (v1, v2, etc.) |
 | `canvas-layout.ts` | Auto-layout algorithm (Sugiyama-style), grid snapping, column positions |
 | `canvas-connections.ts` | Valid connection rules between node types |
 | `canvas-graph.ts` | Graph traversal helpers for compilation inputs |
 | `provider-helpers.ts` | Multimodal content building, chat request construction |
+| `error-utils.ts` | Error normalization for try/catch blocks |
 | `utils.ts` | `generateId()`, `interpolate()`, `envNewlines()` |
 
 ### Canvas Components (`src/components/canvas/`)
@@ -146,7 +150,7 @@ Results accumulate across generation runs. Each result has a `runId` (UUID) and 
 | `CanvasToolbar.tsx` | Node palette, minimap/grid toggles |
 | `CanvasContextMenu.tsx` | Right-click add nodes at position |
 | `VariantPreviewOverlay.tsx` | Full-screen variant preview with version navigation |
-| `nodes/` | 6 node components + type registry |
+| `nodes/` | 6 node components + shared sub-components (`NodeHeader`, `VariantToolbar`, `VariantFooter`, `CompactField`) + type registry |
 | `edges/` | Custom DataFlowEdge with animated status |
 | `hooks/useCanvasOrchestrator.ts` | Syncs spec/compiler/generation stores → canvas nodes |
 
@@ -155,6 +159,9 @@ Results accumulate across generation runs. Each result has a `runId` (UUID) and 
 | File | Purpose |
 |------|---------|
 | `useGenerate.ts` | Shared generation orchestration (version stacking, IndexedDB writes, provenance) |
+| `useHypothesisGeneration.ts` | Generation orchestration specific to hypothesis nodes |
+| `useVersionStack.ts` | Version navigation state management for variant nodes |
+| `useVariantZoom.ts` | Zoom/resize logic for variant previews (ResizeObserver + clamping) |
 | `useProviderModels.ts` | React Query hook for dynamic model fetching |
 | `useResultCode.ts` | Async hook to load generated code from IndexedDB |
 | `useNodeProviderModel.ts` | Per-node provider/model selection persisted in canvas node data |

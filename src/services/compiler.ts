@@ -1,11 +1,12 @@
 import type { DesignSpec, ReferenceImage } from '../types/spec';
 import type { CompiledPrompt, DimensionMap, VariantStrategy } from '../types/compiler';
 import type { ContentPart } from '../types/provider';
-import { getCompilerSystemPrompt } from '../lib/prompts/compiler-system';
+import { getPrompt } from '../stores/prompt-store';
 import { buildCompilerUserPrompt, type CritiqueInput } from '../lib/prompts/compiler-user';
 import { buildVariantPrompt } from '../lib/prompts/variant-prompt';
 import { generateId, now } from '../lib/utils';
 import { OPENROUTER_PROXY, LMSTUDIO_PROXY } from '../lib/constants';
+import { fetchChatCompletion, extractMessageText } from '../lib/provider-helpers';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -23,12 +24,29 @@ function buildMultimodalContent(text: string, images: ReferenceImage[]): Content
   ];
 }
 
+const PROVIDER_CONFIG: Record<string, { url: string; errorMap: Record<number, string>; label: string; extraFields?: Record<string, unknown> }> = {
+  openrouter: {
+    url: `${OPENROUTER_PROXY}/api/v1/chat/completions`,
+    errorMap: { 401: 'Invalid OpenRouter API key.', 429: 'Rate limit exceeded. Wait a moment and try again.' },
+    label: 'OpenRouter',
+  },
+  lmstudio: {
+    url: `${LMSTUDIO_PROXY}/v1/chat/completions`,
+    errorMap: { 404: 'LM Studio not available. Make sure LM Studio is running and the server is enabled.' },
+    label: 'LM Studio',
+    extraFields: { stream: false },
+  },
+};
+
 export async function callLLM(
   messages: ChatMessage[],
   model: string,
   providerId: string,
   options: { temperature?: number; max_tokens?: number; images?: ReferenceImage[] } = {}
 ): Promise<string> {
+  const config = PROVIDER_CONFIG[providerId];
+  if (!config) throw new Error(`Unknown provider: ${providerId}`);
+
   const { images, ...requestOptions } = options;
 
   // When images are provided, make user messages multimodal
@@ -41,61 +59,13 @@ export async function callLLM(
       })
     : messages;
 
-  if (providerId === 'openrouter') {
-    const response = await fetch(`${OPENROUTER_PROXY}/api/v1/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages: finalMessages,
-        ...requestOptions,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      if (response.status === 401) {
-        throw new Error('Invalid OpenRouter API key.');
-      }
-      if (response.status === 429) {
-        throw new Error('Rate limit exceeded. Wait a moment and try again.');
-      }
-      throw new Error(`OpenRouter API error (${response.status}): ${errorBody}`);
-    }
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content ?? '';
-  }
-
-  if (providerId === 'lmstudio') {
-    const response = await fetch(`${LMSTUDIO_PROXY}/v1/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages: finalMessages,
-        stream: false,
-        ...requestOptions,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      if (response.status === 404) {
-        throw new Error('LM Studio not available. Make sure LM Studio is running and the server is enabled.');
-      }
-      throw new Error(`LM Studio API error (${response.status}): ${errorBody}`);
-    }
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content ?? '';
-  }
-
-  throw new Error(`Unknown provider: ${providerId}`);
+  const data = await fetchChatCompletion(
+    config.url,
+    { model, messages: finalMessages, ...config.extraFields, ...requestOptions },
+    config.errorMap,
+    config.label,
+  );
+  return extractMessageText(data);
 }
 
 function extractJSON(text: string): string {
@@ -169,7 +139,7 @@ export async function compileSpec(
 
   const response = await callLLM(
     [
-      { role: 'system', content: getCompilerSystemPrompt() },
+      { role: 'system', content: getPrompt('compilerSystem') },
       { role: 'user', content: userPrompt },
     ],
     model,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Download, Upload, Copy, Trash2, Check } from 'lucide-react';
+import { normalizeError } from '../../lib/error-utils';
 import { useSpecStore } from '../../stores/spec-store';
 import { useCompilerStore } from '../../stores/compiler-store';
 import { useGenerationStore } from '../../stores/generation-store';
@@ -91,7 +92,7 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
         loadSpecAction(imported);
         onClose();
       } catch (err) {
-        alert(err instanceof Error ? err.message : 'Import failed');
+        alert(normalizeError(err, 'Import failed'));
       }
       if (fileInputRef.current) fileInputRef.current.value = '';
     },

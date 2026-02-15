@@ -2,6 +2,11 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { GenerationResult } from '../types/provider';
 import { deleteCode, deleteProvenance, clearAllCodes } from '../services/idb-storage';
+import { STORAGE_KEYS } from '../lib/storage-keys';
+
+/** Fire-and-forget cleanup — log in dev, silent in prod */
+const idbCleanup = (p: Promise<void>) =>
+  p.catch((err) => { if (import.meta.env.DEV) console.warn('[idb] cleanup failed:', err); });
 
 interface GenerationStore {
   results: GenerationResult[];
@@ -46,9 +51,8 @@ export const useGenerationStore = create<GenerationStore>()(
         })),
 
       deleteResult: (resultId) => {
-        // Clean up IndexedDB (fire-and-forget)
-        deleteCode(resultId).catch(() => {});
-        deleteProvenance(resultId).catch(() => {});
+        idbCleanup(deleteCode(resultId));
+        idbCleanup(deleteProvenance(resultId));
 
         set((state) => {
           const filtered = state.results.filter((r) => r.id !== resultId);
@@ -71,10 +75,9 @@ export const useGenerationStore = create<GenerationStore>()(
             if (toDelete.has(rId)) delete sv[vsId];
           }
 
-          // Clean up IndexedDB for all deleted results (fire-and-forget)
           for (const id of toDelete) {
-            deleteCode(id).catch(() => {});
-            deleteProvenance(id).catch(() => {});
+            idbCleanup(deleteCode(id));
+            idbCleanup(deleteProvenance(id));
           }
 
           return { results: filtered, selectedVersions: sv };
@@ -83,11 +86,11 @@ export const useGenerationStore = create<GenerationStore>()(
 
       reset: () => {
         set({ results: [], isGenerating: false, selectedVersions: {} });
-        clearAllCodes().catch(() => {});
+        idbCleanup(clearAllCodes());
       },
     }),
     {
-      name: 'auto-designer-generation',
+      name: STORAGE_KEYS.GENERATION,
       version: 2,
       partialize: (state) => ({
         // Strip `code` from persisted results — code lives in IndexedDB
@@ -106,6 +109,7 @@ export const useGenerationStore = create<GenerationStore>()(
           }));
           state.selectedVersions = state.selectedVersions ?? {};
         }
+        // Zustand merges migrated state with initial state — partial is expected
         return state as unknown as GenerationStore;
       },
     },

@@ -52,5 +52,15 @@ export function useCanvasOrchestrator() {
         ),
       });
     }
+
+    // Clean stale "generating" results left over from a previous session
+    for (const r of results) {
+      if (r.status === 'generating') {
+        useGenerationStore.getState().updateResult(r.id, {
+          status: 'error',
+          error: 'Generation interrupted by page reload',
+        });
+      }
+    }
   }, [dimensionMaps, results]);
 }

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { STORAGE_KEYS } from '../lib/storage-keys';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -14,6 +15,6 @@ export const useThemeStore = create<ThemeStore>()(
       mode: 'dark',
       setMode: (mode) => set({ mode }),
     }),
-    { name: 'auto-designer-theme' }
+    { name: STORAGE_KEYS.THEME }
   )
 );

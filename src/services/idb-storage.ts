@@ -4,11 +4,12 @@
  *
  * Separate databases keep code and provenance isolated for independent GC.
  */
-import { createStore, get, set, del, keys, getMany, clear } from 'idb-keyval';
+import { createStore, get, set, del, keys, clear } from 'idb-keyval';
 import type { Provenance } from '../types/provider';
+import { STORAGE_KEYS } from '../lib/storage-keys';
 
-const codeStore = createStore('auto-designer-code', 'code');
-const provenanceStore = createStore('auto-designer-provenance', 'provenance');
+const codeStore = createStore(STORAGE_KEYS.IDB_CODE, 'code');
+const provenanceStore = createStore(STORAGE_KEYS.IDB_PROVENANCE, 'provenance');
 
 // ── Generated code ────────────────────────────────────────────────────
 
@@ -20,23 +21,8 @@ export function loadCode(resultId: string): Promise<string | undefined> {
   return get(resultId, codeStore);
 }
 
-export async function loadManyCodes(
-  resultIds: string[],
-): Promise<Map<string, string>> {
-  const values = await getMany(resultIds, codeStore);
-  const map = new Map<string, string>();
-  resultIds.forEach((id, i) => {
-    if (values[i] != null) map.set(id, values[i] as string);
-  });
-  return map;
-}
-
 export function deleteCode(resultId: string): Promise<void> {
   return del(resultId, codeStore);
-}
-
-export async function deleteManyCodes(resultIds: string[]): Promise<void> {
-  await Promise.all(resultIds.map((id) => del(id, codeStore)));
 }
 
 export function clearAllCodes(): Promise<void> {
@@ -54,12 +40,6 @@ export function saveProvenance(
   provenance: Provenance,
 ): Promise<void> {
   return set(resultId, provenance, provenanceStore);
-}
-
-export function loadProvenance(
-  resultId: string,
-): Promise<Provenance | undefined> {
-  return get(resultId, provenanceStore);
 }
 
 export function deleteProvenance(resultId: string): Promise<void> {

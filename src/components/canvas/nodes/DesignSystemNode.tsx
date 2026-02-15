@@ -1,8 +1,10 @@
 import { memo, useState, useCallback } from 'react';
 import { type NodeProps, type Node } from '@xyflow/react';
 import { useDropzone } from 'react-dropzone';
-import { X, ImagePlus, Sparkles, Loader2 } from 'lucide-react';
-import { useCanvasStore, type CanvasNodeData } from '../../../stores/canvas-store';
+import { ImagePlus, Sparkles, Loader2, X } from 'lucide-react';
+import { normalizeError } from '../../../lib/error-utils';
+import { useCanvasStore } from '../../../stores/canvas-store';
+import type { DesignSystemNodeData } from '../../../types/canvas-data';
 import { DEFAULT_COMPILER_PROVIDER } from '../../../lib/constants';
 import { callLLM } from '../../../services/compiler';
 import { getPrompt } from '../../../stores/prompt-store';
@@ -11,17 +13,18 @@ import { useNodeProviderModel } from '../../../hooks/useNodeProviderModel';
 import ProviderSelector from '../../generation/ProviderSelector';
 import ModelSelector from '../../shared/ModelSelector';
 import NodeShell from './NodeShell';
+import NodeHeader from './NodeHeader';
 import type { ReferenceImage } from '../../../types/spec';
 
-type DesignSystemNodeType = Node<CanvasNodeData, 'designSystem'>;
+type DesignSystemNodeType = Node<DesignSystemNodeData, 'designSystem'>;
 
 function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType>) {
   const removeNode = useCanvasStore((s) => s.removeNode);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
 
-  const title = (data.title as string) || 'Design System';
-  const content = (data.content as string) || '';
-  const images = (data.images as ReferenceImage[]) || [];
+  const title = data.title || 'Design System';
+  const content = data.content || '';
+  const images = data.images || [];
 
   const {
     providerId,
@@ -39,6 +42,11 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
     [id, updateNodeData],
   );
 
+  const getCurrentImages = useCallback(
+    () => (useCanvasStore.getState().nodes.find((n) => n.id === id)?.data.images as ReferenceImage[]) || [],
+    [id],
+  );
+
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       acceptedFiles.forEach((file) => {
@@ -51,33 +59,30 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
             description: '',
             createdAt: now(),
           };
-          const current = (useCanvasStore.getState().nodes.find((n) => n.id === id)?.data.images as ReferenceImage[]) || [];
-          updateNodeData(id, { images: [...current, newImage] });
+          updateNodeData(id, { images: [...getCurrentImages(), newImage] });
         };
         reader.readAsDataURL(file);
       });
     },
-    [id, updateNodeData],
+    [id, updateNodeData, getCurrentImages],
   );
 
   const removeImage = useCallback(
     (imageId: string) => {
-      const current = (useCanvasStore.getState().nodes.find((n) => n.id === id)?.data.images as ReferenceImage[]) || [];
-      updateNodeData(id, { images: current.filter((img) => img.id !== imageId) });
+      updateNodeData(id, { images: getCurrentImages().filter((img) => img.id !== imageId) });
     },
-    [id, updateNodeData],
+    [id, updateNodeData, getCurrentImages],
   );
 
   const updateImageDescription = useCallback(
     (imageId: string, description: string) => {
-      const current = (useCanvasStore.getState().nodes.find((n) => n.id === id)?.data.images as ReferenceImage[]) || [];
       updateNodeData(id, {
-        images: current.map((img) =>
+        images: getCurrentImages().map((img) =>
           img.id === imageId ? { ...img, description } : img,
         ),
       });
     },
-    [id, updateNodeData],
+    [id, updateNodeData, getCurrentImages],
   );
 
   const handleExtract = useCallback(async () => {
@@ -102,7 +107,7 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
         update('content', result);
       }
     } catch (err) {
-      setExtractError(err instanceof Error ? err.message : 'Extraction failed');
+      setExtractError(normalizeError(err, 'Extraction failed'));
     } finally {
       setExtracting(false);
     }
@@ -128,27 +133,17 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
       hasTarget={false}
       handleColor={content.trim() ? 'green' : 'amber'}
     >
-      {/* Header */}
-      <div className="border-b border-border-subtle px-3 py-2.5">
-        <div className="flex items-center gap-2">
-          <input
-            value={title}
-            onChange={(e) => update('title', e.target.value)}
-            placeholder="Design System"
-            className="nodrag nowheel min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-xs font-semibold text-fg placeholder:text-fg-faint outline-none hover:border-border focus:border-accent"
-          />
-          <button
-            onClick={() => removeNode(id)}
-            className="nodrag shrink-0 rounded p-0.5 text-fg-faint transition-colors hover:bg-error-subtle hover:text-error"
-            title="Remove"
-          >
-            <X size={12} />
-          </button>
-        </div>
-        <p className="mt-0.5 text-nano leading-tight text-fg-muted">
-          Design tokens, components, and patterns
-        </p>
-      </div>
+      <NodeHeader
+        onRemove={() => removeNode(id)}
+        description="Design tokens, components, and patterns"
+      >
+        <input
+          value={title}
+          onChange={(e) => update('title', e.target.value)}
+          placeholder="Design System"
+          className="nodrag nowheel min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-xs font-semibold text-fg placeholder:text-fg-faint outline-none hover:border-border focus:border-accent"
+        />
+      </NodeHeader>
 
       {/* Content */}
       <div className="px-3 py-2.5">

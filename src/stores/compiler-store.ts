@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CompiledPrompt, DimensionMap, VariantStrategy } from '../types/compiler';
 import { DEFAULT_COMPILER_PROVIDER } from '../lib/constants';
+import { STORAGE_KEYS } from '../lib/storage-keys';
 import { generateId, now } from '../lib/utils';
 
 // ── Selector helpers (for callers that need a single map) ──────────
@@ -65,6 +66,22 @@ interface CompilerStore {
 
 // CompilerStore interface used internally only
 
+/** Find a variant in any dimension map and apply a transform to the variants array. */
+function mutateVariant(
+  dimensionMaps: Record<string, DimensionMap>,
+  variantId: string,
+  transform: (variants: VariantStrategy[]) => VariantStrategy[],
+): Record<string, DimensionMap> {
+  const updated = { ...dimensionMaps };
+  for (const [nodeId, map] of Object.entries(updated)) {
+    if (map.variants.some((v) => v.id === variantId)) {
+      updated[nodeId] = { ...map, variants: transform(map.variants) };
+      break;
+    }
+  }
+  return updated;
+}
+
 // ── Store implementation ────────────────────────────────────────────
 
 export const useCompilerStore = create<CompilerStore>()(
@@ -96,38 +113,18 @@ export const useCompilerStore = create<CompilerStore>()(
       setSelectedModel: (model) => set({ selectedModel: model }),
 
       updateVariant: (variantId, updates) =>
-        set((state) => {
-          const updatedMaps = { ...state.dimensionMaps };
-          for (const [nodeId, map] of Object.entries(updatedMaps)) {
-            const idx = map.variants.findIndex((v) => v.id === variantId);
-            if (idx !== -1) {
-              updatedMaps[nodeId] = {
-                ...map,
-                variants: map.variants.map((v) =>
-                  v.id === variantId ? { ...v, ...updates } : v
-                ),
-              };
-              break;
-            }
-          }
-          return { dimensionMaps: updatedMaps };
-        }),
+        set((state) => ({
+          dimensionMaps: mutateVariant(state.dimensionMaps, variantId, (vs) =>
+            vs.map((v) => (v.id === variantId ? { ...v, ...updates } : v)),
+          ),
+        })),
 
       removeVariant: (variantId) =>
-        set((state) => {
-          const updatedMaps = { ...state.dimensionMaps };
-          for (const [nodeId, map] of Object.entries(updatedMaps)) {
-            const idx = map.variants.findIndex((v) => v.id === variantId);
-            if (idx !== -1) {
-              updatedMaps[nodeId] = {
-                ...map,
-                variants: map.variants.filter((v) => v.id !== variantId),
-              };
-              break;
-            }
-          }
-          return { dimensionMaps: updatedMaps };
-        }),
+        set((state) => ({
+          dimensionMaps: mutateVariant(state.dimensionMaps, variantId, (vs) =>
+            vs.filter((v) => v.id !== variantId),
+          ),
+        })),
 
       addVariantToNode: (nodeId) =>
         set((state) => {
@@ -174,7 +171,7 @@ export const useCompilerStore = create<CompilerStore>()(
         }),
     }),
     {
-      name: 'auto-designer-compiler',
+      name: STORAGE_KEYS.COMPILER,
       version: 1,
       migrate: (persistedState: unknown, version: number) => {
         if (version < 1) {

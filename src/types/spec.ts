@@ -4,6 +4,8 @@ export type SpecSectionId =
   | 'research-context'
   | 'objectives-metrics'
   | 'design-constraints'
+  /** @deprecated Design System content now lives in DesignSystemNode canvas node data.
+   *  Kept for backward compatibility with spec import/export and legacy routes. */
   | 'design-system';
 
 export interface SpecSectionMeta {

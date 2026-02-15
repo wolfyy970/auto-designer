@@ -6,9 +6,10 @@
  * stripped from the localStorage-persisted generation store.
  */
 import { saveCode } from './idb-storage';
+import { STORAGE_KEYS } from '../lib/storage-keys';
 
-const MIGRATION_FLAG = 'auto-designer-migrated-idb';
-const GENERATION_STORE_KEY = 'auto-designer-generation';
+const MIGRATION_FLAG = STORAGE_KEYS.MIGRATION_FLAG;
+const GENERATION_STORE_KEY = STORAGE_KEYS.GENERATION;
 
 interface PersistedResult {
   id: string;

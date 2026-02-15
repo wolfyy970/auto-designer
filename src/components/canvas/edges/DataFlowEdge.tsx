@@ -6,9 +6,9 @@ import {
   type Edge,
 } from '@xyflow/react';
 import { X } from 'lucide-react';
-import { useCanvasStore } from '../../../stores/canvas-store';
+import { useCanvasStore, type EdgeStatus } from '../../../stores/canvas-store';
 
-type DataFlowEdgeData = { status: 'idle' | 'processing' | 'complete' | 'error' };
+type DataFlowEdgeData = { status: EdgeStatus };
 type DataFlowEdge = Edge<DataFlowEdgeData, 'dataFlow'>;
 
 const STATUS_COLORS: Record<string, string> = {

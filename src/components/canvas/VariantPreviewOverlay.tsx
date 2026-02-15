@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, Columns2, ChevronLeft, ChevronRight } from 'lucide-react';
-import {
-  useGenerationStore,
-  getStack,
-  getActiveResult,
-  getScopedStack,
-  getScopedActiveResult,
-} from '../../stores/generation-store';
 import { useCompilerStore, findVariantStrategy } from '../../stores/compiler-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { prepareIframeContent, renderErrorHtml } from '../../lib/iframe-utils';
+import { normalizeError } from '../../lib/error-utils';
 import { useResultCode } from '../../hooks/useResultCode';
+import { useVersionStack } from '../../hooks/useVersionStack';
 import { badgeColor } from '../../lib/badge-colors';
 import type { GenerationResult } from '../../types/provider';
 
@@ -36,32 +31,15 @@ export default function VariantPreviewOverlay() {
 
   const [compareId, setCompareId] = useState<string | null>(null);
 
-  // Subscribe to stable store references, derive everything via useMemo.
-  const results = useGenerationStore((s) => s.results);
-  const selectedVersions = useGenerationStore((s) => s.selectedVersions);
-  const setSelectedVersion = useGenerationStore((s) => s.setSelectedVersion);
+  const {
+    results,
+    activeResult,
+    stackIndex,
+    stackTotal,
+    goNewer,
+    goOlder,
+  } = useVersionStack(variantStrategyId, pinnedRunId);
 
-  // Use scoped helpers when viewing a pinned (archived) variant
-  const stack = useMemo(
-    () => {
-      if (!variantStrategyId) return [];
-      const state = { results, selectedVersions };
-      return pinnedRunId
-        ? getScopedStack(state, variantStrategyId, pinnedRunId)
-        : getStack(state, variantStrategyId);
-    },
-    [results, selectedVersions, variantStrategyId, pinnedRunId],
-  );
-  const activeResult = useMemo(
-    () => {
-      if (!variantStrategyId) return undefined;
-      const state = { results, selectedVersions };
-      return pinnedRunId
-        ? getScopedActiveResult(state, variantStrategyId, pinnedRunId)
-        : getActiveResult(state, variantStrategyId);
-    },
-    [results, selectedVersions, variantStrategyId, pinnedRunId],
-  );
   // Legacy fallback: expandedVariantId might be a resultId from old code
   const legacyResult = useMemo(
     () =>
@@ -80,31 +58,9 @@ export default function VariantPreviewOverlay() {
   );
   const { code: compareCode } = useResultCode(compareResult?.id);
 
-  // Stack navigation — use scoped key for pinned variants
-  const versionKey = pinnedRunId && variantStrategyId
-    ? `${variantStrategyId}:${pinnedRunId}`
-    : variantStrategyId;
-
-  const completedStack = useMemo(
-    () => stack.filter((r) => r.status === 'complete'),
-    [stack],
-  );
-  const stackIndex = completedStack.findIndex((r) => r.id === result?.id);
-  const stackTotal = completedStack.length;
-
-  const goNewer = useCallback(() => {
-    if (!versionKey || stackIndex <= 0) return;
-    setSelectedVersion(versionKey, completedStack[stackIndex - 1].id);
-  }, [versionKey, stackIndex, completedStack, setSelectedVersion]);
-
-  const goOlder = useCallback(() => {
-    if (!versionKey || stackIndex >= completedStack.length - 1) return;
-    setSelectedVersion(versionKey, completedStack[stackIndex + 1].id);
-  }, [versionKey, stackIndex, completedStack, setSelectedVersion]);
-
   // Other complete results (for compare mode)
   const otherResults = useMemo(
-    () => results.filter((r) => r.status === 'complete' && r.id !== result?.id),
+    () => results.filter((r: GenerationResult) => r.status === 'complete' && r.id !== result?.id),
     [results, result?.id],
   );
 
@@ -141,9 +97,7 @@ export default function VariantPreviewOverlay() {
     try {
       content = prepareIframeContent(panelCode);
     } catch (err) {
-      content = renderErrorHtml(
-        err instanceof Error ? err.message : String(err),
-      );
+      content = renderErrorHtml(normalizeError(err));
     }
     return (
       <div className="flex flex-1 flex-col overflow-hidden">

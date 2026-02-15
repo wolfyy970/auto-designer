@@ -1,18 +1,19 @@
 import { memo } from 'react';
 import { type NodeProps, type Node } from '@xyflow/react';
-import { X, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useSpecStore } from '../../../stores/spec-store';
 import {
   useCanvasStore,
   NODE_TYPE_TO_SECTION,
-  type CanvasNodeData,
   type CanvasNodeType,
 } from '../../../stores/canvas-store';
+import type { SectionNodeData } from '../../../types/canvas-data';
 import { SPEC_SECTIONS } from '../../../lib/constants';
 import ReferenceImageUpload from '../../spec-editor/ReferenceImageUpload';
 import NodeShell from './NodeShell';
+import NodeHeader from './NodeHeader';
 
-type SectionNodeType = Node<CanvasNodeData, CanvasNodeType>;
+type SectionNodeType = Node<SectionNodeData, CanvasNodeType>;
 
 function SectionNode({ id, type, selected }: NodeProps<SectionNodeType>) {
   const removeNode = useCanvasStore((s) => s.removeNode);
@@ -42,25 +43,12 @@ function SectionNode({ id, type, selected }: NodeProps<SectionNodeType>) {
       hasTarget={isExistingDesign}
       handleColor={content.trim() ? 'green' : 'amber'}
     >
-      {/* Header */}
-      <div className="border-b border-border-subtle px-3 py-2.5">
-        <div className="flex items-center gap-1.5">
-          <h3 className="text-xs font-semibold text-fg">{meta.title}</h3>
-          {!meta.required && (
-            <span className="text-nano text-fg-faint">optional</span>
-          )}
-          <button
-            onClick={() => removeNode(id)}
-            className="nodrag ml-auto shrink-0 rounded p-0.5 text-fg-faint transition-colors hover:bg-error-subtle hover:text-error"
-            title="Remove"
-          >
-            <X size={12} />
-          </button>
-        </div>
-        <p className="mt-0.5 text-nano leading-tight text-fg-muted">
-          {meta.description}
-        </p>
-      </div>
+      <NodeHeader onRemove={() => removeNode(id)} description={meta.description}>
+        <h3 className="text-xs font-semibold text-fg">{meta.title}</h3>
+        {!meta.required && (
+          <span className="text-nano text-fg-faint">optional</span>
+        )}
+      </NodeHeader>
 
       {/* Content */}
       <div className="px-3 py-2.5">

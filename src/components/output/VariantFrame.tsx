@@ -3,6 +3,7 @@ import { Code, Eye, Loader2 } from 'lucide-react';
 import type { VariantStrategy } from '../../types/compiler';
 import type { GenerationResult } from '../../types/provider';
 import { prepareIframeContent, renderErrorHtml } from '../../lib/iframe-utils';
+import { normalizeError } from '../../lib/error-utils';
 import { useResultCode } from '../../hooks/useResultCode';
 import VariantMetadata from './VariantMetadata';
 
@@ -25,9 +26,7 @@ export default function VariantFrame({
     try {
       return prepareIframeContent(code);
     } catch (err) {
-      return renderErrorHtml(
-        err instanceof Error ? err.message : String(err)
-      );
+      return renderErrorHtml(normalizeError(err));
     }
   }, [code]);
 

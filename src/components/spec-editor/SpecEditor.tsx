@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, ArrowRight } from 'lucide-react';
+import { normalizeError } from '../../lib/error-utils';
 import { SPEC_SECTIONS } from '../../lib/constants';
 import { useSpecStore } from '../../stores/spec-store';
 import { useCompilerStore, selectDimensionMap } from '../../stores/compiler-store';
@@ -40,7 +41,7 @@ export default function SpecEditor() {
       // Navigate to exploration space after successful compile
       navigate('/compiler');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Compilation failed');
+      setError(normalizeError(err, 'Compilation failed'));
     } finally {
       setCompiling(false);
     }

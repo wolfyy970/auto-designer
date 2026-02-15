@@ -1,0 +1,165 @@
+import {
+  Download,
+  X,
+  Minus,
+  Plus,
+  Maximize2,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+} from 'lucide-react';
+import { ZOOM_MIN, ZOOM_MAX } from '../../../hooks/useVariantZoom';
+
+interface VariantToolbarProps {
+  variantName: string;
+  isArchived: boolean;
+  hasCode: boolean;
+  nodeId: string;
+  stackTotal: number;
+  stackIndex: number;
+  goNewer: () => void;
+  goOlder: () => void;
+  zoom: number;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetZoom: () => void;
+  onDownload: () => void;
+  onDeleteVersion: () => void;
+  onExpand: () => void;
+  onRemove: () => void;
+}
+
+export default function VariantToolbar({
+  variantName,
+  isArchived,
+  hasCode,
+  stackTotal,
+  stackIndex,
+  goNewer,
+  goOlder,
+  zoom,
+  zoomIn,
+  zoomOut,
+  resetZoom,
+  onDownload,
+  onDeleteVersion,
+  onExpand,
+  onRemove,
+}: VariantToolbarProps) {
+  return (
+    <div className="flex items-center gap-1 border-b border-border-subtle px-2.5 py-1">
+      <h4 className="min-w-0 flex-1 truncate text-sm font-semibold text-fg">
+        {variantName}
+      </h4>
+      {isArchived && (
+        <span className="shrink-0 rounded bg-fg-faint/10 px-1.5 py-px text-badge font-medium text-fg-muted">
+          Archived
+        </span>
+      )}
+
+      {/* Stack navigation */}
+      {stackTotal > 1 && (
+        <div className="nodrag flex items-center gap-0.5 text-fg-faint">
+          <button
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              goNewer();
+            }}
+            disabled={stackIndex <= 0}
+            className="rounded p-px transition-colors hover:text-fg-muted disabled:opacity-30"
+            title="Newer version"
+          >
+            <ChevronLeft size={10} />
+          </button>
+          <span className="px-0.5 text-badge tabular-nums">
+            {stackIndex + 1}/{stackTotal}
+          </span>
+          <button
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              goOlder();
+            }}
+            disabled={stackIndex >= stackTotal - 1}
+            className="rounded p-px transition-colors hover:text-fg-muted disabled:opacity-30"
+            title="Older version"
+          >
+            <ChevronRight size={10} />
+          </button>
+        </div>
+      )}
+
+      {/* Zoom controls */}
+      {hasCode && (
+        <div className="nodrag flex items-center text-fg-faint">
+          <button
+            onClick={zoomOut}
+            disabled={zoom <= ZOOM_MIN + 0.01}
+            className="rounded p-px transition-colors hover:text-fg-muted disabled:opacity-30"
+            title="Zoom out"
+          >
+            <Minus size={8} />
+          </button>
+          <span
+            onClick={resetZoom}
+            className="cursor-pointer px-px text-badge font-light tabular-nums transition-colors hover:text-fg-muted"
+            title="Reset to auto-fit"
+          >
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            onClick={zoomIn}
+            disabled={zoom >= ZOOM_MAX - 0.01}
+            className="rounded p-px transition-colors hover:text-fg-muted disabled:opacity-30"
+            title="Zoom in"
+          >
+            <Plus size={8} />
+          </button>
+        </div>
+      )}
+
+      {/* Actions */}
+      {hasCode && (
+        <>
+          <div className="h-3 w-px bg-border-subtle" />
+          <button
+            onClick={onDownload}
+            className="nodrag rounded p-0.5 text-fg-faint transition-colors hover:text-fg-muted"
+            title={`Download ${variantName}`}
+          >
+            <Download size={10} />
+          </button>
+          <button
+            onClick={onExpand}
+            className="nodrag rounded p-0.5 text-fg-faint transition-colors hover:text-fg-muted"
+            title="Full-screen preview"
+          >
+            <Maximize2 size={10} />
+          </button>
+          {stackTotal > 1 && (
+            <button
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDeleteVersion();
+              }}
+              className="nodrag rounded p-0.5 text-fg-faint transition-colors hover:bg-error-subtle hover:text-error"
+              title="Delete this version"
+            >
+              <Trash2 size={10} />
+            </button>
+          )}
+        </>
+      )}
+
+      <button
+        onClick={onRemove}
+        className="nodrag shrink-0 rounded p-0.5 text-fg-faint transition-colors hover:bg-error-subtle hover:text-error"
+        title="Remove"
+      >
+        <X size={10} />
+      </button>
+    </div>
+  );
+}

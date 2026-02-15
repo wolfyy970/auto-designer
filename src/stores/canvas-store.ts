@@ -13,7 +13,7 @@ import {
 import type { DimensionMap } from '../types/compiler';
 import type { GenerationResult } from '../types/provider';
 import type { SpecSectionId } from '../types/spec';
-import { useCompilerStore, allVariantStrategyIds } from './compiler-store';
+import { useCompilerStore } from './compiler-store';
 import { useGenerationStore } from './generation-store';
 import { useSpecStore } from './spec-store';
 import { generateId, now } from '../lib/utils';
@@ -26,14 +26,18 @@ import {
   DEFAULT_COL_GAP,
   MIN_COL_GAP,
   MAX_COL_GAP,
+  SECTION_NODE_TYPES,
 } from '../lib/canvas-layout';
-import { isValidConnection as checkValidConnection } from '../lib/canvas-connections';
+import { isValidConnection as checkValidConnection, buildAutoConnectEdges } from '../lib/canvas-connections';
+import { computeLineage } from '../lib/canvas-graph';
+import { STORAGE_KEYS } from '../lib/storage-keys';
+import { migrateCanvasState } from './canvas-migrations';
 
 // Debounced auto-layout on dimension changes (avoids infinite loop)
 let dimensionLayoutTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Re-export for consumers
-export { GRID_SIZE } from '../lib/canvas-layout';
+export { GRID_SIZE, SECTION_NODE_TYPES } from '../lib/canvas-layout';
 
 // ── Node type system ────────────────────────────────────────────────
 
@@ -54,8 +58,10 @@ export type CanvasNodeData = Record<string, unknown> & {
   variantStrategyId?: string;
 };
 
+export type EdgeStatus = 'idle' | 'processing' | 'complete' | 'error';
+
 type CanvasNode = Node<CanvasNodeData, CanvasNodeType>;
-type CanvasEdge = Edge<{ status: 'idle' | 'processing' | 'complete' | 'error' }>;
+type CanvasEdge = Edge<{ status: EdgeStatus }>;
 
 /** Map canvas node types to their spec section IDs */
 export const NODE_TYPE_TO_SECTION: Partial<Record<CanvasNodeType, SpecSectionId>> = {
@@ -66,13 +72,6 @@ export const NODE_TYPE_TO_SECTION: Partial<Record<CanvasNodeType, SpecSectionId>
   designConstraints: 'design-constraints',
 };
 
-export const SECTION_NODE_TYPES = new Set<CanvasNodeType>([
-  'designBrief',
-  'existingDesign',
-  'researchContext',
-  'objectivesMetrics',
-  'designConstraints',
-]);
 
 // ── Store interface ─────────────────────────────────────────────────
 
@@ -117,8 +116,8 @@ interface CanvasStore {
   syncAfterGenerate: (results: GenerationResult[], hypothesisNodeId: string) => void;
   forkHypothesisVariants: (hypothesisNodeId: string) => void;
   clearVariantNodeIdMap: () => void;
-  setEdgeStatusBySource: (sourceId: string, status: 'idle' | 'processing' | 'complete' | 'error') => void;
-  setEdgeStatusByTarget: (targetId: string, status: 'idle' | 'processing' | 'complete' | 'error') => void;
+  setEdgeStatusBySource: (sourceId: string, status: EdgeStatus) => void;
+  setEdgeStatusByTarget: (targetId: string, status: EdgeStatus) => void;
 
   applyAutoLayout: () => void;
   reset: () => void;
@@ -247,70 +246,9 @@ export const useCanvasStore = create<CanvasStore>()(
           }
         }
 
-        const newEdges = [...state.edges];
+        const autoEdges = buildAutoConnectEdges(id, type, state.nodes);
 
-        // Auto-connect: section → compiler
-        if (SECTION_NODE_TYPES.has(type)) {
-          const compilers = state.nodes.filter((n) => n.type === 'compiler');
-          if (compilers.length === 1) {
-            newEdges.push({
-              id: `edge-${id}-to-${compilers[0].id}`,
-              source: id,
-              target: compilers[0].id,
-              type: 'dataFlow',
-              data: { status: 'idle' },
-            });
-          }
-        }
-
-        // Auto-connect: all sections → new compiler
-        if (type === 'compiler') {
-          const existingCompilers = state.nodes.filter((n) => n.type === 'compiler');
-          if (existingCompilers.length === 0) {
-            const sectionNodes = state.nodes.filter((n) =>
-              SECTION_NODE_TYPES.has(n.type as CanvasNodeType)
-            );
-            for (const sn of sectionNodes) {
-              newEdges.push({
-                id: `edge-${sn.id}-to-${id}`,
-                source: sn.id,
-                target: id,
-                type: 'dataFlow',
-                data: { status: 'idle' },
-              });
-            }
-          }
-        }
-
-        // Auto-connect: designSystem → all existing hypotheses
-        if (type === 'designSystem') {
-          const hypotheses = state.nodes.filter((n) => n.type === 'hypothesis');
-          for (const hyp of hypotheses) {
-            newEdges.push({
-              id: `edge-${id}-to-${hyp.id}`,
-              source: id,
-              target: hyp.id,
-              type: 'dataFlow',
-              data: { status: 'idle' },
-            });
-          }
-        }
-
-        // Auto-connect: all existing designSystems → new hypothesis
-        if (type === 'hypothesis') {
-          const dsNodes = state.nodes.filter((n) => n.type === 'designSystem');
-          for (const ds of dsNodes) {
-            newEdges.push({
-              id: `edge-${ds.id}-to-${id}`,
-              source: ds.id,
-              target: id,
-              type: 'dataFlow',
-              data: { status: 'idle' },
-            });
-          }
-        }
-
-        set({ nodes: [...state.nodes, newNode], edges: newEdges });
+        set({ nodes: [...state.nodes, newNode], edges: [...state.edges, ...autoEdges] });
         if (get().autoLayout) get().applyAutoLayout();
       },
 
@@ -373,45 +311,8 @@ export const useCanvasStore = create<CanvasStore>()(
           return;
         }
 
-        const { edges } = get();
-        const nodeIds = new Set<string>([selectedNodeId]);
-        const edgeIds = new Set<string>();
+        const { nodeIds, edgeIds } = computeLineage(get().edges, selectedNodeId);
 
-        // Walk backwards (ancestors)
-        const backQueue = [selectedNodeId];
-        while (backQueue.length > 0) {
-          const current = backQueue.pop()!;
-          for (const e of edges) {
-            if (e.target === current && !nodeIds.has(e.source)) {
-              nodeIds.add(e.source);
-              edgeIds.add(e.id);
-              backQueue.push(e.source);
-            }
-            // Also mark edges targeting current node
-            if (e.target === current && nodeIds.has(e.source)) {
-              edgeIds.add(e.id);
-            }
-          }
-        }
-
-        // Walk forwards (descendants)
-        const fwdQueue = [selectedNodeId];
-        while (fwdQueue.length > 0) {
-          const current = fwdQueue.pop()!;
-          for (const e of edges) {
-            if (e.source === current && !nodeIds.has(e.target)) {
-              nodeIds.add(e.target);
-              edgeIds.add(e.id);
-              fwdQueue.push(e.target);
-            }
-            // Also mark edges from current node
-            if (e.source === current && nodeIds.has(e.target)) {
-              edgeIds.add(e.id);
-            }
-          }
-        }
-
-        // Only set lineage if we found more than just the selected node
         if (nodeIds.size <= 1) {
           set({ lineageNodeIds: new Set(), lineageEdgeIds: new Set() });
         } else {
@@ -424,63 +325,7 @@ export const useCanvasStore = create<CanvasStore>()(
       initializeCanvas: () => {
         const state = get();
         if (state.nodes.length > 0) {
-          // Clean up orphaned nodes whose backing data no longer exists
-          const { dimensionMaps } = useCompilerStore.getState();
-          const results = useGenerationStore.getState().results;
-
-          const variantStrategyIdSet = allVariantStrategyIds(dimensionMaps);
-          const resultVsIds = new Set(results.map((r) => r.variantStrategyId));
-
-          const orphanIds = new Set<string>();
-          for (const node of state.nodes) {
-            if (
-              node.type === 'hypothesis' &&
-              node.data.refId &&
-              !variantStrategyIdSet.has(node.data.refId as string)
-            ) {
-              orphanIds.add(node.id);
-            }
-            // Variant nodes are orphaned if their hypothesis has zero results
-            // Skip archived (pinned) variants — they should never be auto-deleted
-            if (
-              node.type === 'variant' &&
-              !node.data.pinnedRunId &&
-              node.data.variantStrategyId &&
-              !resultVsIds.has(node.data.variantStrategyId as string)
-            ) {
-              orphanIds.add(node.id);
-            }
-            // Legacy variant nodes (no variantStrategyId) — check refId against result IDs
-            if (
-              node.type === 'variant' &&
-              !node.data.variantStrategyId &&
-              node.data.refId &&
-              !new Set(results.map((r) => r.id)).has(node.data.refId as string)
-            ) {
-              orphanIds.add(node.id);
-            }
-          }
-
-          if (orphanIds.size > 0) {
-            set({
-              nodes: state.nodes.filter((n) => !orphanIds.has(n.id)),
-              edges: state.edges.filter(
-                (e) => !orphanIds.has(e.source) && !orphanIds.has(e.target)
-              ),
-            });
-          }
-
-          // Also clean stale "generating" results left over from a previous session
-          const staleResults = results.filter((r) => r.status === 'generating');
-          if (staleResults.length > 0) {
-            for (const r of staleResults) {
-              useGenerationStore.getState().updateResult(r.id, {
-                status: 'error',
-                error: 'Generation interrupted by page reload',
-              });
-            }
-          }
-
+          // Orphan cleanup is handled by useCanvasOrchestrator
           if (get().autoLayout) get().applyAutoLayout();
           return;
         }
@@ -768,257 +613,10 @@ export const useCanvasStore = create<CanvasStore>()(
         }),
     }),
     {
-      name: 'auto-designer-canvas',
-      version: 11,
-      migrate: (_persistedState: unknown, version: number) => {
-        // v0/v1 → v4: complete reset (too old to migrate incrementally)
-        if (version < 2) {
-          return {
-            nodes: [],
-            edges: [],
-            viewport: { x: 0, y: 0, zoom: 0.85 },
-            showMiniMap: true,
-            showGrid: true,
-            colGap: DEFAULT_COL_GAP,
-            autoLayout: true,
-          };
-        }
-        // v2 → v3: fix stale 'incubator' nodes
-        if (version < 3) {
-          const state = _persistedState as Record<string, unknown>;
-          const nodes = (state.nodes as Array<Record<string, unknown>>) ?? [];
-          const edges = (state.edges as Array<Record<string, unknown>>) ?? [];
-          // Falls through to v3→v4 migration below
-          _persistedState = {
-            ...state,
-            nodes: nodes.map((n) => ({
-              ...n,
-              type: n.type === 'incubator' ? 'designer' : n.type,
-              id: n.id === 'incubator-node' ? 'generator-node' : n.id,
-            })),
-            edges: edges.map((e) => ({
-              ...e,
-              source: e.source === 'incubator-node' ? 'generator-node' : e.source,
-              target: e.target === 'incubator-node' ? 'generator-node' : e.target,
-              id: typeof e.id === 'string'
-                ? e.id.replace('incubator', 'designer')
-                : e.id,
-            })),
-          };
-        }
-        // v3 → v4: reset canvas for multi-compiler/generator support
-        // Old canvases used fixed IDs (compiler-node, generator-node)
-        if (version < 4) {
-          return {
-            nodes: [],
-            edges: [],
-            viewport: { x: 0, y: 0, zoom: 0.85 },
-            showMiniMap: true,
-            showGrid: true,
-            colGap: DEFAULT_COL_GAP,
-            autoLayout: true,
-          };
-        }
-        // v5 → v6: rename 'generator' node type to 'designer'
-        if (version < 6) {
-          const state = _persistedState as Record<string, unknown>;
-          const nodes = (state.nodes as Array<Record<string, unknown>>) ?? [];
-          const edges = (state.edges as Array<Record<string, unknown>>) ?? [];
-          _persistedState = {
-            ...state,
-            nodes: nodes.map((n) => ({
-              ...n,
-              type: n.type === 'generator' ? 'designer' : n.type,
-            })),
-            edges: edges.map((e) => ({
-              ...e,
-              id: typeof e.id === 'string'
-                ? e.id.replace('generator', 'designer')
-                : e.id,
-            })),
-          };
-        }
-        // v6 → v7: add variantStrategyId to variant nodes (look up from generation store)
-        if (version < 7) {
-          const state = _persistedState as Record<string, unknown>;
-          const nodes = (state.nodes as Array<Record<string, unknown>>) ?? [];
-          // Try to get variantStrategyId from generation results for existing variant nodes
-          const genRaw = localStorage.getItem('auto-designer-generation');
-          const genResults: Array<Record<string, unknown>> = [];
-          if (genRaw) {
-            try {
-              const parsed = JSON.parse(genRaw);
-              genResults.push(...(parsed?.state?.results ?? []));
-            } catch { /* ignore */ }
-          }
-          const resultById = new Map<string, string>();
-          for (const r of genResults) {
-            if (r.id && r.variantStrategyId) {
-              resultById.set(r.id as string, r.variantStrategyId as string);
-            }
-          }
-          _persistedState = {
-            ...state,
-            nodes: nodes.map((n) => {
-              if (n.type === 'variant' && n.data) {
-                const data = n.data as Record<string, unknown>;
-                if (!data.variantStrategyId && data.refId) {
-                  const vsId = resultById.get(data.refId as string);
-                  if (vsId) {
-                    return { ...n, data: { ...data, variantStrategyId: vsId } };
-                  }
-                }
-              }
-              return n;
-            }),
-          };
-        }
-        // v7 → v8: provider/model/format now stored in node data (no transform needed)
-        // v8 → v9: remove designer nodes (merged into hypothesis)
-        if (version < 9) {
-          const state = _persistedState as Record<string, unknown>;
-          const nodes = (state.nodes as Array<Record<string, unknown>>) ?? [];
-          const edges = (state.edges as Array<Record<string, unknown>>) ?? [];
-          const designerIds = new Set(
-            nodes.filter((n) => n.type === 'designer').map((n) => n.id as string),
-          );
-
-          // Build hypothesis→variant edges to replace hypothesis→designer→variant chain
-          const newEdges: Array<Record<string, unknown>> = [];
-          const hypothesisNodes = nodes.filter((n) => n.type === 'hypothesis');
-          const variantNodes = nodes.filter((n) => n.type === 'variant');
-          for (const hyp of hypothesisNodes) {
-            const hypData = hyp.data as Record<string, unknown> | undefined;
-            const hypRefId = hypData?.refId as string | undefined;
-            if (!hypRefId) continue;
-            for (const v of variantNodes) {
-              const vData = v.data as Record<string, unknown> | undefined;
-              if (vData?.variantStrategyId === hypRefId) {
-                newEdges.push({
-                  id: `e-${hyp.id as string}-${v.id as string}`,
-                  source: hyp.id as string,
-                  target: v.id as string,
-                  type: 'dataFlow',
-                });
-              }
-            }
-          }
-
-          _persistedState = {
-            ...state,
-            nodes: nodes.filter((n) => n.type !== 'designer'),
-            edges: [
-              ...edges.filter(
-                (e) => !designerIds.has(e.source as string) && !designerIds.has(e.target as string),
-              ),
-              ...newEdges,
-            ],
-          };
-        }
-        // v9 → v10: ensure hypothesis→variant edges exist
-        // (v9 migration may have run before edge-reconnection was added)
-        if (version < 10) {
-          const state = _persistedState as Record<string, unknown>;
-          const nodes = (state.nodes as Array<Record<string, unknown>>) ?? [];
-          const edges = (state.edges as Array<Record<string, unknown>>) ?? [];
-
-          // Build a set of existing hypothesis→variant edges
-          const existingHypVariantEdges = new Set<string>();
-          for (const e of edges) {
-            existingHypVariantEdges.add(`${e.source as string}→${e.target as string}`);
-          }
-
-          const newEdges: Array<Record<string, unknown>> = [];
-          const hypothesisNodes = nodes.filter((n) => n.type === 'hypothesis');
-          const variantNodes = nodes.filter((n) => n.type === 'variant');
-          for (const hyp of hypothesisNodes) {
-            const hypData = hyp.data as Record<string, unknown> | undefined;
-            const hypRefId = hypData?.refId as string | undefined;
-            if (!hypRefId) continue;
-            for (const v of variantNodes) {
-              const vData = v.data as Record<string, unknown> | undefined;
-              if (vData?.variantStrategyId === hypRefId) {
-                const key = `${hyp.id as string}→${v.id as string}`;
-                if (!existingHypVariantEdges.has(key)) {
-                  newEdges.push({
-                    id: `e-${hyp.id as string}-${v.id as string}`,
-                    source: hyp.id as string,
-                    target: v.id as string,
-                    type: 'dataFlow',
-                  });
-                }
-              }
-            }
-          }
-
-          if (newEdges.length > 0) {
-            _persistedState = {
-              ...state,
-              edges: [...edges, ...newEdges],
-            };
-          }
-        }
-        // v10 → v11: designSystem is now self-contained (content in node.data, not spec store)
-        // Also create designSystem → hypothesis edges
-        if (version < 11) {
-          const state = _persistedState as Record<string, unknown>;
-          const nodes = (state.nodes as Array<Record<string, unknown>>) ?? [];
-          const edges = (state.edges as Array<Record<string, unknown>>) ?? [];
-
-          // Seed designSystem node data from spec store
-          const specRaw = localStorage.getItem('auto-designer-active-spec');
-          let dsContent = '';
-          let dsImages: unknown[] = [];
-          if (specRaw) {
-            try {
-              const parsed = JSON.parse(specRaw);
-              const dsSection = parsed?.state?.spec?.sections?.['design-system'];
-              if (dsSection) {
-                dsContent = dsSection.content || '';
-                dsImages = dsSection.images || [];
-              }
-            } catch { /* ignore */ }
-          }
-
-          const updatedNodes = nodes.map((n) => {
-            if (n.type === 'designSystem') {
-              const existingData = (n.data as Record<string, unknown>) || {};
-              return {
-                ...n,
-                data: {
-                  ...existingData,
-                  title: 'Design System',
-                  content: dsContent,
-                  images: dsImages,
-                },
-              };
-            }
-            return n;
-          });
-
-          // Create designSystem → hypothesis edges
-          const newEdges: Array<Record<string, unknown>> = [];
-          const dsNodeIds = updatedNodes.filter((n) => n.type === 'designSystem').map((n) => n.id as string);
-          const hypNodeIds = updatedNodes.filter((n) => n.type === 'hypothesis').map((n) => n.id as string);
-          for (const dsId of dsNodeIds) {
-            for (const hypId of hypNodeIds) {
-              newEdges.push({
-                id: `edge-${dsId}-to-${hypId}`,
-                source: dsId,
-                target: hypId,
-                type: 'dataFlow',
-              });
-            }
-          }
-
-          _persistedState = {
-            ...state,
-            nodes: updatedNodes,
-            edges: [...edges, ...newEdges],
-          };
-        }
-        return _persistedState as Record<string, unknown>;
-      },
+      name: STORAGE_KEYS.CANVAS,
+      version: 12,
+      migrate: (persistedState: unknown, version: number) =>
+        migrateCanvasState(persistedState, version),
       partialize: (state) => ({
         nodes: state.nodes,
         edges: state.edges,

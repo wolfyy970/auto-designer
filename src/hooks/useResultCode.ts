@@ -22,12 +22,13 @@ export function useResultCode(resultId: string | undefined): {
     let cancelled = false;
     setIsLoading(true);
 
-    loadCode(resultId).then((c) => {
-      if (!cancelled) {
-        setCode(c);
-        setIsLoading(false);
-      }
-    });
+    loadCode(resultId)
+      .then((c) => {
+        if (!cancelled) { setCode(c); setIsLoading(false); }
+      })
+      .catch(() => {
+        if (!cancelled) { setCode(undefined); setIsLoading(false); }
+      });
 
     return () => {
       cancelled = true;

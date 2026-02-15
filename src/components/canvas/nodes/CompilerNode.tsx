@@ -1,15 +1,16 @@
 import { memo, useCallback, useMemo } from 'react';
 import { useReactFlow, type NodeProps, type Node } from '@xyflow/react';
-import { RefreshCw, ArrowRight, X } from 'lucide-react';
+import { RefreshCw, ArrowRight } from 'lucide-react';
+import { normalizeError } from '../../../lib/error-utils';
 import { useSpecStore } from '../../../stores/spec-store';
 import { useCompilerStore } from '../../../stores/compiler-store';
 import { useGenerationStore } from '../../../stores/generation-store';
 import {
   useCanvasStore,
   SECTION_NODE_TYPES,
-  type CanvasNodeData,
   type CanvasNodeType,
 } from '../../../stores/canvas-store';
+import type { CompilerNodeData } from '../../../types/canvas-data';
 import { compileSpec } from '../../../services/compiler';
 import { buildCompileInputs } from '../../../lib/canvas-graph';
 import { DEFAULT_COMPILER_PROVIDER } from '../../../lib/constants';
@@ -17,8 +18,9 @@ import { useNodeProviderModel } from '../../../hooks/useNodeProviderModel';
 import ProviderSelector from '../../generation/ProviderSelector';
 import ModelSelector from '../../shared/ModelSelector';
 import NodeShell from './NodeShell';
+import NodeHeader from './NodeHeader';
 
-type CompilerNodeType = Node<CanvasNodeData, 'compiler'>;
+type CompilerNodeType = Node<CompilerNodeData, 'compiler'>;
 
 function CompilerNode({ id, selected }: NodeProps<CompilerNodeType>) {
   const { fitView } = useReactFlow();
@@ -77,7 +79,7 @@ function CompilerNode({ id, selected }: NodeProps<CompilerNodeType>) {
       setEdgeStatusBySource(id, 'complete');
       setTimeout(() => fitView({ duration: 400, padding: 0.15 }), 200);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Compilation failed');
+      setError(normalizeError(err, 'Compilation failed'));
       setEdgeStatusBySource(id, 'error');
     } finally {
       setCompiling(false);
@@ -112,22 +114,12 @@ function CompilerNode({ id, selected }: NodeProps<CompilerNodeType>) {
       borderClass={borderClass}
       handleColor={connectedInputCount > 0 && !!modelId ? 'green' : 'amber'}
     >
-      {/* Header */}
-      <div className="border-b border-border-subtle px-3 py-2.5">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-fg">Incubator</h3>
-          <button
-            onClick={() => removeNode(id)}
-            className="nodrag shrink-0 rounded p-0.5 text-fg-faint transition-colors hover:bg-error-subtle hover:text-error"
-            title="Remove"
-          >
-            <X size={12} />
-          </button>
-        </div>
-        <p className="text-nano text-fg-muted">
-          {connectedInputCount} input{connectedInputCount !== 1 ? 's' : ''} connected
-        </p>
-      </div>
+      <NodeHeader
+        onRemove={() => removeNode(id)}
+        description={`${connectedInputCount} input${connectedInputCount !== 1 ? 's' : ''} connected`}
+      >
+        <h3 className="text-xs font-semibold text-fg">Incubator</h3>
+      </NodeHeader>
 
       {/* Controls */}
       <div className="space-y-2 px-3 py-2.5">

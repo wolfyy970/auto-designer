@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { STORAGE_KEYS } from '../../lib/storage-keys';
 import Modal from './Modal';
 import PromptEditor from './PromptEditor';
 
@@ -9,13 +10,16 @@ interface SettingsModalProps {
 
 type Tab = 'general' | 'prompts';
 
-const KEYS_STORAGE = 'auto-designer-api-keys';
+const KEYS_STORAGE = STORAGE_KEYS.API_KEYS;
 
 function loadKeys(): { openrouter: string } {
   const raw = localStorage.getItem(KEYS_STORAGE);
   if (!raw) return { openrouter: '' };
   try {
-    return JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return { openrouter: '' };
+    const obj = parsed as Record<string, unknown>;
+    return { openrouter: typeof obj.openrouter === 'string' ? obj.openrouter : '' };
   } catch {
     return { openrouter: '' };
   }

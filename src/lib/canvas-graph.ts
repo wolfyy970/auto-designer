@@ -1,5 +1,5 @@
 import type { Node, Edge } from '@xyflow/react';
-import type { DesignSpec } from '../types/spec';
+import type { DesignSpec, ReferenceImage } from '../types/spec';
 import type { GenerationResult } from '../types/provider';
 import type { CritiqueInput } from './prompts/compiler-user';
 import { loadCode } from '../services/idb-storage';
@@ -12,6 +12,94 @@ import {
 
 type AnyNode = Node<CanvasNodeData, string>;
 type AnyEdge = Edge;
+
+// ── Design system inputs ────────────────────────────────────────────
+
+export interface DesignSystemInputs {
+  content: string | undefined;
+  images: ReferenceImage[];
+}
+
+/**
+ * Collect merged design system content and images from all DesignSystem nodes
+ * connected upstream of the given target node.
+ */
+export function collectDesignSystemInputs(
+  nodes: AnyNode[],
+  edges: AnyEdge[],
+  targetNodeId: string,
+): DesignSystemInputs {
+  const incomingEdges = edges.filter((e) => e.target === targetNodeId);
+  const dsNodes = incomingEdges
+    .map((e) => nodes.find((n) => n.id === e.source && n.type === 'designSystem'))
+    .filter(Boolean) as AnyNode[];
+
+  if (dsNodes.length === 0) return { content: undefined, images: [] };
+
+  const parts = dsNodes
+    .map((n) => {
+      const t = (n.data.title as string) || 'Design System';
+      const c = (n.data.content as string) || '';
+      return c.trim() ? `## ${t}\n${c}` : '';
+    })
+    .filter(Boolean);
+
+  return {
+    content: parts.join('\n\n---\n\n') || undefined,
+    images: dsNodes.flatMap((n) => (n.data.images as ReferenceImage[]) || []),
+  };
+}
+
+// ── Lineage computation ─────────────────────────────────────────────
+
+export interface LineageResult {
+  nodeIds: Set<string>;
+  edgeIds: Set<string>;
+}
+
+/**
+ * Walk the graph bidirectionally from a selected node to find all
+ * connected ancestors and descendants (the "lineage").
+ */
+export function computeLineage(
+  edges: AnyEdge[],
+  selectedNodeId: string,
+): LineageResult {
+  const nodeIds = new Set<string>([selectedNodeId]);
+  const edgeIds = new Set<string>();
+
+  // Walk backwards (ancestors)
+  const backQueue = [selectedNodeId];
+  while (backQueue.length > 0) {
+    const current = backQueue.pop()!;
+    for (const e of edges) {
+      if (e.target === current) {
+        edgeIds.add(e.id);
+        if (!nodeIds.has(e.source)) {
+          nodeIds.add(e.source);
+          backQueue.push(e.source);
+        }
+      }
+    }
+  }
+
+  // Walk forwards (descendants)
+  const fwdQueue = [selectedNodeId];
+  while (fwdQueue.length > 0) {
+    const current = fwdQueue.pop()!;
+    for (const e of edges) {
+      if (e.source === current) {
+        edgeIds.add(e.id);
+        if (!nodeIds.has(e.target)) {
+          nodeIds.add(e.target);
+          fwdQueue.push(e.target);
+        }
+      }
+    }
+  }
+
+  return { nodeIds, edgeIds };
+}
 
 // ── Compile inputs ──────────────────────────────────────────────────
 
