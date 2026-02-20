@@ -75,7 +75,8 @@ An in-memory file system. The LLM writes files into it via tool calls; the works
 
 - `writeFile(path, content)` — creates or overwrites; normalizes leading slashes
 - `readFile(path)` — returns content or undefined
-- `patchFile(path, search, replace)` — targeted string replacement (saves tokens on large files)
+- `patchFile(path, search, replace)` — targeted string replacement with multi-strategy fuzzy matching (exact, line-trimmed, indentation-flexible, block-anchored, Levenshtein). Saves tokens on large files while tolerating LLM whitespace drift.
+- `validateWorkspace(plannedPaths)` — checks that all planned files were written and reports structural warnings
 - `bundleToHtml()` — injects CSS into `<head>` and JS before `</body>`, wraps everything in the HTML file
 
 ### Build Loop (`orchestrator.ts`)
@@ -86,11 +87,13 @@ An in-memory file system. The LLM writes files into it via tool calls; the works
 
 2. **Build loop**: starts with `[system, user + buildPlanContext]` message array. Each iteration:
    - Calls `provider.generateChat(messages, options)`
-   - Parses XML tool calls: `<write_file>`, `<edit_file>`, `<finish_build>`
+   - Parses tool calls via three strategies: strict XML tags (`<write_file>`, `<edit_file>`, `<finish_build>`), permissive Markdown fenced-block fallback (for models like Gemini that ignore XML), and plan-aware file path alignment. `finish_build` is always processed last regardless of response ordering.
    - Executes tools against `VirtualWorkspace`
    - Appends tool feedback as a user message (success or structured `AgentToolError`)
    - Nudges the model if no tool calls are detected
+   - Reports progress via `onProgress` callback (phase labels, file writes, elapsed status)
    - Stops when `finish_build` is called or `maxLoops` is reached
+   - Runs a validation correction pass: if planned files are missing, re-enters the loop to request them
 
 ### Provider Interface
 
@@ -184,7 +187,7 @@ Results accumulate across generation runs. Each result has a `runId` (UUID) and 
 | `canvas-layout.ts` | Auto-layout algorithm (Sugiyama-style), grid snapping, column positions |
 | `canvas-connections.ts` | Valid connection rules between node types |
 | `canvas-graph.ts` | Graph traversal helpers for compilation inputs |
-| `provider-helpers.ts` | Multimodal content building, chat request construction |
+| `provider-helpers.ts` | Multimodal content building, chat request construction, native tool calling utilities |
 | `error-utils.ts` | `normalizeError()` + `AgentToolError` (structured tool failure reporting) |
 | `utils.ts` | `generateId()`, `interpolate()`, `envNewlines()` |
 
@@ -212,7 +215,7 @@ Results accumulate across generation runs. Each result has a `runId` (UUID) and 
 | `useVersionStack.ts` | Version navigation state management for variant nodes |
 | `useVariantZoom.ts` | Zoom/resize logic for variant previews (ResizeObserver + clamping) |
 | `useProviderModels.ts` | React Query hook for dynamic model fetching |
-| `useResultCode.ts` | Async hook to load generated code from IndexedDB |
+| `useResultCode.ts` | Async hook to load generated code from IndexedDB. Accepts an optional `reloadTrigger` to auto-refetch when generation status changes. |
 | `useNodeProviderModel.ts` | Per-node provider/model selection persisted in canvas node data (used by ModelNode) |
 | `useConnectedModel.ts` | Reads provider/model config from a connected Model node via edge traversal |
 | `useLineageDim.ts` | Lineage highlighting for selected nodes |

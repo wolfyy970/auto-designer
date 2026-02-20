@@ -47,7 +47,7 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
   const deleteResult = useGenerationStore((s) => s.deleteResult);
 
   // Load code from IndexedDB
-  const { code, isLoading: codeLoading } = useResultCode(result?.id);
+  const { code, isLoading: codeLoading } = useResultCode(result?.id, result?.status);
 
   const strategy = useCompilerStore((s) => {
     const vsId = variantStrategyId ?? result?.variantStrategyId;
@@ -174,65 +174,75 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
 
       {/* ── Content area ──────────────────────────────────────── */}
       <div ref={contentRef} className="relative flex-1 overflow-hidden">
-        {/* Generating state — skeleton with elapsed timer */}
+        {/* Generating state — skeleton with live progress */}
         {result?.status === 'generating' && (
-          <div className="flex h-full flex-col gap-2.5 bg-surface p-4">
-            {/* Top shimmer group */}
-            <div className="h-5 w-3/4 animate-pulse rounded bg-border" />
-            <div
-              className="h-3 w-full animate-pulse rounded bg-border/60"
-              style={{ animationDelay: '75ms' }}
-            />
-            <div
-              className="h-3 w-5/6 animate-pulse rounded bg-border/60"
-              style={{ animationDelay: '150ms' }}
-            />
-            <div
-              className="h-3 w-2/3 animate-pulse rounded bg-border/60"
-              style={{ animationDelay: '225ms' }}
-            />
-            <div
-              className="h-3 w-4/5 animate-pulse rounded bg-border/60"
-              style={{ animationDelay: '300ms' }}
-            />
-            <div
-              className="h-3 w-full animate-pulse rounded bg-border/60"
-              style={{ animationDelay: '375ms' }}
-            />
-
-            {/* Timer centered */}
-            <div className="mt-auto flex flex-col items-center justify-center py-4">
-              <span className="tabular-nums text-7xl font-extralight tracking-tight text-fg">
-                {elapsed}
-              </span>
-              <span className="mt-1 text-xs text-fg-muted">seconds</span>
+          <div className="flex h-full flex-col bg-surface p-4">
+            {/* Top shimmer bars */}
+            <div className="flex flex-col gap-2">
+              <div className="h-5 w-3/4 animate-pulse rounded bg-border" />
+              <div className="h-3 w-full animate-pulse rounded bg-border/60" style={{ animationDelay: '75ms' }} />
+              <div className="h-3 w-5/6 animate-pulse rounded bg-border/60" style={{ animationDelay: '150ms' }} />
+              <div className="h-3 w-2/3 animate-pulse rounded bg-border/60" style={{ animationDelay: '225ms' }} />
+              <div className="h-3 w-4/5 animate-pulse rounded bg-border/60" style={{ animationDelay: '300ms' }} />
             </div>
 
-            {/* Bottom shimmer group */}
-            <div
-              className="mt-auto h-3 w-5/6 animate-pulse rounded bg-border/60"
-              style={{ animationDelay: '450ms' }}
-            />
-            <div
-              className="h-3 w-2/3 animate-pulse rounded bg-border/60"
-              style={{ animationDelay: '525ms' }}
-            />
-            <div
-              className="h-3 w-full animate-pulse rounded bg-border/60"
-              style={{ animationDelay: '600ms' }}
-            />
-            <div
-              className="h-3 w-3/4 animate-pulse rounded bg-border/60"
-              style={{ animationDelay: '675ms' }}
-            />
-            <div
-              className="h-3 w-4/5 animate-pulse rounded bg-border/60"
-              style={{ animationDelay: '750ms' }}
-            />
-            <div
-              className="h-3 w-2/3 animate-pulse rounded bg-border/60"
-              style={{ animationDelay: '825ms' }}
-            />
+            {/* Progress section */}
+            <div className="my-auto flex flex-col gap-3 py-6">
+              {/* Bar track */}
+              <div className="h-1 w-full overflow-hidden rounded-full bg-border">
+                {result.progressStep ? (
+                  <div
+                    className="h-full rounded-full bg-accent transition-all duration-500 ease-out"
+                    style={{
+                      width: result.progressStep.total > 0
+                        ? `${Math.round((result.progressStep.current / result.progressStep.total) * 100)}%`
+                        : '8%',
+                    }}
+                  />
+                ) : (
+                  <div className="h-full w-[8%] animate-pulse rounded-full bg-accent/60" />
+                )}
+              </div>
+
+              {/* Phase label */}
+              <p className="truncate text-xs text-fg-secondary">
+                {(() => {
+                  const msg = result.progressMessage ?? '';
+                  if (!msg || msg === 'Planning build...') return 'Planning…';
+                  if (msg.startsWith('Plan ready:')) return 'Plan ready — building…';
+                  if (msg.startsWith('Starting build')) return 'Starting build…';
+                  if (msg.startsWith('Wrote ')) return msg.replace('Wrote ', '');
+                  if (msg.startsWith('Patched ')) return `Patched ${msg.replace('Patched ', '')}`;
+                  if (msg.includes('complete') || msg.includes('Assembling')) return 'Assembling…';
+                  if (msg.startsWith('Build loop')) return 'Generating…';
+                  if (msg.startsWith('Validation')) return 'Validating…';
+                  return msg;
+                })()}
+              </p>
+
+              {/* Step counter + elapsed */}
+              <div className="flex items-center justify-between">
+                {result.progressStep ? (
+                  <span className="text-xs text-fg-muted">
+                    {result.progressStep.current} / {result.progressStep.total} files
+                  </span>
+                ) : (
+                  <span />
+                )}
+                <span className="tabular-nums text-xs text-fg-muted">
+                  {elapsed}s
+                </span>
+              </div>
+            </div>
+
+            {/* Bottom shimmer bars */}
+            <div className="flex flex-col gap-2 mt-auto">
+              <div className="h-3 w-5/6 animate-pulse rounded bg-border/60" style={{ animationDelay: '375ms' }} />
+              <div className="h-3 w-2/3 animate-pulse rounded bg-border/60" style={{ animationDelay: '450ms' }} />
+              <div className="h-3 w-full animate-pulse rounded bg-border/60" style={{ animationDelay: '525ms' }} />
+              <div className="h-3 w-3/4 animate-pulse rounded bg-border/60" style={{ animationDelay: '600ms' }} />
+              <div className="h-3 w-4/5 animate-pulse rounded bg-border/60" style={{ animationDelay: '675ms' }} />
+            </div>
           </div>
         )}
 

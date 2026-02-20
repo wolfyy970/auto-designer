@@ -73,15 +73,14 @@ describe('VirtualWorkspace', () => {
       expect(ws.patchFile('missing.html', 'x', 'y')).toBe(false);
     });
 
-    it('returns false when search block is not found', () => {
+    it('throws when search block is not found', () => {
       ws.writeFile('index.html', 'hello world');
-      expect(ws.patchFile('index.html', 'not here', 'anything')).toBe(false);
+      expect(() => ws.patchFile('index.html', 'not here', 'anything')).toThrow();
     });
 
-    it('only replaces the first occurrence', () => {
+    it('throws when the search block appears multiple times', () => {
       ws.writeFile('index.html', 'aaa aaa');
-      ws.patchFile('index.html', 'aaa', 'bbb');
-      expect(ws.readFile('index.html')).toBe('bbb aaa');
+      expect(() => ws.patchFile('index.html', 'aaa', 'bbb')).toThrow(/2 occurrences/);
     });
   });
 
@@ -142,6 +141,63 @@ describe('VirtualWorkspace', () => {
       const result = ws.bundleToHtml();
       expect(result).toContain(':root {}');
       expect(result).toContain('.dark {}');
+    });
+  });
+
+  // ── validateWorkspace ───────────────────────────────────────────
+
+  describe('validateWorkspace', () => {
+    it('returns valid when all planned files are written', () => {
+      ws.writeFile('index.html', '<html><head></head><body></body></html>');
+      ws.writeFile('styles.css', 'body {}');
+      const result = ws.validateWorkspace(['index.html', 'styles.css']);
+      expect(result.valid).toBe(true);
+      expect(result.missingFiles).toEqual([]);
+    });
+
+    it('returns invalid with missing files listed', () => {
+      ws.writeFile('index.html', '<html><head></head><body></body></html>');
+      const result = ws.validateWorkspace(['index.html', 'styles.css']);
+      expect(result.valid).toBe(false);
+      expect(result.missingFiles).toEqual(['styles.css']);
+    });
+
+    it('reports warnings for missing HTML structure tags', () => {
+      ws.writeFile('index.html', '<div>no structure</div>');
+      const result = ws.validateWorkspace(['index.html']);
+      expect(result.valid).toBe(true);
+      expect(result.warnings.length).toBeGreaterThan(0);
+    });
+
+    it('warns when index.html is not written', () => {
+      ws.writeFile('styles.css', 'body {}');
+      const result = ws.validateWorkspace(['styles.css']);
+      expect(result.warnings).toContain('index.html was not written.');
+    });
+  });
+
+  // ── fuzzy patchFile strategies ──────────────────────────────────
+
+  describe('patchFile fuzzy matching', () => {
+    it('matches with trimmed whitespace (LineTrimmedReplacer)', () => {
+      ws.writeFile('f.css', '  .foo { color: red; }  ');
+      const ok = ws.patchFile('f.css', '.foo { color: red; }', '.foo { color: blue; }');
+      expect(ok).toBe(true);
+      expect(ws.readFile('f.css')).toContain('blue');
+    });
+
+    it('matches with different indentation (IndentationFlexibleReplacer)', () => {
+      ws.writeFile('f.js', '    console.log("hello");\n    console.log("world");');
+      const ok = ws.patchFile('f.js', 'console.log("hello");\nconsole.log("world");', 'console.log("updated");');
+      expect(ok).toBe(true);
+      expect(ws.readFile('f.js')).toContain('updated');
+    });
+
+    it('matches trimmed block boundary (TrimmedBoundaryReplacer)', () => {
+      ws.writeFile('f.html', '<div>content</div>');
+      const ok = ws.patchFile('f.html', '\n  <div>content</div>\n  ', '<span>new</span>');
+      expect(ok).toBe(true);
+      expect(ws.readFile('f.html')).toContain('<span>new</span>');
     });
   });
 });

@@ -4,7 +4,7 @@ import { useCanvasStore } from '../../../stores/canvas-store';
 import type { ModelNodeData } from '../../../types/canvas-data';
 import { DEFAULT_COMPILER_PROVIDER } from '../../../lib/constants';
 import { useNodeProviderModel } from '../../../hooks/useNodeProviderModel';
-import ProviderSelector from '../../generation/ProviderSelector';
+import ProviderSelector from '../../shared/ProviderSelector';
 import ModelSelector from '../../shared/ModelSelector';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';

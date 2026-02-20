@@ -19,7 +19,7 @@ export default function VariantFrame({
   isPreview = false,
 }: VariantFrameProps) {
   const [showSource, setShowSource] = useState(false);
-  const { code, isLoading } = useResultCode(result.id);
+  const { code, isLoading } = useResultCode(result.id, result.status);
 
   const htmlContent = useMemo(() => {
     if (!code) return '';

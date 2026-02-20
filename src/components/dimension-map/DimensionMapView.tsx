@@ -4,7 +4,7 @@ import { useCompilerStore, selectDimensionMap } from '../../stores/compiler-stor
 import { useSpecStore } from '../../stores/spec-store';
 import { compileSpec, compileVariantPrompts } from '../../services/compiler';
 import ModelSelector from '../shared/ModelSelector';
-import ProviderSelector from '../generation/ProviderSelector';
+import ProviderSelector from '../shared/ProviderSelector';
 import VariantStrategyCard from './VariantStrategyCard';
 
 /** Key used for dimension maps created from non-canvas views */

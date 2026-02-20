@@ -9,7 +9,7 @@ import {
 } from '../../../stores/canvas-store';
 import type { SectionNodeData } from '../../../types/canvas-data';
 import { SPEC_SECTIONS } from '../../../lib/constants';
-import ReferenceImageUpload from '../../spec-editor/ReferenceImageUpload';
+import ReferenceImageUpload from '../../shared/ReferenceImageUpload';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';
 

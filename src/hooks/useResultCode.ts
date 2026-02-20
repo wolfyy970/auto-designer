@@ -5,7 +5,7 @@ import { loadCode } from '../services/idb-storage';
  * Load generated code from IndexedDB for a given result ID.
  * Returns undefined while loading — consumers should show loading state.
  */
-export function useResultCode(resultId: string | undefined): {
+export function useResultCode(resultId: string | undefined, reloadTrigger?: unknown): {
   code: string | undefined;
   isLoading: boolean;
 } {
@@ -45,7 +45,7 @@ export function useResultCode(resultId: string | undefined): {
     return () => {
       cancelled = true;
     };
-  }, [resultId]);
+  }, [resultId, reloadTrigger]);
 
   return { code, isLoading };
 }

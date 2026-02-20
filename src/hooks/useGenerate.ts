@@ -97,11 +97,48 @@ export function useGenerate() {
               model: options.model,
               supportsVision: options.supportsVision,
               plannerSystemPrompt: getPrompt('agentSystemPlanner'),
-              onProgress: (status) => console.log(`[Agent ${placeholderId.slice(0, 8)}] ${status}`),
+              onProgress: (status) => {
+                if (import.meta.env.DEV) {
+                  console.log(`[Agent ${placeholderId.slice(0, 8)}] ${status}`);
+                }
+
+                const updates: Partial<import('../types/provider').GenerationResult> = {
+                  progressMessage: status,
+                };
+
+                // "Plan ready: 3 files — Bold landing page" → total = 3, reset current
+                const planMatch = status.match(/^Plan ready: (\d+) files/);
+                if (planMatch) {
+                  updates.progressStep = { current: 0, total: parseInt(planMatch[1], 10) };
+                }
+
+                // "Wrote index.html" → increment current
+                if (status.startsWith('Wrote ')) {
+                  const prev = useGenerationStore.getState().results.find((r) => r.id === placeholderId);
+                  const prevStep = prev?.progressStep;
+                  if (prevStep) {
+                    updates.progressStep = {
+                      current: Math.min(prevStep.current + 1, prevStep.total),
+                      total: prevStep.total,
+                    };
+                  }
+                }
+
+                updateResult(placeholderId, updates);
+              },
             }
           );
 
+          const files = workspace.listFiles();
           const bundledHtml = workspace.bundleToHtml();
+
+          if (import.meta.env.DEV) {
+            console.log(`[useGenerate] workspace files: [${files.join(', ') || 'NONE'}]`);
+            console.log(`[useGenerate] bundledHtml length: ${bundledHtml.length}`);
+            if (!bundledHtml) {
+              console.error('[useGenerate] bundledHtml is empty — model did not write any files via XML tool tags. Check the raw model response above.');
+            }
+          }
 
           // Save code to IndexedDB (not in Zustand store)
           if (bundledHtml) {
@@ -115,7 +152,12 @@ export function useGenerate() {
               throw new Error(`Failed to save code: ${normalizeError(saveErr)}`);
             }
           } else {
-            console.warn(`[useGenerate] No code in bundled workspace for ${placeholderId.slice(0, 8)}...`);
+            // Surface the empty workspace as an error so the node shows the reason
+            updateResult(placeholderId, {
+              status: 'error',
+              error: `Model completed but wrote no files. It likely responded with prose instead of XML tool calls. Check the browser console for the raw response.`,
+            });
+            return;
           }
 
           // Save provenance snapshot to IndexedDB

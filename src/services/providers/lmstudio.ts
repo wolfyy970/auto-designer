@@ -1,7 +1,6 @@
-import type { CompiledPrompt, ChatMessage } from '../../types/compiler';
+import type { ChatMessage } from '../compiler';
 import type {
   GenerationProvider,
-  GenerationResult,
   ProviderModel,
   ProviderOptions,
   ChatResponse,

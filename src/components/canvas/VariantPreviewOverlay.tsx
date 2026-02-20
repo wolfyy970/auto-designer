@@ -51,12 +51,12 @@ export default function VariantPreviewOverlay() {
   const result = activeResult ?? legacyResult;
 
   // Load code from IndexedDB
-  const { code, isLoading: codeLoading } = useResultCode(result?.id);
+  const { code, isLoading: codeLoading } = useResultCode(result?.id, result?.status);
   const compareResult = useMemo(
     () => (compareId ? results.find((r) => r.id === compareId) : undefined),
     [compareId, results],
   );
-  const { code: compareCode, isLoading: compareCodeLoading } = useResultCode(compareResult?.id);
+  const { code: compareCode, isLoading: compareCodeLoading } = useResultCode(compareResult?.id, compareResult?.status);
 
   // Other complete results (for compare mode)
   const otherResults = useMemo(

@@ -1,7 +1,9 @@
 export class AgentToolError extends Error {
-  constructor(message: string, public readonly toolName?: string) {
+  readonly toolName?: string;
+  constructor(message: string, toolName?: string) {
     super(message);
     this.name = 'AgentToolError';
+    this.toolName = toolName;
   }
 }
 

@@ -54,6 +54,12 @@ After the loop completes, the VirtualWorkspace bundles all files into a single s
 
 This two-phase approach overcomes LLM output token limits — the total output is unbounded because each API call handles a focused, bounded task.
 
+**Cross-model compatibility.** The tool-call parser has three strategies: strict XML tag parsing, a permissive Markdown fenced-block fallback (for models like Gemini that respond with code blocks instead of XML), and plan-aware file path inference. This makes the engine model-agnostic.
+
+**Fuzzy patching.** `edit_file` uses multi-strategy string matching (exact, line-trimmed, indentation-flexible, block-anchored, Levenshtein distance) to handle whitespace drift between what the LLM remembers and what's actually in the workspace.
+
+**Real-time progress.** During generation, the variant node shows a live progress bar with phase labels ("Planning…", "Wrote index.html", "Assembling…"), a file step counter (e.g., "2 / 3 files"), and elapsed time. Driven by the orchestrator's `onProgress` callback.
+
 ## Prompt Editor
 
 All LLM prompts are exposed to the user and editable at runtime via the Prompt Editor (accessible from the canvas header):

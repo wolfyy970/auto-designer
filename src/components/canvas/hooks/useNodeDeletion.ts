@@ -1,5 +1,7 @@
-import { useCallback, useEffect } from 'react';
-import { useCanvasStore, SECTION_NODE_TYPES } from '../../stores/canvas-store';
+import { useEffect } from 'react';
+import { useCanvasStore } from '../../../stores/canvas-store';
+import { SECTION_NODE_TYPES } from '../../../lib/canvas-layout';
+import type { Node } from '@xyflow/react';
 
 /**
  * Hook to manage deletion of nodes in the Canvas.
@@ -21,29 +23,29 @@ export function useNodeDeletion() {
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const selected = nodes.filter((n) => n.selected);
+        const selected = nodes.filter((n: Node) => n.selected);
         if (selected.length === 0) return;
         e.preventDefault();
-        
+
         const PROTECTED = new Set<string>([
           'compiler',
           ...SECTION_NODE_TYPES,
         ]);
-        
+
         const removable = selected.filter(
-          (n) => !PROTECTED.has(n.type as string),
+          (n: Node) => !PROTECTED.has(n.type as string),
         );
         if (removable.length === 0) return;
 
         // Warn when deleting hypotheses — variants cascade-delete
-        const hypotheses = removable.filter((n) => n.type === 'hypothesis');
+        const hypotheses = removable.filter((n: Node) => n.type === 'hypothesis');
         if (hypotheses.length > 0) {
           const { edges: storeEdges, nodes: storeNodes } = useCanvasStore.getState();
           let variantCount = 0;
           for (const h of hypotheses) {
             for (const edge of storeEdges) {
               if (edge.source !== h.id) continue;
-              if (storeNodes.find((n) => n.id === edge.target && n.type === 'variant')) {
+              if (storeNodes.find((n: Node) => n.id === edge.target && n.type === 'variant')) {
                 variantCount++;
               }
             }
@@ -56,10 +58,10 @@ export function useNodeDeletion() {
         }
 
         const removeNode = useCanvasStore.getState().removeNode;
-        removable.forEach((n) => removeNode(n.id));
+        removable.forEach((n: Node) => removeNode(n.id));
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [nodes]);

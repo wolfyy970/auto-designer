@@ -89,7 +89,7 @@ describe('runAgenticBuild', () => {
     );
 
     const progressMessages: string[] = [];
-    const ws = await runAgenticBuild('system', 'context', infiniteProvider, {
+    await runAgenticBuild('system', 'context', infiniteProvider, {
       model: 'test-model',
       maxLoops: 3,
       onProgress: (msg) => progressMessages.push(msg),
@@ -178,3 +178,56 @@ describe('runAgenticBuild', () => {
     expect(ws.readFile('index.html')).toBe('fallback');
   });
 });
+
+  it('parses markdown code blocks when model ignores XML tags (Gemini fallback)', async () => {
+    const provider = makeMockProvider([
+      '```html\n<!DOCTYPE html><html><body>Hello</body></html>\n```\n\n```css\nbody { color: red; }\n```\n<finish_build/>',
+    ]);
+
+    const ws = await runAgenticBuild('system', 'context', provider, {
+      model: 'test-model',
+    });
+
+    expect(ws.readFile('index.html')).toContain('Hello');
+    expect(ws.readFile('styles.css')).toContain('color: red');
+  });
+
+  it('processes write_file calls before finish_build even in same response', async () => {
+    const provider = makeMockProvider([
+      '<write_file path="index.html"><h1>Hi</h1></write_file>\n<write_file path="styles.css">h1{}</write_file>\n<finish_build></finish_build>',
+    ]);
+
+    const ws = await runAgenticBuild('system', 'context', provider, {
+      model: 'test-model',
+    });
+
+    expect(ws.readFile('index.html')).toBe('<h1>Hi</h1>');
+    expect(ws.readFile('styles.css')).toBe('h1{}');
+  });
+
+  it('uses planner file paths to align markdown fallback file names', async () => {
+    const plannerResponse = JSON.stringify({
+      intent: 'Test',
+      palette: { primary: '#000' },
+      typography: { display: 'Arial' },
+      layout: 'grid',
+      files: [
+        { path: 'index.html', responsibility: 'HTML', key_decisions: [] },
+        { path: 'main.css', responsibility: 'CSS', key_decisions: [] },
+      ],
+    });
+
+    const provider = makeMockProvider([
+      plannerResponse,
+      '```html\n<html>plan aligned</html>\n```\n```css\nbody{}\n```\n<finish_build/>',
+    ]);
+
+    const ws = await runAgenticBuild('system', 'context', provider, {
+      model: 'test-model',
+      plannerSystemPrompt: 'planner',
+    });
+
+    // CSS should be mapped to main.css (from the plan) not styles.css
+    expect(ws.readFile('main.css')).toContain('body{}');
+    expect(ws.readFile('index.html')).toContain('plan aligned');
+  });
