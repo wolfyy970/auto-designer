@@ -12,7 +12,8 @@ type CanvasNodeType =
   | 'compiler'
   | 'hypothesis'
   | 'variant'
-  | 'critique';
+  | 'critique'
+  | 'model';
 
 type CanvasNodeData = Record<string, unknown> & { refId?: string };
 type CanvasNode = Node<CanvasNodeData, CanvasNodeType>;
@@ -31,7 +32,7 @@ const NODE_W_VARIANT = 480;
 export const GRID_SIZE = 20;
 const NODE_SPACING = 60;
 const FALLBACK_H: Record<string, number> = {
-  section: 200, compiler: 220, designSystem: 300, hypothesis: 340, variant: 400, critique: 260,
+  section: 200, compiler: 220, designSystem: 300, hypothesis: 340, variant: 400, critique: 260, model: 180,
 };
 export const DEFAULT_COL_GAP = 160;
 export const MIN_COL_GAP = 80;
@@ -76,10 +77,10 @@ export function computeDefaultPosition(
   existingNodes: CanvasNode[],
   col: ReturnType<typeof columnX>
 ): { x: number; y: number } {
-  // Design System is a processing node — place in the compiler column
-  if (type === 'designSystem') {
+  // Model and Design System are processing nodes — place in the compiler column
+  if (type === 'model' || type === 'designSystem') {
     const processingNodes = existingNodes.filter((n) =>
-      n.type === 'compiler' || n.type === 'designSystem'
+      n.type === 'compiler' || n.type === 'designSystem' || n.type === 'model'
     );
     let y = 200;
     for (const pn of processingNodes) {
@@ -196,7 +197,22 @@ export function computeAutoLayout(
     }
   }
 
-  // 2c. Force disconnected variant nodes (archived/pinned) to the variant column rank
+  // 2c. Recompute Model node ranks based on outgoing edges
+  //     Model nodes have no incoming edges — DFS gives rank 0.
+  //     Place them one column before their leftmost target.
+  for (const n of nodes) {
+    if (n.type !== 'model') continue;
+    const targets = children.get(n.id) ?? [];
+    if (targets.length > 0) {
+      const minTargetRank = Math.min(...targets.map((t) => rank.get(t) ?? 0));
+      rank.set(n.id, Math.max(0, minTargetRank - 1));
+    } else {
+      // Disconnected model → place in compiler column
+      rank.set(n.id, compilerRank);
+    }
+  }
+
+  // 2d. Force disconnected variant nodes (archived/pinned) to the variant column rank
   //     Without edges, DFS assigns rank 0 which places them in the leftmost column.
   const variantRank = Math.max(0, ...nodes
     .filter((n) => n.type === 'variant' && (parents.get(n.id)?.length ?? 0) > 0)
@@ -222,8 +238,8 @@ export function computeAutoLayout(
   // 4. Sort nodes within each layer by barycenter
   const TYPE_ORDER: Record<string, number> = {
     designBrief: 0, existingDesign: 1, researchContext: 2,
-    objectivesMetrics: 3, designConstraints: 4,
-    compiler: 5, designSystem: 6, hypothesis: 7, variant: 8, critique: 9,
+    objectivesMetrics: 3, designConstraints: 4, model: 5,
+    compiler: 6, designSystem: 7, hypothesis: 8, variant: 9, critique: 10,
   };
 
   nonEmptyLayers[0].sort((a, b) =>

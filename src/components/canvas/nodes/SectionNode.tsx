@@ -37,6 +37,7 @@ function SectionNode({ id, type, selected }: NodeProps<SectionNodeType>) {
   return (
     <NodeShell
       nodeId={id}
+      nodeType={type as string}
       selected={!!selected}
       width="w-node"
       borderClass={borderClass}

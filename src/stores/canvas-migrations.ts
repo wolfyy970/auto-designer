@@ -279,5 +279,88 @@ export function migrateCanvasState(
     }
   }
 
+  // v12 → v13: extract inline providerId/modelId into dedicated Model nodes
+  if (fromVersion < 13) {
+    const st = s as Record<string, unknown>;
+    const nodes = (st.nodes as Array<Record<string, unknown>>) ?? [];
+    const edges = (st.edges as Array<Record<string, unknown>>) ?? [];
+
+    // Find nodes with inline model config
+    const PROCESSING_TYPES = new Set(['compiler', 'hypothesis', 'designSystem']);
+    const nodesWithModel: Array<{ node: Record<string, unknown>; providerId: string; modelId: string }> = [];
+    for (const n of nodes) {
+      if (!PROCESSING_TYPES.has(n.type as string)) continue;
+      const data = (n.data as Record<string, unknown>) || {};
+      const pid = data.providerId as string | undefined;
+      const mid = data.modelId as string | undefined;
+      if (pid && mid) {
+        nodesWithModel.push({ node: n, providerId: pid, modelId: mid });
+      }
+    }
+
+    if (nodesWithModel.length > 0) {
+      // Group by unique (providerId, modelId)
+      const combos = new Map<string, { providerId: string; modelId: string; targetIds: string[] }>();
+      for (const { node, providerId, modelId } of nodesWithModel) {
+        const key = `${providerId}::${modelId}`;
+        if (!combos.has(key)) {
+          combos.set(key, { providerId, modelId, targetIds: [] });
+        }
+        combos.get(key)!.targetIds.push(node.id as string);
+      }
+
+      const newModelNodes: Array<Record<string, unknown>> = [];
+      const newEdges: Array<Record<string, unknown>> = [];
+
+      let modelIdx = 0;
+      for (const [, combo] of combos) {
+        const modelNodeId = `model-migrated-${modelIdx++}`;
+        const shortName = combo.modelId.split('/').pop() ?? combo.modelId;
+        const label = `${combo.providerId} / ${shortName}`;
+
+        // Position: average Y of targets, 400px to the left
+        const targetNodes = nodes.filter((n) => combo.targetIds.includes(n.id as string));
+        const avgY = targetNodes.length > 0
+          ? targetNodes.reduce((sum, n) => sum + ((n.position as Record<string, number>)?.y ?? 300), 0) / targetNodes.length
+          : 300;
+        const minX = targetNodes.length > 0
+          ? Math.min(...targetNodes.map((n) => (n.position as Record<string, number>)?.x ?? 0))
+          : 0;
+
+        newModelNodes.push({
+          id: modelNodeId,
+          type: 'model',
+          position: { x: Math.max(0, minX - 400), y: avgY },
+          data: { title: label, providerId: combo.providerId, modelId: combo.modelId },
+        });
+
+        for (const tid of combo.targetIds) {
+          newEdges.push({
+            id: `edge-${modelNodeId}-to-${tid}`,
+            source: modelNodeId,
+            target: tid,
+            type: 'dataFlow',
+            data: { status: 'idle' },
+          });
+        }
+      }
+
+      // Strip providerId/modelId from processing nodes (keep lastRun* on hypotheses)
+      const updatedNodes = nodes.map((n) => {
+        if (!PROCESSING_TYPES.has(n.type as string)) return n;
+        const data = { ...((n.data as Record<string, unknown>) || {}) };
+        delete data.providerId;
+        delete data.modelId;
+        return { ...n, data };
+      });
+
+      s = {
+        ...st,
+        nodes: [...updatedNodes, ...newModelNodes],
+        edges: [...edges, ...newEdges],
+      };
+    }
+  }
+
   return s as Record<string, unknown>;
 }

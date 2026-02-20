@@ -1,31 +1,10 @@
-import type { CompiledPrompt } from '../types/compiler';
-import type { ContentPart, GenerationResult, OutputFormat, ProviderModel } from '../types/provider';
-import { extractCode } from './extract-code';
-import { generateId, now } from './utils';
-import { getPrompt } from '../stores/prompt-store';
+import type { ChatMessage } from '../types/compiler';
+import type { ProviderModel, ChatResponse } from '../types/provider';
 
-/** Build user message content, with optional vision images */
-export function buildUserContent(
-  prompt: CompiledPrompt,
-  supportsVision: boolean
-): string | ContentPart[] {
-  if (supportsVision && prompt.images.length > 0) {
-    return [
-      { type: 'text' as const, text: prompt.prompt },
-      ...prompt.images.map((img) => ({
-        type: 'image_url' as const,
-        image_url: { url: img.dataUrl },
-      })),
-    ];
-  }
-  return prompt.prompt;
-}
-
-/** Build OpenAI-compatible chat request body */
-export function buildChatRequest(
+/** Build OpenAI-compatible chat request body from an array of messages */
+export function buildChatRequestFromMessages(
   model: string,
-  systemPrompt: string,
-  userContent: string | ContentPart[],
+  messages: ChatMessage[],
   extraFields?: Record<string, unknown>
 ): Record<string, unknown> {
   const maxTokensEnv = import.meta.env.VITE_MAX_OUTPUT_TOKENS;
@@ -33,10 +12,7 @@ export function buildChatRequest(
 
   const body: Record<string, unknown> = {
     model,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userContent },
-    ],
+    messages,
     temperature: 0.7,
     ...extraFields,
   };
@@ -101,44 +77,26 @@ export async function fetchModelList(
   }
 }
 
-/** Select the generation system prompt based on output format. */
-export function selectSystemPrompt(format: OutputFormat): string {
-  return format === 'react' ? getPrompt('genSystemReact') : getPrompt('genSystemHtml');
-}
-
-/** Parse chat completion response into a GenerationResult */
-export function parseGenerationResult(
+/** Parse chat completion response into a ChatResponse for agentic loops */
+export function parseChatResponse(
   data: Record<string, unknown>,
-  prompt: CompiledPrompt,
   providerId: string,
-  model: string,
-  startTime: number
-): GenerationResult {
+): ChatResponse {
   const choices = data.choices as Array<Record<string, unknown>> | undefined;
   const firstChoice = choices?.[0] as Record<string, unknown> | undefined;
   const finishReason = firstChoice?.finish_reason as string | undefined;
   const rawText = extractMessageText(data);
-  const code = extractCode(rawText);
 
   if (finishReason === 'length' && import.meta.env.DEV) {
-    console.warn(`[${providerId}] Response truncated due to max_tokens limit. Code may be incomplete.`);
+    console.warn(`[${providerId}] Response truncated due to max_tokens limit. Agentic tools may be incomplete.`);
   }
 
   const usage = data.usage as Record<string, unknown> | undefined;
 
   return {
-    id: generateId(),
-    variantStrategyId: prompt.variantStrategyId,
-    providerId,
-    runId: '',
-    runNumber: 0,
-    status: 'complete',
-    code,
+    raw: rawText,
     metadata: {
-      model: (data.model as string) ?? model,
       tokensUsed: usage?.completion_tokens as number | undefined,
-      durationMs: Date.now() - startTime,
-      completedAt: now(),
       truncated: finishReason === 'length',
     },
   };

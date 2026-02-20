@@ -4,6 +4,7 @@ import DesignSystemNode from './DesignSystemNode';
 import HypothesisNode from './HypothesisNode';
 import VariantNode from './VariantNode';
 import CritiqueNode from './CritiqueNode';
+import ModelNode from './ModelNode';
 
 export const nodeTypes = {
   designBrief: SectionNode,
@@ -16,4 +17,5 @@ export const nodeTypes = {
   hypothesis: HypothesisNode,
   variant: VariantNode,
   critique: CritiqueNode,
+  model: ModelNode,
 };

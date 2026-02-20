@@ -294,3 +294,118 @@ describe('v11 → v12: designSystem data recovery', () => {
     expect(dsData.content).toBeUndefined();
   });
 });
+
+// ── v12 → v13: extract inline model config into Model nodes ────────
+
+describe('v12 → v13: extract inline model config into Model nodes', () => {
+  it('creates Model nodes for unique (providerId, modelId) combos', () => {
+    const state = {
+      nodes: [
+        makeNode('c1', 'compiler', { providerId: 'openrouter', modelId: 'claude-3' }),
+        makeNode('h1', 'hypothesis', { refId: 'vs-1', providerId: 'openrouter', modelId: 'claude-3' }),
+        makeNode('h2', 'hypothesis', { refId: 'vs-2', providerId: 'lmstudio', modelId: 'llama-3' }),
+      ],
+      edges: [],
+    };
+    const result = migrateCanvasState(state, 12);
+    const nodes = result.nodes as Array<Record<string, unknown>>;
+
+    const modelNodes = nodes.filter((n) => n.type === 'model');
+    expect(modelNodes).toHaveLength(2); // Two unique combos
+
+    // Check model node data
+    const modelDataSet = modelNodes.map((n) => {
+      const d = n.data as Record<string, unknown>;
+      return { providerId: d.providerId, modelId: d.modelId };
+    });
+    expect(modelDataSet).toContainEqual({ providerId: 'openrouter', modelId: 'claude-3' });
+    expect(modelDataSet).toContainEqual({ providerId: 'lmstudio', modelId: 'llama-3' });
+  });
+
+  it('creates edges from Model nodes to their targets', () => {
+    const state = {
+      nodes: [
+        makeNode('c1', 'compiler', { providerId: 'openrouter', modelId: 'claude-3' }),
+        makeNode('h1', 'hypothesis', { refId: 'vs-1', providerId: 'openrouter', modelId: 'claude-3' }),
+      ],
+      edges: [],
+    };
+    const result = migrateCanvasState(state, 12);
+    const edges = result.edges as Array<Record<string, unknown>>;
+    const modelNodes = (result.nodes as Array<Record<string, unknown>>).filter((n) => n.type === 'model');
+
+    // One Model node connects to both c1 and h1
+    expect(modelNodes).toHaveLength(1);
+    const modelId = modelNodes[0].id as string;
+    const modelEdges = edges.filter((e) => e.source === modelId);
+    expect(modelEdges).toHaveLength(2);
+    expect(modelEdges.map((e) => e.target).sort()).toEqual(['c1', 'h1']);
+  });
+
+  it('strips providerId/modelId from processing nodes', () => {
+    const state = {
+      nodes: [
+        makeNode('c1', 'compiler', { providerId: 'openrouter', modelId: 'claude-3' }),
+        makeNode('ds1', 'designSystem', { providerId: 'openrouter', modelId: 'claude-3', content: 'tokens' }),
+        makeNode('h1', 'hypothesis', {
+          refId: 'vs-1',
+          providerId: 'openrouter',
+          modelId: 'claude-3',
+          lastRunProviderId: 'openrouter',
+          lastRunModelId: 'claude-3',
+        }),
+      ],
+      edges: [],
+    };
+    const result = migrateCanvasState(state, 12);
+    const nodes = result.nodes as Array<Record<string, unknown>>;
+
+    const compiler = nodes.find((n) => n.id === 'c1');
+    const ds = nodes.find((n) => n.id === 'ds1');
+    const hyp = nodes.find((n) => n.id === 'h1');
+
+    const cData = compiler!.data as Record<string, unknown>;
+    expect(cData.providerId).toBeUndefined();
+    expect(cData.modelId).toBeUndefined();
+
+    const dsData = ds!.data as Record<string, unknown>;
+    expect(dsData.providerId).toBeUndefined();
+    expect(dsData.modelId).toBeUndefined();
+    expect(dsData.content).toBe('tokens'); // Preserved
+
+    const hData = hyp!.data as Record<string, unknown>;
+    expect(hData.providerId).toBeUndefined();
+    expect(hData.modelId).toBeUndefined();
+    // lastRun* preserved for fork detection
+    expect(hData.lastRunProviderId).toBe('openrouter');
+    expect(hData.lastRunModelId).toBe('claude-3');
+  });
+
+  it('skips migration when no nodes have model config', () => {
+    const state = {
+      nodes: [
+        makeNode('c1', 'compiler'),
+        makeNode('h1', 'hypothesis', { refId: 'vs-1' }),
+      ],
+      edges: [],
+    };
+    const result = migrateCanvasState(state, 12);
+    const nodes = result.nodes as Array<Record<string, unknown>>;
+
+    expect(nodes.filter((n) => n.type === 'model')).toHaveLength(0);
+    expect(nodes).toHaveLength(2);
+  });
+
+  it('preserves existing edges', () => {
+    const state = {
+      nodes: [
+        makeNode('c1', 'compiler', { providerId: 'openrouter', modelId: 'claude-3' }),
+      ],
+      edges: [makeEdge('e1', 's1', 'c1')],
+    };
+    const result = migrateCanvasState(state, 12);
+    const edges = result.edges as Array<Record<string, unknown>>;
+
+    expect(edges.find((e) => e.id === 'e1')).toBeDefined();
+  });
+});

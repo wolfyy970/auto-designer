@@ -1,4 +1,3 @@
-import type { OutputFormat } from './provider';
 import type { ReferenceImage } from './spec';
 
 // ── Per-node data interfaces ────────────────────────────────────────
@@ -15,18 +14,13 @@ export type SectionNodeData = NodeData<{
 }>;
 
 export type CompilerNodeData = NodeData<{
-  providerId?: string;
-  modelId?: string;
+  hypothesisCount?: number;
 }>;
 
 export type HypothesisNodeData = NodeData<{
   refId: string;
   providerId?: string;
   modelId?: string;
-  format?: OutputFormat;
-  lastRunProviderId?: string;
-  lastRunModelId?: string;
-  lastRunFormat?: string;
 }>;
 
 export type VariantNodeData = NodeData<{
@@ -48,4 +42,10 @@ export type CritiqueNodeData = NodeData<{
   strengths?: string;
   improvements?: string;
   direction?: string;
+}>;
+
+export type ModelNodeData = NodeData<{
+  title?: string;
+  providerId?: string;
+  modelId?: string;
 }>;

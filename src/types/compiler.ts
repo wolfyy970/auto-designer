@@ -3,10 +3,9 @@ import type { ReferenceImage } from './spec';
 export interface VariantStrategy {
   id: string;
   name: string;
-  primaryEmphasis: string;
+  hypothesis: string;
   rationale: string;
-  howItDiffers: string;
-  coupledDecisions: string;
+  measurements: string;
   dimensionValues: Record<string, string>;
 }
 

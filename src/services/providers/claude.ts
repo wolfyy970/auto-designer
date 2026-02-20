@@ -1,21 +1,20 @@
-import type { CompiledPrompt } from '../../types/compiler';
+import type { CompiledPrompt, ChatMessage } from '../../types/compiler';
 import type {
   GenerationProvider,
   GenerationResult,
-  OutputFormat,
   ProviderModel,
   ProviderOptions,
+  ChatResponse,
 } from '../../types/provider';
 import { OPENROUTER_PROXY } from '../../lib/constants';
-import { buildUserContent, buildChatRequest, fetchChatCompletion, fetchModelList, selectSystemPrompt, parseGenerationResult } from '../../lib/provider-helpers';
+import { buildChatRequestFromMessages, fetchChatCompletion, fetchModelList, parseChatResponse } from '../../lib/provider-helpers';
 
 export class OpenRouterGenerationProvider implements GenerationProvider {
   id = 'openrouter';
   name = 'OpenRouter';
-  description = 'Generates HTML/React code via OpenRouter (Claude, GPT-4o, Gemini, etc.)';
+  description = 'Generates HTML code via OpenRouter (Claude, GPT-4o, Gemini, etc.)';
   supportsImages = false;
   supportsParallel = true;
-  supportedFormats: OutputFormat[] = ['html', 'react'];
 
   async listModels(): Promise<ProviderModel[]> {
     return fetchModelList(`${OPENROUTER_PROXY}/api/v1/models`, (models) =>
@@ -28,17 +27,15 @@ export class OpenRouterGenerationProvider implements GenerationProvider {
     );
   }
 
-  async generate(
-    prompt: CompiledPrompt,
+  async generateChat(
+    messages: ChatMessage[],
     options: ProviderOptions
-  ): Promise<GenerationResult> {
+  ): Promise<ChatResponse> {
     const model = options.model || 'anthropic/claude-sonnet-4.5';
-    const startTime = Date.now();
-
-    const systemPrompt = selectSystemPrompt(options.format);
-
-    const userContent = buildUserContent(prompt, options.supportsVision ?? false);
-    const requestBody = buildChatRequest(model, systemPrompt, userContent);
+    
+    // For vision support in agentic loop, we assume the user/developer 
+    // passes multimodal ContentPart[] where appropriate in messages
+    const requestBody = buildChatRequestFromMessages(model, messages);
 
     const data = await fetchChatCompletion(
       `${OPENROUTER_PROXY}/api/v1/chat/completions`,
@@ -49,7 +46,7 @@ export class OpenRouterGenerationProvider implements GenerationProvider {
       },
       'OpenRouter',
     );
-    return parseGenerationResult(data, prompt, this.id, model, startTime);
+    return parseChatResponse(data, this.id);
   }
 
   isAvailable(): boolean {

@@ -1,6 +1,6 @@
 # Product — What Exists Today
 
-**Status:** Canvas interface complete. Vision support implemented. Auto-layout system operational.
+**Status:** Canvas interface complete. Agentic generation engine operational. Vision support implemented.
 
 ## Canvas Interface (`/canvas` — default route)
 
@@ -15,9 +15,10 @@ A visual node-graph workspace built on @xyflow/react v12. Nodes connect left-to-
 | Research Context | Input | User research, behavioral insights |
 | Objectives & Metrics | Input | Success criteria and evaluation measures |
 | Design Constraints | Input | Non-negotiable boundaries + exploration ranges |
+| Model | Processing | Centralizes provider + model selection. Connect to Compiler, Hypothesis, or Design System nodes to configure which LLM they use. |
 | Design System | Processing | Self-contained design token definitions. Supports multiple instances (e.g., Material Design vs custom tokens). Content stored in node data, not spec store. Optional vision-based extraction from uploaded images. |
 | Incubator | Processing | Compiles connected inputs → hypothesis strategies via LLM |
-| Hypothesis | Processing | Editable strategy card with built-in generation controls. Select provider, model, and format (HTML/React), then click Create to generate variants directly. |
+| Hypothesis | Processing | Editable strategy card with built-in generation controls. Connect a Model node, then click Create to generate variants. |
 | Variant | Output | Rendered design preview with zoom, source view, full-screen, and version navigation |
 | Critique | Processing | Structured feedback (strengths, improvements, direction) for iteration |
 
@@ -41,9 +42,32 @@ Variants can connect back to Existing Design (or to a Critique node, then to Inc
 3. Re-incubate with the new context
 4. Generate improved variants
 
-## Legacy Routes
+## Agentic Generation Engine
 
-The original form-based workflow still works at `/editor`, `/compiler`, `/generation`.
+Generation is not a single LLM call. It runs as a two-phase agentic loop:
+
+**Phase 1 — Planning.** A dedicated planner LLM call reads the compiled hypothesis and returns a structured JSON build plan: intent, color palette, typography choices, layout strategy, and a precise file list with responsibilities. No code is written in this phase.
+
+**Phase 2 — Build loop.** The builder receives the plan as context and executes it file by file, writing each file to an in-memory VirtualWorkspace via XML tool calls (`<write_file>`, `<edit_file>`, `<finish_build>`). Each response writes one file; the loop continues until the builder calls `finish_build` or reaches the max loop limit.
+
+After the loop completes, the VirtualWorkspace bundles all files into a single self-contained HTML document for iframe rendering.
+
+This two-phase approach overcomes LLM output token limits — the total output is unbounded because each API call handles a focused, bounded task.
+
+## Prompt Editor
+
+All LLM prompts are exposed to the user and editable at runtime via the Prompt Editor (accessible from the canvas header):
+
+| Prompt | Purpose |
+|--------|---------|
+| Incubator — System | Role, output format, and guidelines for dimension map production |
+| Incubator — User | Template for spec data (variables: `{{SPEC_TITLE}}`, etc.) |
+| Agent Designer — Planner | Single-shot planning prompt — produces JSON build plan |
+| Agent Designer — Builder | Build loop system prompt — instructs tool usage |
+| Designer — User | User prompt template for variant generation |
+| Design System — Extract | Prompt for vision-based token extraction from screenshots |
+
+Overrides persist in localStorage. Validation warns if required patterns are missing (e.g., JSON instruction for Planner, `<write_file>` instruction for Builder).
 
 ## Providers
 
@@ -52,7 +76,7 @@ The original form-based workflow still works at `/editor`, `/compiler`, `/genera
 | OpenRouter | Yes | Yes | Auto-detected from model metadata |
 | LM Studio | Yes | Yes | Configurable via `VITE_LMSTUDIO_VISION_MODELS` env var |
 
-- Both stages (compilation and generation) support independent provider + model selection
+- Both stages (compilation and generation) support independent provider + model selection via connected Model nodes
 - Models fetched dynamically via each provider's API
 - Vision-capable models show an eye icon in the model selector
 - When vision is available, reference images are sent as multimodal content alongside text
@@ -67,7 +91,6 @@ The original form-based workflow still works at `/editor`, `/compiler`, `/genera
 
 ## What's Not Built Yet
 
-- Agent orchestration (LangGraph/Aegra swarms)
 - Self-hosted inference (vLLM)
 - Experimentation/deployment integration
 - Spec version history

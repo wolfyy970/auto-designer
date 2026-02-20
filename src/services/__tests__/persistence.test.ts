@@ -11,17 +11,6 @@ beforeEach(() => {
     setItem: (key: string, val: string) => storage.set(key, val),
     removeItem: (key: string) => storage.delete(key),
   });
-  // Mock FileReader (not available in Node.js test environment)
-  vi.stubGlobal('FileReader', class {
-    result: string | null = null;
-    onload: (() => void) | null = null;
-    readAsText(file: File) {
-      file.text().then((text: string) => {
-        this.result = text;
-        this.onload?.();
-      });
-    }
-  });
 });
 
 function makeSection(id: SpecSectionId): SpecSection {

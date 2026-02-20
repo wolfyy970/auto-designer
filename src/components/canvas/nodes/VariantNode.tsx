@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { type NodeProps, type Node } from '@xyflow/react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useGenerationStore } from '../../../stores/generation-store';
@@ -99,6 +99,21 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
 
   const { contentRef, zoom, zoomIn, zoomOut, resetZoom } = useVariantZoom();
 
+  // Elapsed timer during generation
+  const [elapsed, setElapsed] = useState(0);
+  const isGenerating = result?.status === 'generating';
+  useEffect(() => {
+    if (!isGenerating) {
+      setElapsed(0);
+      return;
+    }
+    const start = Date.now();
+    const tick = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - start) / 1000));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [isGenerating]);
+
   const htmlContent = useMemo(() => {
     if (!code) return '';
     try {
@@ -122,13 +137,20 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
             ? 'border-border'
             : 'border-dashed border-border';
 
+  const stackClass = stackTotal >= 3
+    ? 'variant-stack-deep'
+    : stackTotal === 2
+      ? 'variant-stack'
+      : '';
+
   return (
     <NodeShell
       nodeId={id}
+      nodeType="variant"
       selected={!!selected}
       width="w-node-variant"
       borderClass={borderClass}
-      className={`relative flex h-full min-h-[420px] flex-col${isArchived ? ' opacity-75' : ''}`}
+      className={`relative flex h-full min-h-[420px] flex-col${isArchived ? ' opacity-75' : ''} ${stackClass}`}
       handleColor={hasCode ? 'green' : 'amber'}
     >
       <VariantToolbar
@@ -152,9 +174,10 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
 
       {/* ── Content area ──────────────────────────────────────── */}
       <div ref={contentRef} className="relative flex-1 overflow-hidden">
-        {/* Generating state — skeleton shimmer */}
+        {/* Generating state — skeleton with elapsed timer */}
         {result?.status === 'generating' && (
-          <div className="flex h-full flex-col gap-3 bg-surface p-4">
+          <div className="flex h-full flex-col gap-2.5 bg-surface p-4">
+            {/* Top shimmer group */}
             <div className="h-5 w-3/4 animate-pulse rounded bg-border" />
             <div
               className="h-3 w-full animate-pulse rounded bg-border/60"
@@ -165,29 +188,51 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
               style={{ animationDelay: '150ms' }}
             />
             <div
-              className="mt-1 h-24 w-full animate-pulse rounded bg-border/40"
+              className="h-3 w-2/3 animate-pulse rounded bg-border/60"
               style={{ animationDelay: '225ms' }}
             />
             <div
-              className="h-3 w-2/3 animate-pulse rounded bg-border/60"
+              className="h-3 w-4/5 animate-pulse rounded bg-border/60"
               style={{ animationDelay: '300ms' }}
             />
             <div
-              className="h-3 w-4/5 animate-pulse rounded bg-border/60"
+              className="h-3 w-full animate-pulse rounded bg-border/60"
               style={{ animationDelay: '375ms' }}
             />
+
+            {/* Timer centered */}
+            <div className="mt-auto flex flex-col items-center justify-center py-4">
+              <span className="tabular-nums text-7xl font-extralight tracking-tight text-fg">
+                {elapsed}
+              </span>
+              <span className="mt-1 text-xs text-fg-muted">seconds</span>
+            </div>
+
+            {/* Bottom shimmer group */}
             <div
-              className="mt-1 h-16 w-full animate-pulse rounded bg-border/40"
+              className="mt-auto h-3 w-5/6 animate-pulse rounded bg-border/60"
               style={{ animationDelay: '450ms' }}
             />
             <div
-              className="h-3 w-1/2 animate-pulse rounded bg-border/60"
+              className="h-3 w-2/3 animate-pulse rounded bg-border/60"
               style={{ animationDelay: '525ms' }}
             />
-            <div className="mt-auto flex items-center justify-center gap-1.5 text-fg-muted">
-              <Loader2 size={12} className="animate-spin" />
-              <span className="text-xs">Generating...</span>
-            </div>
+            <div
+              className="h-3 w-full animate-pulse rounded bg-border/60"
+              style={{ animationDelay: '600ms' }}
+            />
+            <div
+              className="h-3 w-3/4 animate-pulse rounded bg-border/60"
+              style={{ animationDelay: '675ms' }}
+            />
+            <div
+              className="h-3 w-4/5 animate-pulse rounded bg-border/60"
+              style={{ animationDelay: '750ms' }}
+            />
+            <div
+              className="h-3 w-2/3 animate-pulse rounded bg-border/60"
+              style={{ animationDelay: '825ms' }}
+            />
           </div>
         )}
 
@@ -209,9 +254,19 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
         )}
 
         {/* Loading code from IndexedDB */}
-        {result?.status === 'complete' && codeLoading && !code && (
+        {result?.status === 'complete' && codeLoading && (
           <div className="flex h-full items-center justify-center bg-surface">
             <Loader2 size={14} className="animate-spin text-fg-muted" />
+          </div>
+        )}
+
+        {/* Complete but code missing from IndexedDB */}
+        {result?.status === 'complete' && !codeLoading && !code && (
+          <div className="flex h-full flex-col items-center justify-center bg-surface p-4">
+            <AlertCircle size={16} className="mb-2 text-fg-muted" />
+            <p className="text-center text-xs text-fg-muted">
+              Code unavailable — may need to regenerate
+            </p>
           </div>
         )}
 
@@ -234,7 +289,7 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
       </div>
 
       {/* ── Metadata footer ─────────────────────────────────── */}
-      {(hasCode || (result?.status === 'complete' && codeLoading)) && (
+      {result?.status === 'complete' && (
         <VariantFooter result={result} />
       )}
     </NodeShell>

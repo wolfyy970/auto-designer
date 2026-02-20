@@ -39,11 +39,15 @@ The canvas starts with a **Design Brief** node and an **Incubator**. Add more in
 
 Write in prose, not bullets. Precision is the product.
 
-### 2. Incubate (Compile)
+### 2. Connect a Model Node
 
-Connect input nodes to the **Incubator** (edges auto-connect on add). Select a provider and model, then click **Generate**. The Incubator sends your connected inputs to the LLM and produces hypothesis strategies.
+Add a **Model** node (Processing group) and connect it to the Incubator. Select your provider and model in the Model node. You can use different Model nodes for compilation vs generation — e.g., a powerful reasoning model for the Incubator and a faster one for generation.
 
-### 3. Edit Hypotheses
+### 3. Incubate (Compile)
+
+Connect input nodes to the **Incubator** (edges auto-connect on add). With a Model node connected, click **Generate**. The Incubator sends your connected inputs to the LLM and produces hypothesis strategies.
+
+### 4. Edit Hypotheses
 
 Hypothesis nodes appear to the right of the Incubator. Each represents a variant strategy with:
 - **Name** — Editable label
@@ -52,18 +56,18 @@ Hypothesis nodes appear to the right of the Incubator. Each represents a variant
 
 Edit these before generation. Remove strategies not worth exploring.
 
-### 4. Add Design System (Optional)
+### 5. Add Design System (Optional)
 
 Add a **Design System** node from the toolbar (Processing group). It auto-connects to all existing hypotheses. You can have multiple design system nodes — e.g., one for Material Design tokens, another for a custom system. Each hypothesis uses the design tokens from its connected design system(s).
 
 - Type or paste design tokens directly into the content area
 - Drag-and-drop screenshots of existing design systems, then click **Extract from Images** to have an LLM read the tokens from the images
 
-### 5. Generate Variants
+### 6. Generate Variants
 
-Each hypothesis has built-in generation controls. Select a provider, model, and output format (HTML or React), then click **Create**. Variants appear to the right. Running generation again adds new versions — use the version navigation arrows to browse previous results.
+Each hypothesis has built-in generation controls. Connect a Model node to the hypothesis, then click **Create**. The agentic engine runs a planning pass then builds the variant file-by-file across multiple LLM calls — no single output token limit applies. Variants appear to the right. Running generation again adds new versions — use the version navigation arrows to browse previous results.
 
-### 6. Review Variants
+### 7. Review Variants
 
 Variant nodes render the generated code in sandboxed iframes:
 - **Zoom** — +/- buttons or auto-fit
@@ -71,7 +75,7 @@ Variant nodes render the generated code in sandboxed iframes:
 - **Full-screen** — Click the expand icon for full-viewport preview with version navigation
 - **Version badges** — v1, v2, etc. with ChevronLeft/Right to browse accumulated versions
 
-### 7. Iterate
+### 8. Iterate
 
 To iterate on results:
 - **Screenshot feedback** — Drag a connection from a variant's right handle to the Existing Design node. This captures a screenshot and adds it as a reference image.
@@ -99,6 +103,3 @@ Click **Specs** in the header to open the Spec Manager:
 - **Load** — Switch to a saved spec
 - **Delete** — Remove a saved spec from localStorage
 
-## Legacy Form Workflow
-
-The original page-based workflow remains at `/editor` → `/compiler` → `/generation`. Same spec model and compiler, different UI.

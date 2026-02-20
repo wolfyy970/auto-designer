@@ -2,7 +2,8 @@
 type NodeType =
   | 'designBrief' | 'existingDesign' | 'researchContext'
   | 'objectivesMetrics' | 'designConstraints' | 'designSystem'
-  | 'compiler' | 'hypothesis' | 'variant' | 'critique';
+  | 'compiler' | 'hypothesis' | 'variant' | 'critique'
+  | 'model';
 
 /** Valid source→target type pairs for manual edge creation */
 export const VALID_CONNECTIONS: Record<NodeType, Set<NodeType>> = {
@@ -16,6 +17,7 @@ export const VALID_CONNECTIONS: Record<NodeType, Set<NodeType>> = {
   hypothesis: new Set(['variant']),
   variant: new Set(['compiler', 'existingDesign', 'critique']),
   critique: new Set(['compiler']),
+  model: new Set(['compiler', 'hypothesis', 'designSystem']),
 };
 
 export function isValidConnection(sourceType: string, targetType: string): boolean {

@@ -1,8 +1,8 @@
 # Auto Designer
 
-A specification workspace that helps designers define design problem boundaries before AI generation, then compiles those specifications into variant prompts that systematically explore the solution space.
+A specification workspace that helps designers define design problem boundaries before AI generation. Specifications compile into hypothesis strategies that systematically explore the solution space. An agentic build engine then generates each variant across multiple LLM calls — breaking through single-response token limits.
 
-Designers write structured specs. The compiler reasons about the exploration space. Generation providers produce code variants. Everything connects on a visual node-graph canvas.
+Designers write structured specs. The compiler reasons about the exploration space. The agentic engine builds variants file-by-file. Everything connects on a visual node-graph canvas.
 
 ## Quick Start
 
@@ -27,10 +27,11 @@ You can mix and match providers — e.g. OpenRouter Claude for compilation, LM S
 The primary interface is a visual node-graph canvas (`/canvas`, the default route):
 
 1. **Input nodes** (left) — Design Brief, Existing Design, Research Context, Objectives & Metrics, Design Constraints
-2. **Incubator** — Connect input nodes, select a model, click Generate to produce hypothesis strategies
-3. **Hypotheses** — Editable strategy cards with built-in generation controls. Select a provider, model, and format, then click Create.
-4. **Design System** (optional) — Connect to hypotheses to inject design tokens into generation. Supports multiple systems for A/B exploration.
-5. **Variants** — Rendered design previews with zoom, version navigation, and full-screen. Results accumulate across runs.
+2. **Model node** — Connect to the Incubator or Hypotheses to configure which provider and model they use
+3. **Incubator** — Connect input nodes and a Model node, then click Generate to produce hypothesis strategies
+4. **Hypotheses** — Editable strategy cards. Connect a Model node and click Create to generate variants via the agentic engine
+5. **Design System** (optional) — Connect to hypotheses to inject design tokens into generation
+6. **Variants** — Rendered design previews with zoom, version navigation, and full-screen. Results accumulate across runs
 
 Nodes connect left-to-right. Auto-layout arranges everything based on connections. Variants can connect back to Existing Design for iterative feedback loops (captures a screenshot automatically).
 
@@ -48,12 +49,11 @@ Nodes connect left-to-right. Auto-layout arranges everything based on connection
 
 | Document | Purpose |
 |----------|---------|
-| [PRODUCT.md](PRODUCT.md) | What exists today — features, canvas nodes, providers |
+| [PRODUCT.md](PRODUCT.md) | What exists today — features, agentic engine, canvas nodes, providers |
 | [USER_GUIDE.md](USER_GUIDE.md) | How to use the canvas workflow |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, data flow, module boundaries |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, agentic engine internals, module boundaries |
 | [DOCUMENTATION.md](DOCUMENTATION.md) | Documentation philosophy and rules |
-| [design-spec-workspace-product-spec.md](design-spec-workspace-product-spec.md) | Original product specification |
 
 ## Tech Stack
 
-Vite + React 19 + TypeScript, Zustand (state), Tailwind CSS v4 (styling), @xyflow/react v12 (canvas), react-router-dom v7 (routing), @tanstack/react-query (async state), Vitest (testing). See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
+Vite + React 19 + TypeScript, Zustand (state), Tailwind CSS v4 (styling), @xyflow/react v12 (canvas), react-router-dom v7 (routing), @tanstack/react-query (async state), Zod (schema validation), Vitest (testing). See [ARCHITECTURE.md](ARCHITECTURE.md) for details.

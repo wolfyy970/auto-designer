@@ -56,6 +56,7 @@ interface CompilerStore {
   setSelectedProvider: (provider: string) => void;
   setSelectedModel: (model: string) => void;
 
+  appendVariantsToNode: (nodeId: string, newMap: DimensionMap) => void;
   updateVariant: (variantId: string, updates: Partial<VariantStrategy>) => void;
   removeVariant: (variantId: string) => void;
   addVariantToNode: (nodeId: string) => void;
@@ -100,6 +101,29 @@ export const useCompilerStore = create<CompilerStore>()(
           error: null,
         })),
 
+      appendVariantsToNode: (nodeId, newMap) =>
+        set((state) => {
+          const existing = state.dimensionMaps[nodeId];
+          if (!existing) {
+            // First run — store the whole map
+            return { dimensionMaps: { ...state.dimensionMaps, [nodeId]: newMap }, error: null };
+          }
+          // Subsequent runs — update dimensions, append new variants
+          return {
+            dimensionMaps: {
+              ...state.dimensionMaps,
+              [nodeId]: {
+                ...existing,
+                dimensions: newMap.dimensions,
+                variants: [...existing.variants, ...newMap.variants],
+                generatedAt: newMap.generatedAt,
+                compilerModel: newMap.compilerModel,
+              },
+            },
+            error: null,
+          };
+        }),
+
       removeDimensionMapForNode: (nodeId) =>
         set((state) => {
           const { [nodeId]: _, ...rest } = state.dimensionMaps;
@@ -132,11 +156,10 @@ export const useCompilerStore = create<CompilerStore>()(
           if (!map) return state;
           const newVariant: VariantStrategy = {
             id: generateId(),
-            name: 'New Variant',
-            primaryEmphasis: '',
+            name: 'New Hypothesis',
+            hypothesis: '',
             rationale: '',
-            howItDiffers: '',
-            coupledDecisions: '',
+            measurements: '',
             dimensionValues: {},
           };
           return {
@@ -172,21 +195,40 @@ export const useCompilerStore = create<CompilerStore>()(
     }),
     {
       name: STORAGE_KEYS.COMPILER,
-      version: 1,
+      version: 2,
       migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Record<string, unknown>;
+
         if (version < 1) {
-          // Migrate from single dimensionMap to dimensionMaps record
-          const old = persistedState as Record<string, unknown>;
+          // v0→v1: Migrate from single dimensionMap to dimensionMaps record
           const dimensionMaps: Record<string, DimensionMap> = {};
-          if (old.dimensionMap) {
-            dimensionMaps['compiler-node'] = old.dimensionMap as DimensionMap;
+          if (state.dimensionMap) {
+            dimensionMaps['compiler-node'] = state.dimensionMap as DimensionMap;
           }
-          return {
-            ...old,
-            dimensionMaps,
-          };
+          Object.assign(state, { dimensionMaps });
         }
-        return persistedState as Record<string, unknown>;
+
+        if (version < 2) {
+          // v1→v2: Rename primaryEmphasis→hypothesis, add measurements, drop howItDiffers/coupledDecisions
+          const maps = state.dimensionMaps as Record<string, Record<string, unknown>> | undefined;
+          if (maps) {
+            for (const map of Object.values(maps)) {
+              const variants = map.variants as Record<string, unknown>[] | undefined;
+              if (!variants) continue;
+              for (const v of variants) {
+                if ('primaryEmphasis' in v && !('hypothesis' in v)) {
+                  v.hypothesis = v.primaryEmphasis;
+                  delete v.primaryEmphasis;
+                }
+                if (!('measurements' in v)) v.measurements = '';
+                delete v.howItDiffers;
+                delete v.coupledDecisions;
+              }
+            }
+          }
+        }
+
+        return state;
       },
       partialize: (state) => ({
         dimensionMaps: state.dimensionMaps,

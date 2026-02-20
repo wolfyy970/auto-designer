@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { z } from 'zod';
 import {
   type Node,
   type Edge,
@@ -10,7 +11,7 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
 } from '@xyflow/react';
-import type { DimensionMap } from '../types/compiler';
+import type { VariantStrategy } from '../types/compiler';
 import type { GenerationResult } from '../types/provider';
 import type { SpecSectionId } from '../types/spec';
 import { useCompilerStore } from './compiler-store';
@@ -51,7 +52,8 @@ export type CanvasNodeType =
   | 'compiler'
   | 'hypothesis'
   | 'variant'
-  | 'critique';
+  | 'critique'
+  | 'model';
 
 export type CanvasNodeData = Record<string, unknown> & {
   refId?: string;
@@ -90,6 +92,8 @@ interface CanvasStore {
   lineageEdgeIds: Set<string>;
   /** Transient map: variantStrategyId → canvas nodeId (for edge status callbacks during generation) */
   variantNodeIdMap: Map<string, string>;
+  /** Transient: which node type + handle type is currently being dragged from (for handle glow) */
+  connectingFrom: { nodeType: CanvasNodeType; handleType: 'source' | 'target' } | null;
 
   onNodesChange: (changes: NodeChange<CanvasNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<CanvasEdge>[]) => void;
@@ -112,10 +116,11 @@ interface CanvasStore {
   computeLineage: (selectedNodeId: string | null) => void;
 
   initializeCanvas: () => void;
-  syncAfterCompile: (dimensionMap: DimensionMap, compilerNodeId: string) => void;
+  syncAfterCompile: (newVariants: VariantStrategy[], compilerNodeId: string) => void;
   syncAfterGenerate: (results: GenerationResult[], hypothesisNodeId: string) => void;
   forkHypothesisVariants: (hypothesisNodeId: string) => void;
   clearVariantNodeIdMap: () => void;
+  setConnectingFrom: (from: CanvasStore['connectingFrom']) => void;
   setEdgeStatusBySource: (sourceId: string, status: EdgeStatus) => void;
   setEdgeStatusByTarget: (targetId: string, status: EdgeStatus) => void;
 
@@ -141,6 +146,7 @@ export const useCanvasStore = create<CanvasStore>()(
       lineageNodeIds: new Set<string>(),
       lineageEdgeIds: new Set<string>(),
       variantNodeIdMap: new Map<string, string>(),
+      connectingFrom: null,
 
       onNodesChange: (changes) => {
         set({ nodes: applyNodeChanges(changes, get().nodes) });
@@ -264,10 +270,23 @@ export const useCanvasStore = create<CanvasStore>()(
           useCompilerStore.getState().removeDimensionMapForNode(nodeId);
         }
 
+        // If removing a hypothesis, cascade-delete its connected variants
+        // and remove the strategy from the compiler store
+        const removeIds = new Set<string>([nodeId]);
+        if (node.type === 'hypothesis') {
+          const refId = node.data.refId as string | undefined;
+          if (refId) useCompilerStore.getState().removeVariant(refId);
+          for (const e of state.edges) {
+            if (e.source !== nodeId) continue;
+            const target = state.nodes.find((n) => n.id === e.target && n.type === 'variant');
+            if (target) removeIds.add(target.id);
+          }
+        }
+
         set({
-          nodes: state.nodes.filter((n) => n.id !== nodeId),
+          nodes: state.nodes.filter((n) => !removeIds.has(n.id)),
           edges: state.edges.filter(
-            (e) => e.source !== nodeId && e.target !== nodeId
+            (e) => !removeIds.has(e.source) && !removeIds.has(e.target)
           ),
         });
         if (get().autoLayout) get().applyAutoLayout();
@@ -364,52 +383,38 @@ export const useCanvasStore = create<CanvasStore>()(
 
       // ── Sync after compilation (scoped to a specific compiler) ──
 
-      syncAfterCompile: (dimensionMap, compilerNodeId) => {
+      syncAfterCompile: (newVariants, compilerNodeId) => {
+        if (newVariants.length === 0) return;
         const state = get();
         const col = columnX(state.colGap);
         const compilerNode = state.nodes.find((n) => n.id === compilerNodeId);
         const compilerY = compilerNode?.position.y ?? 300;
-        // Find OLD hypothesis nodes produced by this compiler (via outgoing edges)
-        const oldHypNodeIds = new Set<string>();
+
+        // Find bottom-most existing hypothesis Y connected to this compiler
+        let maxY = compilerY;
         for (const e of state.edges) {
-          if (e.source === compilerNodeId) {
-            const target = state.nodes.find((n) => n.id === e.target && n.type === 'hypothesis');
-            if (target) oldHypNodeIds.add(target.id);
+          if (e.source !== compilerNodeId) continue;
+          const target = state.nodes.find((n) => n.id === e.target && n.type === 'hypothesis');
+          if (target) {
+            const bottom = target.position.y + (target.measured?.height ?? 300);
+            if (bottom > maxY) maxY = bottom;
           }
         }
 
-        // Find OLD variant nodes connected to those hypotheses (direct 1:1)
-        const oldVariantNodeIds = new Set<string>();
-        for (const hypId of oldHypNodeIds) {
-          for (const e of state.edges) {
-            if (e.source === hypId) {
-              const target = state.nodes.find((n) => n.id === e.target && n.type === 'variant');
-              if (target) oldVariantNodeIds.add(target.id);
-            }
-          }
-        }
-
-        // Remove old hypothesis + variant nodes and all their edges
-        const removedIds = new Set([...oldHypNodeIds, ...oldVariantNodeIds]);
-        const newNodes = state.nodes.filter((n) => !removedIds.has(n.id));
-        const newEdges = state.edges.filter(
-          (e) =>
-            !removedIds.has(e.source) &&
-            !removedIds.has(e.target) &&
-            // Also remove outgoing edges from this compiler (will be replaced)
-            !(e.source === compilerNodeId && oldHypNodeIds.has(e.target))
-        );
-
-        // Create new hypothesis nodes
+        // Position new hypotheses below existing ones
+        const startY = maxY + 40; // gap below last existing hypothesis
         const positions = computeHypothesisPositions(
-          dimensionMap.variants.length,
-          compilerY,
+          newVariants.length,
+          startY,
           col
         );
 
-        dimensionMap.variants.forEach((variant, i) => {
+        const addedNodes = [...state.nodes];
+        const addedEdges = [...state.edges];
+
+        newVariants.forEach((variant, i) => {
           const nodeId = `hypothesis-${variant.id}`;
-          newNodes.push({
+          addedNodes.push({
             id: nodeId,
             type: 'hypothesis',
             position: positions[i],
@@ -417,16 +422,20 @@ export const useCanvasStore = create<CanvasStore>()(
           });
 
           // compiler → hypothesis edge
-          newEdges.push({
+          addedEdges.push({
             id: `edge-${compilerNodeId}-to-${variant.id}`,
             source: compilerNodeId,
             target: nodeId,
             type: 'dataFlow',
             data: { status: 'complete' },
           });
+
+          // Auto-connect designSystem nodes to new hypothesis
+          const dsEdges = buildAutoConnectEdges(nodeId, 'hypothesis', addedNodes);
+          addedEdges.push(...dsEdges);
         });
 
-        set({ nodes: newNodes, edges: newEdges });
+        set({ nodes: addedNodes, edges: addedEdges });
 
         if (get().autoLayout) get().applyAutoLayout();
       },
@@ -575,6 +584,7 @@ export const useCanvasStore = create<CanvasStore>()(
       },
 
       clearVariantNodeIdMap: () => set({ variantNodeIdMap: new Map() }),
+      setConnectingFrom: (from) => set({ connectingFrom: from }),
 
       // ── Edge status ─────────────────────────────────────────────
 
@@ -614,9 +624,20 @@ export const useCanvasStore = create<CanvasStore>()(
     }),
     {
       name: STORAGE_KEYS.CANVAS,
-      version: 12,
-      migrate: (persistedState: unknown, version: number) =>
-        migrateCanvasState(persistedState, version),
+      version: 13,
+      migrate: (persistedState: unknown, version: number) => {
+        // Try to parse the raw state safely to avoid runtime crashes
+        // before passing it to the complex migration logic
+        try {
+          if (typeof persistedState === 'string') {
+            return migrateCanvasState(JSON.parse(persistedState), version);
+          }
+          return migrateCanvasState(persistedState, version);
+        } catch (e) {
+          console.error("Failed to parse persisted canvas state for migration", e);
+          return migrateCanvasState({}, version);
+        }
+      },
       partialize: (state) => ({
         nodes: state.nodes,
         edges: state.edges,

@@ -37,26 +37,21 @@ export default function VariantStrategyCard({
 
       <div className="space-y-3">
         <Field
-          label="Primary Emphasis"
-          value={strategy.primaryEmphasis}
-          onChange={(v) => update('primaryEmphasis', v)}
+          label="Hypothesis"
+          value={strategy.hypothesis}
+          onChange={(v) => update('hypothesis', v)}
+          rows={2}
         />
         <Field
-          label="Rationale"
+          label="Why"
           value={strategy.rationale}
           onChange={(v) => update('rationale', v)}
           rows={3}
         />
         <Field
-          label="How It Differs"
-          value={strategy.howItDiffers}
-          onChange={(v) => update('howItDiffers', v)}
-          rows={2}
-        />
-        <Field
-          label="Coupled Decisions"
-          value={strategy.coupledDecisions}
-          onChange={(v) => update('coupledDecisions', v)}
+          label="Measurements"
+          value={strategy.measurements}
+          onChange={(v) => update('measurements', v)}
           rows={2}
         />
       </div>

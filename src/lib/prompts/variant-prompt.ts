@@ -21,9 +21,9 @@ export function buildVariantPrompt(
 
   return interpolate(getPrompt('variant'), {
     STRATEGY_NAME: strategy.name,
-    PRIMARY_EMPHASIS: strategy.primaryEmphasis,
+    HYPOTHESIS: strategy.hypothesis,
     RATIONALE: strategy.rationale,
-    COUPLED_DECISIONS: strategy.coupledDecisions,
+    MEASUREMENTS: strategy.measurements,
     DIMENSION_VALUES: dimensionValuesList || '(Use your judgment within the exploration space ranges)',
     DESIGN_BRIEF: getSectionContent(spec, 'design-brief'),
     RESEARCH_CONTEXT: getSectionContent(spec, 'research-context'),

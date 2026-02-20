@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, Columns2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Columns2, ChevronLeft, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 import { useCompilerStore, findVariantStrategy } from '../../stores/compiler-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { prepareIframeContent, renderErrorHtml } from '../../lib/iframe-utils';
@@ -51,12 +51,12 @@ export default function VariantPreviewOverlay() {
   const result = activeResult ?? legacyResult;
 
   // Load code from IndexedDB
-  const { code } = useResultCode(result?.id);
+  const { code, isLoading: codeLoading } = useResultCode(result?.id);
   const compareResult = useMemo(
     () => (compareId ? results.find((r) => r.id === compareId) : undefined),
     [compareId, results],
   );
-  const { code: compareCode } = useResultCode(compareResult?.id);
+  const { code: compareCode, isLoading: compareCodeLoading } = useResultCode(compareResult?.id);
 
   // Other complete results (for compare mode)
   const otherResults = useMemo(
@@ -89,16 +89,20 @@ export default function VariantPreviewOverlay() {
   function renderPanel(
     r: GenerationResult,
     panelCode: string | undefined,
+    isLoading: boolean,
     label?: string,
   ) {
-    if (!panelCode) return null;
     const strat = findVariantStrategy(dimensionMaps, r.variantStrategyId);
-    let content: string;
-    try {
-      content = prepareIframeContent(panelCode);
-    } catch (err) {
-      content = renderErrorHtml(normalizeError(err));
+    let content: string | null = null;
+
+    if (panelCode) {
+      try {
+        content = prepareIframeContent(panelCode);
+      } catch (err) {
+        content = renderErrorHtml(normalizeError(err));
+      }
     }
+
     return (
       <div className="flex flex-1 flex-col overflow-hidden">
         {label && (
@@ -127,18 +131,30 @@ export default function VariantPreviewOverlay() {
                 </>
               )}
               {r.metadata.tokensUsed != null && (
-                <> &middot; {r.metadata.tokensUsed} tokens</>
+                <> &middot; {r.metadata.tokensUsed.toLocaleString()} tok</>
               )}
             </p>
           )}
         </div>
         <div className="flex-1 overflow-hidden bg-white">
-          <iframe
-            srcDoc={content}
-            sandbox="allow-scripts"
-            title={`Preview: ${strat?.name ?? 'Variant'}`}
-            className="h-full w-full border-0"
-          />
+          {isLoading ? (
+            <div className="flex h-full items-center justify-center">
+              <Loader2 size={20} className="animate-spin text-fg-muted" />
+            </div>
+          ) : content ? (
+            <iframe
+              srcDoc={content}
+              sandbox="allow-scripts"
+              title={`Preview: ${strat?.name ?? 'Variant'}`}
+              className="h-full w-full border-0"
+            />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
+              <AlertCircle size={24} className="text-fg-muted" />
+              <p className="text-sm text-fg-muted">Code unavailable — may need to regenerate</p>
+              <p className="text-xs text-fg-faint">Result ID: {r.id.slice(0, 8)}...</p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -224,7 +240,7 @@ export default function VariantPreviewOverlay() {
       <div className="flex flex-1 overflow-hidden">
         {compareId && compareResult ? (
           <>
-            {result && code && renderPanel(result, code, 'Original')}
+            {renderPanel(result, code, codeLoading, 'Original')}
             <div className="w-px bg-white/10" />
             <div className="flex flex-1 flex-col overflow-hidden">
               {/* Compare selector */}
@@ -252,13 +268,11 @@ export default function VariantPreviewOverlay() {
                   })}
                 </select>
               </div>
-              {compareResult &&
-                compareCode &&
-                renderPanel(compareResult, compareCode)}
+              {renderPanel(compareResult, compareCode, compareCodeLoading)}
             </div>
           </>
         ) : (
-          result && code && renderPanel(result, code)
+          renderPanel(result, code, codeLoading)
         )}
       </div>
     </div>

@@ -5,12 +5,8 @@ import { useThemeEffect } from './hooks/useThemeEffect';
 import { useGenerationStore } from './stores/generation-store';
 import { garbageCollect } from './services/idb-storage';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
-import AppShell from './components/layout/AppShell';
 
 const CanvasPage = lazy(() => import('./pages/CanvasPage'));
-const EditorPage = lazy(() => import('./pages/EditorPage'));
-const CompilerPage = lazy(() => import('./pages/CompilerPage'));
-const GenerationPage = lazy(() => import('./pages/GenerationPage'));
 
 const queryClient = new QueryClient();
 
@@ -47,34 +43,8 @@ export default function App() {
       <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* Canvas is the primary workspace */}
+            {/* Canvas is the sole workspace */}
             <Route path="/canvas" element={<ErrorBoundary><CanvasPage /></ErrorBoundary>} />
-
-            {/* Legacy page-based routes */}
-            <Route
-              path="/editor"
-              element={
-                <AppShell>
-                  <EditorPage />
-                </AppShell>
-              }
-            />
-            <Route
-              path="/compiler"
-              element={
-                <AppShell>
-                  <CompilerPage />
-                </AppShell>
-              }
-            />
-            <Route
-              path="/generation"
-              element={
-                <AppShell>
-                  <GenerationPage />
-                </AppShell>
-              }
-            />
             <Route path="*" element={<Navigate to="/canvas" replace />} />
           </Routes>
         </Suspense>

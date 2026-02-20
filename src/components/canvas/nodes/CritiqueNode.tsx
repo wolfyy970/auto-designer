@@ -31,6 +31,7 @@ function CritiqueNode({ id, data, selected }: NodeProps<CritiqueNodeType>) {
   return (
     <NodeShell
       nodeId={id}
+      nodeType="critique"
       selected={!!selected}
       width="w-node"
       borderClass={borderClass}

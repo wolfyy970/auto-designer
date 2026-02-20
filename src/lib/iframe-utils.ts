@@ -1,73 +1,8 @@
 /**
  * Shared iframe content preparation utilities.
- * Extracted from VariantFrame.tsx for reuse in canvas VariantNode.
  */
 
-export function wrapReactCode(code: string): string {
-  // Strip ES module syntax — Babel standalone transforms `export default` to
-  // CommonJS (exports.default = ...) but there's no `exports` in the browser,
-  // causing a silent ReferenceError that prevents App from rendering.
-  //
-  // Order matters:
-  // 1. Remove import lines
-  // 2. Remove standalone re-exports ("export default App;" where App is already declared)
-  // 3. Convert "export default function App" → "function App"
-  // 4. Convert "export default function(" → "var App = function("
-  // 5. Convert "export default () =>" → "var App = () =>"
-  // 6. Fallback: any remaining "export default <expr>" → "var App = <expr>"
-  const cleaned = code
-    .replace(/^import\s+.*?;?\s*$/gm, '')
-    .replace(/^export\s+default\s+(\w+)\s*;?\s*$/gm, (_match, name) => {
-      // If the identifier is already declared above, just remove the re-export line.
-      // If it's not "App", alias it so the render bootstrap finds it.
-      return name === 'App' ? '' : `var App = ${name};`;
-    })
-    .replace(/export\s+default\s+function\s+App/g, 'function App')
-    .replace(/export\s+default\s+function\s*\(/g, 'var App = function(')
-    .replace(/export\s+default\s+\(\)\s*=>/g, 'var App = () =>')
-    .replace(/export\s+default\s+/g, 'var App = ');
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-</head>
-<body>
-  <div id="root"></div>
-  <script>var exports = {}; var module = {exports: exports};</script>
-  <script type="text/babel" data-presets="react">
-    ${cleaned}
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(typeof App !== 'undefined' ? App : () => React.createElement('div', null, 'No App component found')));
-  </script>
-</body>
-</html>`;
-}
-
-export function isReactCode(code: string): boolean {
-  return (
-    code.includes('function App') ||
-    code.includes('const App') ||
-    code.includes('export default App') ||
-    code.includes('export default function') ||
-    code.includes('export default () =>') ||
-    /^(function|const|let|var)\s+App/.test(code)
-  );
-}
-
-export function isHtmlCode(code: string): boolean {
-  return code.startsWith('<!') || code.toLowerCase().startsWith('<html');
-}
-
 export function prepareIframeContent(code: string): string {
-  const trimmed = code.trim();
-  if (isReactCode(trimmed) && !isHtmlCode(trimmed)) {
-    return wrapReactCode(code);
-  }
   return code;
 }
 

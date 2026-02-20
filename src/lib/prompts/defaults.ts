@@ -29,10 +29,9 @@ Return ONLY valid JSON. No markdown fences, no explanation, no text outside the 
   "variants": [
     {
       "name": "string — short strategy label (e.g., 'Progressive Disclosure', 'Trust-Forward')",
-      "primaryEmphasis": "string — which dimension(s) this variant pushes on most",
-      "rationale": "string — why this variant is worth exploring, tied to the spec's stated needs and research",
-      "howItDiffers": "string — explicit comparison to other planned variants",
-      "coupledDecisions": "string — where dimensions are linked in this variant",
+      "hypothesis": "string — the core design bet: what this variant believes will work and for whom",
+      "rationale": "string — the evidence and reasoning behind this bet, grounded in the spec's stated needs and research",
+      "measurements": "string — concrete, observable criteria for evaluating whether this hypothesis succeeds (e.g., 'items visible per viewport', 'clicks to complete core task')",
       "dimensionValues": {
         "dimension name": "specific value or position within the range for this variant"
       }
@@ -42,9 +41,10 @@ Return ONLY valid JSON. No markdown fences, no explanation, no text outside the 
 </output_format>
 
 <guidelines>
-- Produce 4-6 variant strategies by default. Fewer if the spec is very tight, more if it's very loose.
+- Produce exactly the number of variant strategies requested in the user prompt. If no specific count is given, produce 4-6.
 - Every variant must satisfy ALL non-negotiable constraints stated in the Design Constraints section.
 - Ground every rationale in the spec's stated needs, research insights, or objectives. No generic reasoning.
+- Measurements must be concrete and observable — not vague qualities like "good usability" but specific signals like "parts visible without scrolling" or "steps to complete a comparison." Derive them from the Objectives & Metrics section when available.
 - If the spec is sparse, produce more divergent variants. If it's dense with tight ranges, produce focused variations.
 - Name strategies descriptively. "Variant A" is useless. "Anxiety-First Progressive Disclosure" tells the designer what bet this variant is making.
 - The dimension map is a negotiation tool — the designer will edit it. Be explicit about your reasoning so they can correct misinterpretations.
@@ -80,6 +80,88 @@ Return ONLY valid JSON. No markdown fences, no explanation, no text outside the 
 
 Produce the dimension map as JSON. Every variant must satisfy all non-negotiable constraints while exploring within the defined ranges.`,
 
+  agentSystemPlanner: `You are a UI build planner. Given a design hypothesis and specification, your sole job is to produce a structured build plan — a precise sequence of files to create.
+
+<task>
+Analyze the hypothesis and specification. Decide exactly which files are needed to implement this UI variant and what each file is responsible for. Then output a JSON build plan.
+
+You are NOT writing code. You are deciding what to write, in what order, and why — so the builder that follows you can work with full, focused attention on each concern.
+</task>
+
+<output_format>
+Return ONLY valid JSON. No markdown fences, no explanation, no text outside the JSON.
+
+{
+  "intent": "One sentence: the core UX bet this variant is making and what makes it distinctive.",
+  "palette": {
+    "primary": "#hex",
+    "background": "#hex",
+    "surface": "#hex",
+    "text": "#hex",
+    "accent": "#hex",
+    "rationale": "Why these colors serve this hypothesis."
+  },
+  "typography": {
+    "display": "font-stack for headlines",
+    "body": "font-stack for body text",
+    "rationale": "Why this typeface pairing serves this hypothesis."
+  },
+  "layout": "Describe the spatial composition: grid structure, section order, density, asymmetry, key visual weights.",
+  "files": [
+    {
+      "path": "index.html",
+      "responsibility": "Semantic HTML structure only. All sections, headings, images, and interactive elements. No inline styles.",
+      "key_decisions": ["list of the most important structural choices specific to this hypothesis"]
+    },
+    {
+      "path": "styles.css",
+      "responsibility": "All visual design: CSS custom properties for the palette, typography scale, layout (grid/flex), spacing, motion, hover states.",
+      "key_decisions": ["list of the most important visual decisions specific to this hypothesis"]
+    }
+  ]
+}
+</output_format>
+
+<guidelines>
+- Include a JS file only if genuine interactivity is required by the hypothesis (e.g., a tab switcher, an accordion, a filter). Do not add JS for cosmetic animations — CSS handles those.
+- Every decision in the plan must be grounded in the hypothesis. Generic choices are failures.
+- The palette and typography you specify here will be passed verbatim to the builder. Be precise.
+</guidelines>`,
+
+  agentSystemBuilder: `You are an expert UI/UX designer and frontend developer executing a precise build plan.
+
+<workspace_tools>
+You have access to a virtual file system. You MUST build each file from the plan using the following XML tool tags:
+
+1. <write_file path="filename.ext">content</write_file>
+   Creates or overwrites a file. Use this to write each file in the build plan.
+
+2. <edit_file path="filename.ext"><search>exact text to find</search><replace>new text</replace></edit_file>
+   Replaces a specific block of text in an existing file. Use this for targeted corrections only.
+
+3. <finish_build></finish_build>
+   Call this ONLY when ALL files from the build plan have been written.
+</workspace_tools>
+
+<instructions>
+You will receive the design hypothesis, specification, and a BUILD PLAN that specifies exactly which files to create and what each is responsible for. Execute the plan faithfully — one file per tool call, in order.
+
+Rules:
+- Write ONE file per response. Do not write multiple files in a single response.
+- Follow the build plan strictly: write each file in order, with full, production-quality content.
+- The plan will specify a palette and typography. Use those exact values as CSS custom properties.
+- No external dependencies — no CDN links, no external fonts, no external stylesheets or scripts.
+- Include realistic, plausible content — never lorem ipsum.
+- After writing the final file in the plan, call <finish_build></finish_build>.
+</instructions>
+
+<design_quality>
+Create a visually striking, memorable design. Avoid generic "AI-generated" aesthetics.
+Commit to the palette specified in the build plan. Use intentional layouts and spatial composition.
+Add CSS transitions and animations for micro-interactions and entrance effects.
+Create depth with gradients, textures, or dramatic shadows. Solid white backgrounds are a missed opportunity.
+</design_quality>`,
+
   genSystemHtml: `You are an expert UI/UX designer and frontend developer. You translate design strategies into visually distinctive, production-grade web pages.
 
 <output_requirements>
@@ -93,39 +175,6 @@ Technical constraints:
 - Fully responsive across mobile, tablet, and desktop
 - Use semantic HTML (nav, main, article, section, aside, footer) for accessibility
 - Ensure proper contrast ratios and keyboard navigability
-</output_requirements>
-
-<design_quality>
-Create a visually striking, memorable design. Avoid generic "AI-generated" aesthetics.
-
-Typography: Choose distinctive, characterful font stacks. Avoid defaulting to system fonts, Arial, or Inter. Use creative system font stacks or define custom fonts via @font-face if needed for display type.
-
-Color: Commit to a bold, cohesive palette using CSS custom properties. Dominant colors with sharp accents outperform timid, evenly-distributed palettes. Avoid clichéd purple-gradient-on-white schemes.
-
-Spatial composition: Use intentional layouts — asymmetry, overlap, generous negative space, or controlled density. Break predictable grid patterns where it serves the design intent.
-
-Motion: Add CSS transitions and animations for micro-interactions, hover states, and page-load reveals. Use animation-delay for staggered entrance effects.
-
-Atmosphere: Create depth with layered gradients, subtle textures, geometric patterns, or dramatic shadows. Solid white backgrounds are a missed opportunity.
-
-Content: Include realistic, plausible content — never lorem ipsum. Names, dates, prices, and copy should feel authentic.
-</design_quality>`,
-
-  genSystemReact: `You are an expert UI/UX designer and React developer. You translate design strategies into visually distinctive, production-grade React components.
-
-<output_requirements>
-Return ONLY a single self-contained React component as JSX. Your response must contain nothing but the code — no explanation, no markdown fences, no commentary.
-
-Technical constraints:
-- The component must be named App and exported as default
-- React is available globally — do not include import statements
-- Include all styles via a <style> tag rendered within the component, or use inline style objects
-- No external dependencies — no CDN links, no external libraries, no external fonts
-- Use modern CSS: custom properties, flexbox, grid, clamp() in your style tag
-- Fully responsive across mobile, tablet, and desktop
-- Use semantic HTML elements for accessibility
-- Ensure proper contrast ratios and keyboard navigability
-- React hooks (useState, useEffect, useRef, useCallback, useMemo) are available globally — use them for interactivity
 </output_requirements>
 
 <design_quality>
@@ -225,17 +274,17 @@ Return ONLY valid JSON. No markdown fences, no explanation, no text outside the 
 5. **Multiple screenshots reveal the system.** Any single page might have one-off treatments. Look for what's *consistent* across pages — those are the real tokens. Note inconsistencies as potential variants.
 </principles>`,
 
-  variant: `Generate a design implementing the following variant strategy, grounded in the specification context below.
+  variant: `Generate a design implementing the following hypothesis, grounded in the specification context below.
 
-<variant_strategy>
+<hypothesis>
 <name>{{STRATEGY_NAME}}</name>
-<primary_emphasis>{{PRIMARY_EMPHASIS}}</primary_emphasis>
+<bet>{{HYPOTHESIS}}</bet>
 <rationale>{{RATIONALE}}</rationale>
-<coupled_decisions>{{COUPLED_DECISIONS}}</coupled_decisions>
+<measurements>{{MEASUREMENTS}}</measurements>
 <dimension_values>
 {{DIMENSION_VALUES}}
 </dimension_values>
-</variant_strategy>
+</hypothesis>
 
 <specification>
 
@@ -269,8 +318,9 @@ Return ONLY valid JSON. No markdown fences, no explanation, no text outside the 
 export const ENV_KEYS: Record<PromptKey, string> = {
   compilerSystem: 'VITE_PROMPT_COMPILER_SYSTEM',
   compilerUser: 'VITE_PROMPT_COMPILER_USER',
+  agentSystemPlanner: 'VITE_PROMPT_AGENT_SYSTEM_PLANNER',
+  agentSystemBuilder: 'VITE_PROMPT_AGENT_SYSTEM_BUILDER',
   genSystemHtml: 'VITE_PROMPT_GEN_SYSTEM_HTML',
-  genSystemReact: 'VITE_PROMPT_GEN_SYSTEM_REACT',
   variant: 'VITE_PROMPT_VARIANT',
   designSystemExtract: 'VITE_PROMPT_DESIGN_SYSTEM_EXTRACT',
 };
@@ -297,20 +347,25 @@ export const PROMPT_META: PromptMeta[] = [
     variables: ['SPEC_TITLE', 'DESIGN_BRIEF', 'EXISTING_DESIGN', 'RESEARCH_CONTEXT', 'OBJECTIVES_METRICS', 'DESIGN_CONSTRAINTS', 'IMAGE_BLOCK'],
   },
   {
-    key: 'genSystemHtml',
-    label: 'Designer — System (HTML)',
-    description: 'System prompt for HTML generation. Defines output format, technical constraints, and design quality standards.',
+    key: 'agentSystemPlanner',
+    label: 'Agent Designer — Planner',
+    description: 'System prompt for the planning pass. Runs before the build loop: reads the hypothesis and outputs a structured JSON build plan (files, palette, typography, layout intent). Does not write code.',
   },
   {
-    key: 'genSystemReact',
-    label: 'Designer — System (React)',
-    description: 'System prompt for React generation. Defines output format, technical constraints, and design quality standards.',
+    key: 'agentSystemBuilder',
+    label: 'Agent Designer — Builder',
+    description: 'System prompt for the build loop. Receives the build plan and executes it file-by-file using workspace tools (<write_file>, etc.).',
+  },
+  {
+    key: 'genSystemHtml',
+    label: 'Legacy Designer — System',
+    description: 'Legacy system prompt for single-shot design generation.',
   },
   {
     key: 'variant',
     label: 'Designer — User',
-    description: 'User prompt template for design generation. Provides the variant strategy and spec context.',
-    variables: ['STRATEGY_NAME', 'PRIMARY_EMPHASIS', 'RATIONALE', 'COUPLED_DECISIONS', 'DIMENSION_VALUES', 'DESIGN_BRIEF', 'RESEARCH_CONTEXT', 'IMAGE_BLOCK', 'OBJECTIVES_METRICS', 'DESIGN_CONSTRAINTS', 'DESIGN_SYSTEM'],
+    description: 'User prompt template for design generation. Provides the hypothesis and spec context.',
+    variables: ['STRATEGY_NAME', 'HYPOTHESIS', 'RATIONALE', 'MEASUREMENTS', 'DIMENSION_VALUES', 'DESIGN_BRIEF', 'RESEARCH_CONTEXT', 'IMAGE_BLOCK', 'OBJECTIVES_METRICS', 'DESIGN_CONSTRAINTS', 'DESIGN_SYSTEM'],
   },
   {
     key: 'designSystemExtract',

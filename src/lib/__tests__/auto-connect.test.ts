@@ -73,6 +73,7 @@ describe('buildAutoConnectEdges', () => {
     const existing = [makeNode('c1', 'compiler'), makeNode('h1', 'hypothesis')];
     expect(buildAutoConnectEdges('v1', 'variant', existing)).toHaveLength(0);
     expect(buildAutoConnectEdges('cr1', 'critique', existing)).toHaveLength(0);
+    expect(buildAutoConnectEdges('m1', 'model', existing)).toHaveLength(0);
   });
 
   it('generates deterministic edge IDs', () => {

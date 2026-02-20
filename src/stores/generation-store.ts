@@ -144,11 +144,11 @@ export function getActiveResult(
     const selected = state.results.find((r) => r.id === selectedId);
     if (selected) return selected;
   }
-  // Fall back to latest complete or generating result
+  // Fall back to latest generating or complete result
   const stack = getStack(state, variantStrategyId);
   return (
-    stack.find((r) => r.status === 'complete') ??
     stack.find((r) => r.status === 'generating') ??
+    stack.find((r) => r.status === 'complete') ??
     stack[0]
   );
 }
@@ -179,6 +179,7 @@ export function getScopedActiveResult(
   }
   const stack = getScopedStack(state, variantStrategyId, runId);
   return (
+    stack.find((r) => r.status === 'generating') ??
     stack.find((r) => r.status === 'complete') ??
     stack[0]
   );

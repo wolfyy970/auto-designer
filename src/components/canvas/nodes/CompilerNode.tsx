@@ -3,7 +3,10 @@ import { useReactFlow, type NodeProps, type Node } from '@xyflow/react';
 import { RefreshCw, ArrowRight } from 'lucide-react';
 import { normalizeError } from '../../../lib/error-utils';
 import { useSpecStore } from '../../../stores/spec-store';
-import { useCompilerStore } from '../../../stores/compiler-store';
+import {
+  useCompilerStore,
+  findVariantStrategy,
+} from '../../../stores/compiler-store';
 import { useGenerationStore } from '../../../stores/generation-store';
 import {
   useCanvasStore,
@@ -11,41 +14,39 @@ import {
   type CanvasNodeType,
 } from '../../../stores/canvas-store';
 import type { CompilerNodeData } from '../../../types/canvas-data';
+import type { VariantStrategy } from '../../../types/compiler';
 import { compileSpec } from '../../../services/compiler';
 import { buildCompileInputs } from '../../../lib/canvas-graph';
-import { DEFAULT_COMPILER_PROVIDER } from '../../../lib/constants';
-import { useNodeProviderModel } from '../../../hooks/useNodeProviderModel';
-import ProviderSelector from '../../generation/ProviderSelector';
-import ModelSelector from '../../shared/ModelSelector';
+import { useConnectedModel } from '../../../hooks/useConnectedModel';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';
 
+const COUNT_OPTIONS = [1, 2, 3, 5];
+const DEFAULT_COUNT = 3;
+
 type CompilerNodeType = Node<CompilerNodeData, 'compiler'>;
 
-function CompilerNode({ id, selected }: NodeProps<CompilerNodeType>) {
+function CompilerNode({ id, data, selected }: NodeProps<CompilerNodeType>) {
   const { fitView } = useReactFlow();
   const spec = useSpecStore((s) => s.spec);
 
   const isCompiling = useCompilerStore((s) => s.isCompiling);
   const error = useCompilerStore((s) => s.error);
   const dimensionMap = useCompilerStore((s) => s.dimensionMaps[id]);
-  const setDimensionMapForNode = useCompilerStore((s) => s.setDimensionMapForNode);
+  const appendVariantsToNode = useCompilerStore((s) => s.appendVariantsToNode);
   const setCompiling = useCompilerStore((s) => s.setCompiling);
   const setError = useCompilerStore((s) => s.setError);
 
   const removeNode = useCanvasStore((s) => s.removeNode);
+  const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const syncAfterCompile = useCanvasStore((s) => s.syncAfterCompile);
   const setEdgeStatusBySource = useCanvasStore((s) => s.setEdgeStatusBySource);
   const edges = useCanvasStore((s) => s.edges);
   const nodes = useCanvasStore((s) => s.nodes);
 
-  const {
-    providerId,
-    modelId,
-    supportsVision,
-    handleProviderChange,
-    handleModelChange,
-  } = useNodeProviderModel(DEFAULT_COMPILER_PROVIDER, id);
+  const { providerId, modelId, supportsVision } = useConnectedModel(id);
+
+  const hypothesisCount = (data.hypothesisCount as number | undefined) ?? DEFAULT_COUNT;
 
   // Count connected input nodes (sections + variants + critiques)
   const connectedInputCount = useMemo(() => {
@@ -60,22 +61,44 @@ function CompilerNode({ id, selected }: NodeProps<CompilerNodeType>) {
     }).length;
   }, [edges, nodes, id]);
 
+  // Total hypothesis count from dimension map
+  const totalHypotheses = dimensionMap?.variants.length ?? 0;
+
+  const handleCountChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      updateNodeData(id, { hypothesisCount: Number(e.target.value) });
+    },
+    [id, updateNodeData],
+  );
+
   const handleCompile = useCallback(async () => {
     const results = useGenerationStore.getState().results;
     const { partialSpec, referenceDesigns, critiques } =
       await buildCompileInputs(nodes, edges, spec, id, results);
+
+    // Gather existing strategies from connected hypothesis nodes
+    const dimensionMaps = useCompilerStore.getState().dimensionMaps;
+    const existingStrategies: VariantStrategy[] = [];
+    for (const edge of edges) {
+      if (edge.source !== id) continue;
+      const target = nodes.find((n) => n.id === edge.target && n.type === 'hypothesis');
+      if (!target?.data.refId) continue;
+      const strategy = findVariantStrategy(dimensionMaps, target.data.refId as string);
+      if (strategy) existingStrategies.push(strategy);
+    }
 
     setCompiling(true);
     setError(null);
     setEdgeStatusBySource(id, 'processing');
     try {
       const map = await compileSpec(
-        partialSpec, modelId, providerId, referenceDesigns,
+        partialSpec, modelId!, providerId!, referenceDesigns,
         critiques.length > 0 ? critiques : undefined,
-        supportsVision
+        supportsVision,
+        { count: hypothesisCount, existingStrategies },
       );
-      setDimensionMapForNode(id, map);
-      syncAfterCompile(map, id);
+      appendVariantsToNode(id, map);
+      syncAfterCompile(map.variants, id);
       setEdgeStatusBySource(id, 'complete');
       setTimeout(() => fitView({ duration: 400, padding: 0.15 }), 200);
     } catch (err) {
@@ -92,9 +115,10 @@ function CompilerNode({ id, selected }: NodeProps<CompilerNodeType>) {
     modelId,
     providerId,
     supportsVision,
+    hypothesisCount,
     setCompiling,
     setError,
-    setDimensionMapForNode,
+    appendVariantsToNode,
     syncAfterCompile,
     setEdgeStatusBySource,
     fitView,
@@ -106,13 +130,27 @@ function CompilerNode({ id, selected }: NodeProps<CompilerNodeType>) {
       ? 'border-accent animate-pulse'
       : 'border-border';
 
+  const isReady = connectedInputCount > 0 && !!modelId;
+
+  // Layer 2: inline readiness hint
+  const hint = !isCompiling
+    ? connectedInputCount === 0
+      ? 'Connect section nodes to begin'
+      : !modelId
+        ? 'Connect a Model node'
+        : null
+    : null;
+
   return (
     <NodeShell
       nodeId={id}
+      nodeType="compiler"
       selected={!!selected}
       width="w-node"
       borderClass={borderClass}
-      handleColor={connectedInputCount > 0 && !!modelId ? 'green' : 'amber'}
+      handleColor={isReady ? 'green' : 'amber'}
+      targetShape="diamond"
+      targetPulse={!isReady}
     >
       <NodeHeader
         onRemove={() => removeNode(id)}
@@ -123,26 +161,35 @@ function CompilerNode({ id, selected }: NodeProps<CompilerNodeType>) {
 
       {/* Controls */}
       <div className="space-y-2 px-3 py-2.5">
-        {error && (
+        {error && !isCompiling && (
           <div className="rounded bg-error-subtle px-2 py-1.5 text-nano text-error">
             {error}
           </div>
         )}
 
         <div className="nodrag nowheel space-y-2">
-          <ProviderSelector
-            selectedId={providerId}
-            onChange={handleProviderChange}
-          />
-          <ModelSelector
-            label="Model"
-            providerId={providerId}
-            selectedModelId={modelId}
-            onChange={handleModelChange}
-          />
+          {/* Hypothesis count selector */}
+          <div className="flex items-center justify-between">
+            <label className="text-nano text-fg-secondary">New hypotheses</label>
+            <select
+              value={hypothesisCount}
+              onChange={handleCountChange}
+              disabled={isCompiling}
+              className="rounded border border-border bg-surface px-1.5 py-0.5 text-nano text-fg"
+            >
+              {COUNT_OPTIONS.map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+
+          {hint && (
+            <p className="text-center text-nano text-fg-muted">{hint}</p>
+          )}
+
           <button
             onClick={handleCompile}
-            disabled={isCompiling || connectedInputCount === 0}
+            disabled={isCompiling || !isReady}
             className="flex w-full items-center justify-center gap-1.5 rounded-md bg-fg px-3 py-2 text-xs font-medium text-bg transition-colors hover:bg-fg/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isCompiling ? (
@@ -159,9 +206,9 @@ function CompilerNode({ id, selected }: NodeProps<CompilerNodeType>) {
           </button>
         </div>
 
-        {dimensionMap && !isCompiling && (
+        {totalHypotheses > 0 && !isCompiling && (
           <p className="text-nano text-fg-secondary">
-            {dimensionMap.variants.length} hypotheses generated
+            {totalHypotheses} {totalHypotheses === 1 ? 'hypothesis' : 'hypotheses'} total
           </p>
         )}
       </div>

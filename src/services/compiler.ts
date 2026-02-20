@@ -2,7 +2,7 @@ import type { DesignSpec, ReferenceImage } from '../types/spec';
 import type { CompiledPrompt, DimensionMap, VariantStrategy } from '../types/compiler';
 import type { ContentPart } from '../types/provider';
 import { getPrompt } from '../stores/prompt-store';
-import { buildCompilerUserPrompt, type CritiqueInput } from '../lib/prompts/compiler-user';
+import { buildCompilerUserPrompt, type CritiqueInput, type CompilerPromptOptions } from '../lib/prompts/compiler-user';
 import { buildVariantPrompt } from '../lib/prompts/variant-prompt';
 import { generateId, now } from '../lib/utils';
 import { OPENROUTER_PROXY, LMSTUDIO_PROXY } from '../lib/constants';
@@ -97,10 +97,9 @@ function validateDimensionMap(
     ? raw.variants.map((v: Record<string, unknown>) => ({
         id: generateId(),
         name: String(v.name || 'Unnamed Variant'),
-        primaryEmphasis: String(v.primaryEmphasis || ''),
+        hypothesis: String(v.hypothesis || v.primaryEmphasis || ''),
         rationale: String(v.rationale || ''),
-        howItDiffers: String(v.howItDiffers || ''),
-        coupledDecisions: String(v.coupledDecisions || ''),
+        measurements: String(v.measurements || ''),
         dimensionValues:
           v.dimensionValues && typeof v.dimensionValues === 'object'
             ? Object.fromEntries(
@@ -128,9 +127,10 @@ export async function compileSpec(
   providerId: string,
   referenceDesigns?: { name: string; code: string }[],
   critiques?: CritiqueInput[],
-  supportsVision?: boolean
+  supportsVision?: boolean,
+  promptOptions?: CompilerPromptOptions,
 ): Promise<DimensionMap> {
-  const userPrompt = buildCompilerUserPrompt(spec, referenceDesigns, critiques);
+  const userPrompt = buildCompilerUserPrompt(spec, referenceDesigns, critiques, promptOptions);
 
   // Collect images from all spec sections when model supports vision
   const images = supportsVision

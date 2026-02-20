@@ -10,7 +10,7 @@ export function useResultCode(resultId: string | undefined): {
   isLoading: boolean;
 } {
   const [code, setCode] = useState<string | undefined>(undefined);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(!!resultId);
 
   useEffect(() => {
     if (!resultId) {
@@ -24,10 +24,22 @@ export function useResultCode(resultId: string | undefined): {
 
     loadCode(resultId)
       .then((c) => {
-        if (!cancelled) { setCode(c); setIsLoading(false); }
+        if (!cancelled) {
+          if (import.meta.env.DEV && !c) {
+            console.warn(`[useResultCode] No code found in IndexedDB for result ${resultId.slice(0, 8)}...`);
+          } else if (import.meta.env.DEV && c) {
+            console.log(`[useResultCode] Loaded code for ${resultId.slice(0, 8)}... (${c.length} chars)`);
+          }
+          setCode(c);
+          setIsLoading(false);
+        }
       })
-      .catch(() => {
-        if (!cancelled) { setCode(undefined); setIsLoading(false); }
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(`[useResultCode] Error loading code for ${resultId.slice(0, 8)}...`, err);
+          setCode(undefined);
+          setIsLoading(false);
+        }
       });
 
     return () => {

@@ -1,13 +1,13 @@
-import type { CompiledPrompt } from '../../types/compiler';
+import type { CompiledPrompt, ChatMessage } from '../../types/compiler';
 import type {
   GenerationProvider,
   GenerationResult,
-  OutputFormat,
   ProviderModel,
   ProviderOptions,
+  ChatResponse,
 } from '../../types/provider';
 import { LMSTUDIO_PROXY } from '../../lib/constants';
-import { buildUserContent, buildChatRequest, fetchChatCompletion, fetchModelList, selectSystemPrompt, parseGenerationResult } from '../../lib/provider-helpers';
+import { buildChatRequestFromMessages, fetchChatCompletion, fetchModelList, parseChatResponse } from '../../lib/provider-helpers';
 
 const DEFAULT_MODEL = 'qwen/qwen3-coder-next';
 
@@ -17,7 +17,6 @@ export class LMStudioProvider implements GenerationProvider {
   description = 'Local inference via LM Studio API';
   supportsImages = false;
   supportsParallel = false;
-  supportedFormats: OutputFormat[] = ['html', 'react'];
 
   async listModels(): Promise<ProviderModel[]> {
     const visionPrefixes = (import.meta.env.VITE_LMSTUDIO_VISION_MODELS || '')
@@ -38,17 +37,13 @@ export class LMStudioProvider implements GenerationProvider {
     );
   }
 
-  async generate(
-    prompt: CompiledPrompt,
+  async generateChat(
+    messages: ChatMessage[],
     options: ProviderOptions
-  ): Promise<GenerationResult> {
+  ): Promise<ChatResponse> {
     const model = options.model || DEFAULT_MODEL;
-    const startTime = Date.now();
 
-    const systemPrompt = selectSystemPrompt(options.format);
-
-    const userContent = buildUserContent(prompt, options.supportsVision ?? false);
-    const requestBody = buildChatRequest(model, systemPrompt, userContent, { stream: false });
+    const requestBody = buildChatRequestFromMessages(model, messages, { stream: false });
 
     const data = await fetchChatCompletion(
       `${LMSTUDIO_PROXY}/v1/chat/completions`,
@@ -56,7 +51,7 @@ export class LMStudioProvider implements GenerationProvider {
       { 404: 'LM Studio not available. Make sure LM Studio is running and the server is enabled.' },
       'LM Studio',
     );
-    return parseGenerationResult(data, prompt, this.id, model, startTime);
+    return parseChatResponse(data, this.id);
   }
 
   isAvailable(): boolean {

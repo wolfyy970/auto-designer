@@ -24,7 +24,7 @@ export default function VariantMetadata({
           </span>
         )}
       </div>
-      <p className="mt-0.5 text-xs text-fg-secondary">{strategy.primaryEmphasis}</p>
+      <p className="mt-0.5 text-xs text-fg-secondary">{strategy.hypothesis}</p>
       {result.metadata.durationMs !== undefined && result.metadata.durationMs > 0 && (
         <div className="mt-1 flex gap-3 text-xs text-fg-muted">
           <span>{result.metadata.model}</span>

@@ -78,14 +78,14 @@ describe('getActiveResult', () => {
     expect(getActiveResult(state, 'vs-1')?.id).toBe('r1');
   });
 
-  it('falls back to latest complete when no selection', () => {
+  it('prioritizes generating over complete when no selection', () => {
     const state = mockState([
       makeResult({ id: 'r1', runNumber: 1 }),
       makeResult({ id: 'r2', runNumber: 2, status: 'generating' }),
       makeResult({ id: 'r3', runNumber: 3 }),
     ]);
-    // r3 is newest complete
-    expect(getActiveResult(state, 'vs-1')?.id).toBe('r3');
+    // r2 is generating — takes priority so user sees active generation
+    expect(getActiveResult(state, 'vs-1')?.id).toBe('r2');
   });
 
   it('falls back to generating when no complete results', () => {

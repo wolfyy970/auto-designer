@@ -6,9 +6,10 @@ import {
 } from '../stores/generation-store';
 import { getProvider } from '../services/providers/registry';
 import { saveCode, saveProvenance } from '../services/idb-storage';
+import { runAgenticBuild } from '../services/agent/orchestrator';
+import { getPrompt } from '../stores/prompt-store';
 import type { CompiledPrompt } from '../types/compiler';
 import type {
-  OutputFormat,
   GenerationResult,
   Provenance,
 } from '../types/provider';
@@ -18,13 +19,12 @@ export interface ProvenanceContext {
     string,
     {
       name: string;
-      primaryEmphasis: string;
+      hypothesis: string;
       rationale: string;
       dimensionValues: Record<string, string>;
     }
   >;
   designSystemSnapshot?: string;
-  format: OutputFormat;
 }
 
 /**
@@ -42,7 +42,6 @@ export function useGenerate() {
       providerId: string,
       prompts: CompiledPrompt[],
       options: {
-        format: OutputFormat;
         model: string;
         supportsVision?: boolean;
       },
@@ -51,13 +50,15 @@ export function useGenerate() {
         onResultComplete?: (placeholderId: string) => void;
       },
       provenanceCtx?: ProvenanceContext,
+      config?: { manageGenerating?: boolean },
     ): Promise<GenerationResult[]> => {
       const provider = getProvider(providerId);
       if (!provider || prompts.length === 0) return [];
 
+      const manage = config?.manageGenerating !== false;
       const runId = crypto.randomUUID();
       // No resetResults() — results accumulate across runs
-      setGenerating(true);
+      if (manage) setGenerating(true);
 
       // Create placeholders — read nextRunNumber live from current state
       // so rapid double-clicks get sequential numbers (addResult is synchronous)
@@ -88,11 +89,33 @@ export function useGenerate() {
       const generateOne = async (prompt: CompiledPrompt) => {
         const placeholderId = placeholderMap.get(prompt.variantStrategyId)!;
         try {
-          const result = await provider.generate(prompt, options);
+          const workspace = await runAgenticBuild(
+            getPrompt('agentSystemBuilder'),
+            prompt.prompt,
+            provider,
+            {
+              model: options.model,
+              supportsVision: options.supportsVision,
+              plannerSystemPrompt: getPrompt('agentSystemPlanner'),
+              onProgress: (status) => console.log(`[Agent ${placeholderId.slice(0, 8)}] ${status}`),
+            }
+          );
+
+          const bundledHtml = workspace.bundleToHtml();
 
           // Save code to IndexedDB (not in Zustand store)
-          if (result.code) {
-            await saveCode(placeholderId, result.code);
+          if (bundledHtml) {
+            try {
+              await saveCode(placeholderId, bundledHtml);
+              if (import.meta.env.DEV) {
+                console.log(`[useGenerate] Saved bundled code for ${placeholderId.slice(0, 8)}... (${bundledHtml.length} chars)`);
+              }
+            } catch (saveErr) {
+              console.error('[useGenerate] Failed to save code to IndexedDB:', saveErr);
+              throw new Error(`Failed to save code: ${normalizeError(saveErr)}`);
+            }
+          } else {
+            console.warn(`[useGenerate] No code in bundled workspace for ${placeholderId.slice(0, 8)}...`);
           }
 
           // Save provenance snapshot to IndexedDB
@@ -106,18 +129,20 @@ export function useGenerate() {
                 compiledPrompt: prompt.prompt,
                 provider: providerId,
                 model: options.model,
-                format: provenanceCtx.format,
                 timestamp: new Date().toISOString(),
               };
               await saveProvenance(placeholderId, provenance);
             }
           }
 
-          // Update metadata in Zustand (no code — it's in IndexedDB)
+          // Update metadata in Zustand
           updateResult(placeholderId, {
             id: placeholderId,
             status: 'complete',
-            metadata: result.metadata,
+            metadata: {
+              model: options.model,
+              completedAt: new Date().toISOString(),
+            },
           });
           callbacks?.onResultComplete?.(placeholderId);
         } catch (err) {
@@ -137,7 +162,7 @@ export function useGenerate() {
         }
       }
 
-      setGenerating(false);
+      if (manage) setGenerating(false);
       return placeholders;
     },
     [addResult, updateResult, setGenerating],

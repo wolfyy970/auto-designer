@@ -5,18 +5,13 @@ import {
   Background,
   BackgroundVariant,
   ReactFlowProvider,
+  useReactFlow,
   type Viewport,
-  type Connection,
   type OnSelectionChangeParams,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import { useCanvasStore, SECTION_NODE_TYPES, GRID_SIZE, type CanvasNodeType } from '../../stores/canvas-store';
-import { useGenerationStore, getActiveResult } from '../../stores/generation-store';
-import { useSpecStore } from '../../stores/spec-store';
-import { loadCode } from '../../services/idb-storage';
-import { captureScreenshot, prepareIframeContent } from '../../lib/iframe-utils';
-import { generateId, now } from '../../lib/utils';
 import { nodeTypes } from './nodes/node-types';
 import { edgeTypes } from './edges/edge-types';
 import CanvasHeader from './CanvasHeader';
@@ -24,63 +19,27 @@ import CanvasToolbar from './CanvasToolbar';
 import CanvasContextMenu from './CanvasContextMenu';
 import VariantPreviewOverlay from './VariantPreviewOverlay';
 import { useCanvasOrchestrator } from './hooks/useCanvasOrchestrator';
-
-/**
- * When a variant node connects to an existing design node,
- * capture a screenshot and add it as a reference image.
- * The edge persists as a visible feedback-loop connection.
- */
-async function captureVariantIntoExistingDesign(
-  variantNodeId: string,
-  _existingDesignNodeId: string
-) {
-  const node = useCanvasStore.getState().nodes.find((n) => n.id === variantNodeId);
-  const vsId = node?.data.variantStrategyId as string | undefined;
-  if (!vsId) return;
-
-  const result = getActiveResult(useGenerationStore.getState(), vsId);
-  if (!result) return;
-
-  // Load code from IndexedDB
-  const code = await loadCode(result.id);
-  if (!code) return;
-
-  useSpecStore.getState().setCapturingImage('existing-design');
-  try {
-    const htmlContent = prepareIframeContent(code);
-    const dataUrl = await captureScreenshot(htmlContent);
-    useSpecStore.getState().addImage('existing-design', {
-      id: generateId(),
-      filename: `variant-${result.metadata?.model ?? 'design'}.png`,
-      dataUrl,
-      description: result.metadata?.model
-        ? `Generated variant (${result.metadata.model})`
-        : 'Generated design variant',
-      createdAt: now(),
-    });
-  } catch (err) {
-    if (import.meta.env.DEV) {
-      console.warn('Failed to capture variant screenshot:', err);
-    }
-  } finally {
-    useSpecStore.getState().setCapturingImage(null);
-  }
-}
+import { useNodeDeletion } from './hooks/useNodeDeletion';
+import { useFeedbackLoopConnection } from './hooks/useFeedbackLoopConnection';
 
 function CanvasInner() {
   useCanvasOrchestrator();
+  useNodeDeletion();
+  const { handleConnect } = useFeedbackLoopConnection();
+  
+  const { setCenter, getNodes } = useReactFlow();
   const nodes = useCanvasStore((s) => s.nodes);
   const edges = useCanvasStore((s) => s.edges);
   const viewport = useCanvasStore((s) => s.viewport);
   const onNodesChange = useCanvasStore((s) => s.onNodesChange);
   const onEdgesChange = useCanvasStore((s) => s.onEdgesChange);
-  const storeOnConnect = useCanvasStore((s) => s.onConnect);
   const isValidConnection = useCanvasStore((s) => s.isValidConnection);
   const setViewport = useCanvasStore((s) => s.setViewport);
   const initializeCanvas = useCanvasStore((s) => s.initializeCanvas);
   const showMiniMap = useCanvasStore((s) => s.showMiniMap);
   const autoLayout = useCanvasStore((s) => s.autoLayout);
   const computeLineage = useCanvasStore((s) => s.computeLineage);
+  const setConnectingFrom = useCanvasStore((s) => s.setConnectingFrom);
 
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -90,62 +49,6 @@ function CanvasInner() {
   useEffect(() => {
     initializeCanvas();
   }, [initializeCanvas]);
-
-  // Delete key removes selected nodes (except protected types)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT' ||
-        target.isContentEditable
-      ) {
-        return;
-      }
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        const selected = nodes.filter((n) => n.selected);
-        if (selected.length === 0) return;
-        e.preventDefault();
-        const PROTECTED = new Set<string>([
-          'compiler',
-          ...SECTION_NODE_TYPES,
-        ]);
-        const removable = selected.filter(
-          (n) => !PROTECTED.has(n.type as string),
-        );
-        const removeNode = useCanvasStore.getState().removeNode;
-        removable.forEach((n) => removeNode(n.id));
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nodes]);
-
-  const handleConnect = useCallback(
-    (connection: Connection) => {
-      // Create the edge via the store
-      storeOnConnect(connection);
-
-      // If variant → existingDesign, capture screenshot
-      const storeNodes = useCanvasStore.getState().nodes;
-      const sourceNode = storeNodes.find((n) => n.id === connection.source);
-      const targetNode = storeNodes.find((n) => n.id === connection.target);
-      if (
-        sourceNode?.type === 'variant' &&
-        targetNode?.type === 'existingDesign' &&
-        connection.source &&
-        connection.target
-      ) {
-        captureVariantIntoExistingDesign(connection.source, connection.target);
-      }
-
-      // Re-layout after new edge
-      const cs = useCanvasStore.getState();
-      if (cs.autoLayout) cs.applyAutoLayout();
-    },
-    [storeOnConnect]
-  );
 
   const handleViewportChange = useCallback(
     (vp: Viewport) => setViewport(vp),
@@ -171,12 +74,51 @@ function CanvasInner() {
     [computeLineage]
   );
 
+  // Layer 3A: handle glow during connection drag
+  const handleConnectStart = useCallback(
+    (_: MouseEvent | TouchEvent, params: { nodeId: string | null; handleType: string | null }) => {
+      if (!params.nodeId || !params.handleType) return;
+      const node = useCanvasStore.getState().nodes.find((n) => n.id === params.nodeId);
+      if (node?.type) {
+        setConnectingFrom({
+          nodeType: node.type as CanvasNodeType,
+          handleType: params.handleType as 'source' | 'target',
+        });
+      }
+    },
+    [setConnectingFrom]
+  );
+
+  const handleConnectEnd = useCallback(() => {
+    setConnectingFrom(null);
+  }, [setConnectingFrom]);
+
+  const handleNodeClick = useCallback(
+    (event: React.MouseEvent, node: { id: string }) => {
+      // Don't zoom when clicking interactive elements inside the node
+      const target = event.target as HTMLElement;
+      if (target.closest('input, textarea, select, button, [role="combobox"]')) {
+        return;
+      }
+      const rfNode = getNodes().find((n) => n.id === node.id);
+      if (!rfNode) return;
+      const w = rfNode.measured?.width ?? rfNode.width ?? 320;
+      const h = rfNode.measured?.height ?? rfNode.height ?? 200;
+      setCenter(rfNode.position.x + w / 2, rfNode.position.y + h / 2, {
+        zoom: 0.85,
+        duration: 300,
+      });
+    },
+    [setCenter, getNodes],
+  );
+
   const miniMapNodeColor = useCallback((node: { type?: string }) => {
     const t = node.type as CanvasNodeType | undefined;
     if (t && SECTION_NODE_TYPES.has(t)) return 'var(--color-fg-muted)'; // inputs
     switch (t) {
       case 'compiler':
       case 'designSystem':
+      case 'model':
         return 'var(--color-accent)'; // processing
       case 'hypothesis':
       case 'variant':
@@ -196,12 +138,15 @@ function CanvasInner() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={handleConnect}
+        onConnectStart={handleConnectStart}
+        onConnectEnd={handleConnectEnd}
         isValidConnection={isValidConnection}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultViewport={viewport}
         onViewportChange={handleViewportChange}
         onPaneContextMenu={handlePaneContextMenu}
+        onNodeClick={handleNodeClick}
         onPaneClick={handlePaneClick}
         onSelectionChange={handleSelectionChange}
         nodesDraggable={!autoLayout}

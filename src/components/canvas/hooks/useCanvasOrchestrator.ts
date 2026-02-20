@@ -53,13 +53,18 @@ export function useCanvasOrchestrator() {
       });
     }
 
-    // Clean stale "generating" results left over from a previous session
-    for (const r of results) {
-      if (r.status === 'generating') {
-        useGenerationStore.getState().updateResult(r.id, {
-          status: 'error',
-          error: 'Generation interrupted by page reload',
-        });
+    // Clean stale "generating" results left over from a previous session.
+    // Only when not actively generating — isGenerating is NOT persisted,
+    // so it defaults to false on page load (catches stale results) but
+    // is true during active generation (prevents false "interrupted" errors).
+    if (!useGenerationStore.getState().isGenerating) {
+      for (const r of results) {
+        if (r.status === 'generating') {
+          useGenerationStore.getState().updateResult(r.id, {
+            status: 'error',
+            error: 'Generation interrupted by page reload',
+          });
+        }
       }
     }
   }, [dimensionMaps, results]);

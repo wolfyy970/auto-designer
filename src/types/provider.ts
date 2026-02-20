@@ -1,6 +1,5 @@
-import type { CompiledPrompt } from './compiler';
+import type { CompiledPrompt, ChatMessage } from './compiler';
 
-export type OutputFormat = 'html' | 'react';
 type GenerationStatus = 'pending' | 'generating' | 'complete' | 'error';
 
 export type ContentPart =
@@ -15,7 +14,6 @@ export interface ProviderModel {
 }
 
 export interface ProviderOptions {
-  format: OutputFormat;
   model?: string;
   supportsVision?: boolean;
 }
@@ -23,7 +21,7 @@ export interface ProviderOptions {
 export interface Provenance {
   hypothesisSnapshot: {
     name: string;
-    primaryEmphasis: string;
+    hypothesis: string;
     rationale: string;
     dimensionValues: Record<string, string>;
   };
@@ -31,7 +29,6 @@ export interface Provenance {
   compiledPrompt: string;
   provider: string;
   model: string;
-  format: OutputFormat;
   timestamp: string;
 }
 
@@ -53,14 +50,21 @@ export interface GenerationResult {
   };
 }
 
+export interface ChatResponse {
+  raw: string;
+  metadata?: {
+    tokensUsed?: number;
+    truncated?: boolean;
+  };
+}
+
 export interface GenerationProvider {
   id: string;
   name: string;
   description: string;
   supportsImages: boolean;
   supportsParallel: boolean;
-  supportedFormats: OutputFormat[];
-  generate(prompt: CompiledPrompt, options: ProviderOptions): Promise<GenerationResult>;
+  generateChat(messages: ChatMessage[], options: ProviderOptions): Promise<ChatResponse>;
   listModels(): Promise<ProviderModel[]>;
   isAvailable(): boolean;
 }

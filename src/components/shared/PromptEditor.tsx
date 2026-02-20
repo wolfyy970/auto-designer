@@ -58,12 +58,21 @@ function validatePrompt(key: PromptKey, value: string): Diagnostic[] {
     });
   }
 
-  // Gen system React: should mention React/JSX
-  if (key === 'genSystemReact' && !/react|jsx/i.test(value)) {
+  // Agent planner: must return JSON
+  if (key === 'agentSystemPlanner' && !value.toLowerCase().includes('json')) {
     diagnostics.push({
       level: 'warning',
       message:
-        'Should instruct the model to return React/JSX. Output is wrapped and rendered in an iframe.',
+        'Should instruct the model to return JSON. The planner response is parsed with JSON.parse().',
+    });
+  }
+
+  // Agent builder: should mention XML tools
+  if (key === 'agentSystemBuilder' && !value.includes('<write_file')) {
+    diagnostics.push({
+      level: 'warning',
+      message:
+        'Should instruct the model to use <write_file path="..."> tags to build the workspace.',
     });
   }
 
@@ -74,7 +83,7 @@ function validatePrompt(key: PromptKey, value: string): Diagnostic[] {
 
 const GROUPS: { label: string; keys: PromptKey[] }[] = [
   { label: 'Incubator', keys: ['compilerSystem', 'compilerUser'] },
-  { label: 'Designer', keys: ['genSystemHtml', 'genSystemReact', 'variant'] },
+  { label: 'Designer', keys: ['agentSystemPlanner', 'agentSystemBuilder', 'variant', 'genSystemHtml'] },
   { label: 'Design System', keys: ['designSystemExtract'] },
 ];
 
@@ -82,7 +91,7 @@ const GROUPS: { label: string; keys: PromptKey[] }[] = [
 function shortLabel(key: PromptKey): string {
   const meta = PROMPT_META.find((m) => m.key === key);
   if (!meta) return key;
-  return meta.label.replace(/^(Incubator|Designer|Design System)\s*—\s*/, '');
+  return meta.label.replace(/^(Incubator|Agent Designer|Legacy Designer|Designer|Design System)\s*—\s*/, '');
 }
 
 // ── Component ───────────────────────────────────────────────────────

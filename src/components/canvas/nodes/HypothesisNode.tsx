@@ -1,15 +1,11 @@
 import { memo, useCallback, useState } from 'react';
 import { type NodeProps, type Node, Handle, Position } from '@xyflow/react';
-import { ChevronDown, ChevronRight, X, Sparkles, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, X, Sparkles, Loader2, Pencil } from 'lucide-react';
 import { useCompilerStore, findVariantStrategy } from '../../../stores/compiler-store';
 import { useCanvasStore } from '../../../stores/canvas-store';
+import { useGenerationStore } from '../../../stores/generation-store';
 import type { HypothesisNodeData } from '../../../types/canvas-data';
-import { DEFAULT_GENERATION_PROVIDER } from '../../../lib/constants';
-import type { OutputFormat } from '../../../types/provider';
-import { useNodeProviderModel } from '../../../hooks/useNodeProviderModel';
 import { useHypothesisGeneration } from '../../../hooks/useHypothesisGeneration';
-import ProviderSelector from '../../generation/ProviderSelector';
-import ModelSelector from '../../shared/ModelSelector';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';
 import CompactField from './CompactField';
@@ -26,31 +22,27 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
 
   const removeNode = useCanvasStore((s) => s.removeNode);
 
-  const {
-    providerId,
-    modelId,
-    supportsVision,
-    handleProviderChange,
-    handleModelChange,
-  } = useNodeProviderModel(DEFAULT_GENERATION_PROVIDER, nodeId, { disconnectOnChange: false });
+  // Count connected Model nodes with a selected model (reactive for UI)
+  const connectedModelCount = useCanvasStore((s) => {
+    let count = 0;
+    for (const e of s.edges) {
+      if (e.target !== nodeId) continue;
+      const src = s.nodes.find((n) => n.id === e.source);
+      if (src?.type === 'model' && src.data.modelId) count++;
+    }
+    return count;
+  });
 
-  // Persist format in canvas node data
-  const format: OutputFormat = data.format || 'react';
-  const setFormat = useCallback((f: OutputFormat) => {
-    useCanvasStore.getState().updateNodeData(nodeId, { format: f });
-  }, [nodeId]);
+  // Check if THIS hypothesis is generating (not global)
+  const isGenerating = useGenerationStore((s) =>
+    s.results.some((r) => r.variantStrategyId === strategyId && r.status === 'generating'),
+  );
 
-  const { handleGenerate, isGenerating, generationProgress, generationError } =
-    useHypothesisGeneration({
-      nodeId,
-      strategyId,
-      providerId,
-      modelId,
-      format,
-      supportsVision,
-    });
+  const { handleGenerate, generationProgress, generationError } =
+    useHypothesisGeneration({ nodeId, strategyId });
 
   const [expanded, setExpanded] = useState(false);
+  const [editingName, setEditingName] = useState(false);
 
   const update = useCallback(
     (field: string, value: string) => {
@@ -60,6 +52,17 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
   );
 
   const handleDelete = useCallback(() => {
+    const { edges: storeEdges, nodes: storeNodes } = useCanvasStore.getState();
+    let variantCount = 0;
+    for (const e of storeEdges) {
+      if (e.source !== nodeId) continue;
+      if (storeNodes.find((n) => n.id === e.target && n.type === 'variant')) {
+        variantCount++;
+      }
+    }
+    if (variantCount > 0) {
+      if (!window.confirm(`Delete this hypothesis and ${variantCount} connected ${variantCount === 1 ? 'variant' : 'variants'}?`)) return;
+    }
     removeNode(nodeId);
   }, [nodeId, removeNode]);
 
@@ -86,33 +89,77 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
       ? 'border-accent/50 animate-pulse'
       : 'border-border';
 
-  const canGenerate = !!strategy.name.trim() && !!strategy.primaryEmphasis.trim() && !!modelId;
+  const hasModel = connectedModelCount > 0;
+  const canGenerate = !!strategy.name.trim() && !!strategy.hypothesis.trim() && hasModel;
+
+  // Convert small numbers to words for better UX
+  const numberToWord = (n: number): string => {
+    const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+    return n <= 10 ? words[n] : n.toString();
+  };
+
+  // Layer 2: inline readiness hint
+  const hint = !isGenerating
+    ? !hasModel
+      ? 'Connect a Model node'
+      : !strategy.name.trim() || !strategy.hypothesis.trim()
+        ? 'Add a name and hypothesis'
+        : null
+    : null;
 
   return (
     <NodeShell
       nodeId={nodeId}
+      nodeType="hypothesis"
       selected={!!selected}
       width="w-node"
       borderClass={borderClass}
       handleColor={canGenerate ? 'green' : 'amber'}
+      targetShape="diamond"
+      targetPulse={!hasModel}
     >
       <NodeHeader onRemove={handleDelete}>
-        <input
-          value={strategy.name}
-          onChange={(e) => update('name', e.target.value)}
-          className="nodrag nowheel min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-xs font-semibold text-fg outline-none hover:border-border focus:border-accent"
-        />
+        {editingName ? (
+          <input
+            autoFocus
+            value={strategy.name}
+            onChange={(e) => update('name', e.target.value)}
+            onFocus={(e) => e.target.select()}
+            onBlur={() => setEditingName(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'Escape') setEditingName(false);
+            }}
+            className="nodrag nowheel min-w-0 flex-1 rounded border border-accent bg-transparent px-1 text-xs font-semibold text-fg outline-none"
+          />
+        ) : (
+          <div
+            className="flex min-w-0 flex-1 items-center gap-1"
+            onDoubleClick={() => setEditingName(true)}
+          >
+            <span className="truncate text-xs font-semibold text-fg">
+              {strategy.name || 'Untitled'}
+            </span>
+            <button
+              onClick={() => setEditingName(true)}
+              className="nodrag shrink-0 rounded p-0.5 text-fg-faint transition-colors hover:text-fg-muted"
+              title="Rename"
+            >
+              <Pencil size={10} />
+            </button>
+          </div>
+        )}
       </NodeHeader>
 
-      {/* Primary Emphasis */}
+      {/* Hypothesis */}
       <div className="px-3 py-2">
         <label className="mb-0.5 block text-nano font-medium text-fg-muted">
-          Primary Emphasis
+          Hypothesis
         </label>
-        <input
-          value={strategy.primaryEmphasis}
-          onChange={(e) => update('primaryEmphasis', e.target.value)}
-          className="nodrag nowheel w-full rounded border border-border px-2 py-1.5 text-micro text-fg-secondary outline-none focus:border-accent"
+        <textarea
+          value={strategy.hypothesis}
+          onChange={(e) => update('hypothesis', e.target.value)}
+          rows={2}
+          className="nodrag nowheel w-full resize-none rounded border border-border px-2 py-1.5 text-micro text-fg-secondary outline-none focus:border-accent"
         />
       </div>
 
@@ -128,21 +175,15 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
       {expanded && (
         <div className="space-y-2 px-3 pb-3">
           <CompactField
-            label="Rationale"
+            label="Why"
             value={strategy.rationale}
             onChange={(v) => update('rationale', v)}
             rows={2}
           />
           <CompactField
-            label="How It Differs"
-            value={strategy.howItDiffers}
-            onChange={(v) => update('howItDiffers', v)}
-            rows={2}
-          />
-          <CompactField
-            label="Coupled Decisions"
-            value={strategy.coupledDecisions}
-            onChange={(v) => update('coupledDecisions', v)}
+            label="Measurements"
+            value={strategy.measurements}
+            onChange={(v) => update('measurements', v)}
             rows={2}
           />
         </div>
@@ -155,30 +196,10 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
             {generationError}
           </div>
         )}
-        <div className="nodrag nowheel space-y-2">
-          <ProviderSelector
-            selectedId={providerId}
-            onChange={handleProviderChange}
-          />
-          <ModelSelector
-            label="Model"
-            providerId={providerId}
-            selectedModelId={modelId}
-            onChange={handleModelChange}
-          />
-          <div>
-            <label className="mb-1 block text-xs font-medium text-fg-secondary">
-              Format
-            </label>
-            <select
-              value={format}
-              onChange={(e) => setFormat(e.target.value as OutputFormat)}
-              className="w-full rounded-md border border-border bg-surface px-2 py-2 text-xs text-fg-secondary outline-none focus:border-accent"
-            >
-              <option value="react">React</option>
-              <option value="html">HTML</option>
-            </select>
-          </div>
+        <div className="nodrag nowheel">
+          {hint && (
+            <p className="mb-1.5 text-center text-nano text-fg-muted">{hint}</p>
+          )}
           <button
             onClick={handleGenerate}
             disabled={isGenerating || !canGenerate}
@@ -188,7 +209,11 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
               <>
                 <Loader2 size={12} className="animate-spin" />
                 {generationProgress
-                  ? `Creating ${generationProgress.completed}/${generationProgress.total}...`
+                  ? generationProgress.completed === 0 && generationProgress.total > 1
+                    ? `Creating ${numberToWord(generationProgress.total)} designs...`
+                    : generationProgress.total > 1
+                      ? `${generationProgress.completed} of ${generationProgress.total} ready...`
+                      : 'Creating...'
                   : 'Creating...'}
               </>
             ) : (

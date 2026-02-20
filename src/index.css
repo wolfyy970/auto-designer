@@ -150,3 +150,51 @@ body {
     stroke-dashoffset: -12;
   }
 }
+
+/* ── Handle Affordance System ──────────────────────────────────────── */
+
+/* Diamond shape for required-input handles */
+.handle-diamond {
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+/* Breathing glow for unconnected required handles */
+@keyframes handle-breathe {
+  0%, 100% { filter: drop-shadow(0 0 2px transparent); }
+  50% { filter: drop-shadow(0 0 6px var(--color-warning)); }
+}
+.handle-pulse {
+  animation: handle-breathe 2s ease-in-out infinite;
+}
+
+/* Valid connection target glow during drag */
+.handle-glow-valid {
+  filter: drop-shadow(0 0 6px var(--color-success)) !important;
+  animation: none !important;
+}
+
+/* Invalid connection target dim during drag */
+.handle-glow-dim {
+  opacity: 0.25 !important;
+  animation: none !important;
+}
+
+/* ── Variant Version Stack ────────────────────────────────────────── */
+
+/* One card behind (2 versions) */
+.variant-stack {
+  box-shadow:
+    0 1px 2px 0 rgb(0 0 0 / 0.05),
+    3px 3px 0 -1px var(--color-surface-raised),
+    3px 3px 0 0 var(--color-border);
+}
+
+/* Two cards behind (3+ versions) */
+.variant-stack-deep {
+  box-shadow:
+    0 1px 2px 0 rgb(0 0 0 / 0.05),
+    3px 3px 0 -1px var(--color-surface-raised),
+    3px 3px 0 0 var(--color-border),
+    6px 6px 0 -1px var(--color-surface-raised),
+    6px 6px 0 0 var(--color-border);
+}

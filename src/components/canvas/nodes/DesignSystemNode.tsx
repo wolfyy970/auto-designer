@@ -5,13 +5,10 @@ import { ImagePlus, Sparkles, Loader2, X } from 'lucide-react';
 import { normalizeError } from '../../../lib/error-utils';
 import { useCanvasStore } from '../../../stores/canvas-store';
 import type { DesignSystemNodeData } from '../../../types/canvas-data';
-import { DEFAULT_COMPILER_PROVIDER } from '../../../lib/constants';
 import { callLLM } from '../../../services/compiler';
 import { getPrompt } from '../../../stores/prompt-store';
 import { generateId, now } from '../../../lib/utils';
-import { useNodeProviderModel } from '../../../hooks/useNodeProviderModel';
-import ProviderSelector from '../../generation/ProviderSelector';
-import ModelSelector from '../../shared/ModelSelector';
+import { useConnectedModel } from '../../../hooks/useConnectedModel';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';
 import type { ReferenceImage } from '../../../types/spec';
@@ -26,13 +23,7 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
   const content = data.content || '';
   const images = data.images || [];
 
-  const {
-    providerId,
-    modelId,
-    supportsVision,
-    handleProviderChange,
-    handleModelChange,
-  } = useNodeProviderModel(DEFAULT_COMPILER_PROVIDER, id);
+  const { providerId, modelId, supportsVision } = useConnectedModel(id);
 
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
@@ -96,8 +87,8 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
           { role: 'system', content: systemPrompt },
           { role: 'user', content: 'Extract the design system from the provided images.' },
         ],
-        modelId,
-        providerId,
+        modelId!,
+        providerId!,
         { temperature: 0.3, max_tokens: 4096, images },
       );
 
@@ -127,10 +118,10 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
   return (
     <NodeShell
       nodeId={id}
+      nodeType="designSystem"
       selected={!!selected}
       width="w-node"
       borderClass={borderClass}
-      hasTarget={false}
       handleColor={content.trim() ? 'green' : 'amber'}
     >
       <NodeHeader
@@ -212,21 +203,12 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
         {/* Extraction controls */}
         {images.length > 0 && (
           <div className="nodrag nowheel mt-2.5 space-y-2 border-t border-border-subtle pt-2.5">
-            <ProviderSelector
-              label="Provider"
-              selectedId={providerId}
-              onChange={handleProviderChange}
-            />
-            <ModelSelector
-              label="Vision Model"
-              providerId={providerId}
-              selectedModelId={modelId}
-              onChange={handleModelChange}
-            />
+            {!extracting && !modelId && (
+              <p className="text-center text-nano text-fg-muted">Connect a Model node</p>
+            )}
             <button
               onClick={handleExtract}
               disabled={extracting || !modelId}
-              title={!modelId ? 'Select a vision model first' : 'Extract design system from uploaded images'}
               className="flex w-full items-center justify-center gap-1.5 rounded-md bg-fg px-3 py-1.5 text-xs font-medium text-bg transition-colors hover:bg-fg/90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {extracting ? (

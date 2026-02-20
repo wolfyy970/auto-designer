@@ -57,8 +57,26 @@ describe('isValidConnection', () => {
     expect(isValidConnection('designBrief', 'unknown')).toBe(false);
   });
 
+  it('allows model to connect to compiler, hypothesis, and designSystem', () => {
+    expect(isValidConnection('model', 'compiler')).toBe(true);
+    expect(isValidConnection('model', 'hypothesis')).toBe(true);
+    expect(isValidConnection('model', 'designSystem')).toBe(true);
+  });
+
+  it('rejects model connecting to sections, variants, or critiques', () => {
+    expect(isValidConnection('model', 'designBrief')).toBe(false);
+    expect(isValidConnection('model', 'variant')).toBe(false);
+    expect(isValidConnection('model', 'critique')).toBe(false);
+  });
+
+  it('rejects connections TO model nodes', () => {
+    expect(isValidConnection('compiler', 'model')).toBe(false);
+    expect(isValidConnection('hypothesis', 'model')).toBe(false);
+    expect(isValidConnection('designBrief', 'model')).toBe(false);
+  });
+
   it('covers all defined source types', () => {
     const definedSources = Object.keys(VALID_CONNECTIONS);
-    expect(definedSources.length).toBeGreaterThanOrEqual(10);
+    expect(definedSources.length).toBeGreaterThanOrEqual(11); // Now includes 'model'
   });
 });
