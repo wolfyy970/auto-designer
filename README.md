@@ -1,8 +1,8 @@
-# Auto Designer
+# Lattice
 
 A specification workspace that helps designers define design problem boundaries before AI generation. Specifications compile into hypothesis strategies that systematically explore the solution space. An agentic build engine then generates each variant across multiple LLM calls — breaking through single-response token limits.
 
-Designers write structured specs. The compiler reasons about the exploration space. The agentic engine builds variants file-by-file. Everything connects on a visual node-graph canvas.
+Designers write structured inputs. The compiler reasons about the exploration space. The agentic engine builds variants file-by-file. Everything connects on a visual node-graph canvas.
 
 ## Quick Start
 

@@ -94,7 +94,7 @@ Overrides persist in localStorage. Validation warns if required patterns are mis
 
 - Store metadata auto-saves via Zustand `persist` middleware (localStorage)
 - Generated code and provenance snapshots stored in IndexedDB (avoids localStorage size limits)
-- Spec Manager: save, load, duplicate, delete, export/import JSON
+- Canvas Manager: save, load, duplicate, delete, export/import JSON
 - Canvas state persists across sessions (nodes, edges, viewport, layout preferences)
 - Automatic garbage collection removes orphaned IndexedDB entries on app startup
 

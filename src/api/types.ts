@@ -39,11 +39,9 @@ export interface GenerateRequest {
   providerId: string;
   modelId: string;
   promptOverrides?: {
-    agentSystemBuilder?: string;
-    agentSystemPlanner?: string;
+    genSystemHtml?: string;
     variant?: string;
   };
-  maxLoops?: number;
   supportsVision?: boolean;
 }
 
@@ -69,7 +67,7 @@ export interface ProviderInfo {
 export interface LlmLogEntry {
   id: string;
   timestamp: string;
-  source: 'compiler' | 'planner' | 'builder' | 'other';
+  source: 'compiler' | 'generator' | 'other';
   phase?: string;
   model: string;
   provider: string;

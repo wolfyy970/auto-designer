@@ -1,5 +1,5 @@
 import type { ChatMessage } from '../types/provider';
-import type { ProviderModel, ChatResponse, ToolDefinition, ToolCall, ToolChatResponse } from '../types/provider';
+import type { ProviderModel, ChatResponse } from '../types/provider';
 
 /** Build OpenAI-compatible chat request body from an array of messages */
 export function buildChatRequestFromMessages(
@@ -77,7 +77,7 @@ export async function fetchModelList(
   }
 }
 
-/** Parse chat completion response into a ChatResponse for agentic loops */
+/** Parse chat completion response into a ChatResponse */
 export function parseChatResponse(
   data: Record<string, unknown>,
   providerId: string,
@@ -95,76 +95,6 @@ export function parseChatResponse(
 
   return {
     raw: rawText,
-    metadata: {
-      tokensUsed: usage?.completion_tokens as number | undefined,
-      truncated: finishReason === 'length',
-    },
-  };
-}
-
-// ── Native tool calling helpers ───────────────────────────────────────
-
-/**
- * Build an OpenAI-compatible request body that includes a tools schema.
- * Extends buildChatRequestFromMessages with the tools and tool_choice fields.
- */
-export function buildToolsRequestBody(
-  model: string,
-  messages: ChatMessage[],
-  tools: ToolDefinition[],
-  extraFields?: Record<string, unknown>
-): Record<string, unknown> {
-  const base = buildChatRequestFromMessages(model, messages, extraFields);
-  return {
-    ...base,
-    tools: tools.map((t) => ({
-      type: 'function',
-      function: {
-        name: t.name,
-        description: t.description,
-        parameters: t.parameters,
-      },
-    })),
-    tool_choice: 'auto',
-  };
-}
-
-/**
- * Parse a chat completion response that may contain tool_calls.
- * Returns a ToolChatResponse with structured tool calls and any prose text.
- */
-export function parseToolCallResponse(
-  data: Record<string, unknown>,
-  providerId: string,
-): ToolChatResponse {
-  const choices = data.choices as Array<Record<string, unknown>> | undefined;
-  const firstChoice = choices?.[0] as Record<string, unknown> | undefined;
-  const message = firstChoice?.message as Record<string, unknown> | undefined;
-  const finishReason = firstChoice?.finish_reason as string | undefined;
-  const usage = data.usage as Record<string, unknown> | undefined;
-
-  if (finishReason === 'length' && import.meta.env.DEV) {
-    console.warn(`[${providerId}] Tool response truncated due to max_tokens limit.`);
-  }
-
-  const rawToolCalls = message?.tool_calls as Array<Record<string, unknown>> | undefined;
-  const toolCalls: ToolCall[] = (rawToolCalls ?? []).map((tc) => {
-    const fn = tc.function as Record<string, unknown> | undefined;
-    let args: Record<string, unknown> = {};
-    try {
-      args = JSON.parse((fn?.arguments as string) ?? '{}');
-    } catch {
-      args = {};
-    }
-    return {
-      name: (fn?.name as string) ?? '',
-      args,
-    };
-  });
-
-  return {
-    toolCalls,
-    text: (message?.content as string | undefined) ?? undefined,
     metadata: {
       tokensUsed: usage?.completion_tokens as number | undefined,
       truncated: finishReason === 'length',

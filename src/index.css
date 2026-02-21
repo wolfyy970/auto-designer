@@ -14,69 +14,34 @@
   --text-nano: 0.625rem;    /* 10px */
   --text-badge: 0.5625rem;  /* 9px */
 
-  /* Accent (same in both modes) */
+  /* Accent */
   --color-accent: #f97316;
   --color-accent-hover: #ea580c;
 
-  /* Surfaces — light mode defaults, overridden in .dark */
-  --color-bg: #ffffff;
-  --color-surface: #f4f4f5;
-  --color-surface-raised: #fafafa;
-
-  /* Borders */
-  --color-border: #e4e4e7;
-  --color-border-subtle: #f4f4f5;
-
-  /* Foreground */
-  --color-fg: #09090b;
-  --color-fg-secondary: #52525b;
-  --color-fg-muted: #a1a1aa;
-  --color-fg-faint: #d4d4d8;
-
-  /* Accent subtle & derived */
-  --color-accent-subtle: #fff7ed;
-  --color-accent-glow: rgba(249, 115, 22, 0.4);
-
-  /* Overlays */
-  --color-overlay: rgba(0, 0, 0, 0.50);
-  --color-overlay-heavy: rgba(9, 9, 11, 0.95);
-
-  /* Status — derived from accent orange (H25°) via color wheel relationships */
-  --color-error: #e5484d;          /* H358° analogous-warm — warm red */
-  --color-error-subtle: #fef1f0;
-  --color-warning: #e5a000;        /* H42° analogous-cool — golden amber */
-  --color-warning-subtle: #fef6de;
-  --color-success: #2e9e6a;        /* H152° triadic — balanced green */
-  --color-success-subtle: #e8f8f0;
-  --color-info: #3078d0;           /* H213° complementary — azure blue */
-  --color-info-subtle: #edf3fc;
-
-  /* Node widths */
-  --width-node: 320px;
-  --width-node-variant: 480px;
-
-  /* Layout widths */
-  --width-sidebar: 14rem;
-  --width-palette: 13rem;
-  --height-header: 3rem;
-}
-
-/* ── Dark Mode ───────────────────────────────────────────────────────── */
-
-.dark {
+  /* Surfaces */
   --color-bg: #09090b;
   --color-surface: #18181b;
   --color-surface-raised: #27272a;
+
+  /* Borders */
   --color-border: #3f3f46;
   --color-border-subtle: #27272a;
+
+  /* Foreground */
   --color-fg: #fafafa;
   --color-fg-secondary: #a1a1aa;
   --color-fg-muted: #71717a;
   --color-fg-faint: #52525b;
 
+  /* Accent subtle & derived */
   --color-accent-subtle: rgba(249, 115, 22, 0.09);
+  --color-accent-glow: rgba(249, 115, 22, 0.5);
 
-  /* Status — lightened for dark backgrounds, same hue family as light mode */
+  /* Overlays */
+  --color-overlay: rgba(0, 0, 0, 0.60);
+  --color-overlay-heavy: rgba(9, 9, 11, 0.95);
+
+  /* Status */
   --color-error: #f27477;
   --color-error-subtle: rgba(229, 72, 77, 0.09);
   --color-warning: #f0b830;
@@ -86,9 +51,14 @@
   --color-info: #5b9de0;
   --color-info-subtle: rgba(48, 120, 208, 0.09);
 
-  --color-accent-glow: rgba(249, 115, 22, 0.5);
-  --color-overlay: rgba(0, 0, 0, 0.60);
-  --color-overlay-heavy: rgba(9, 9, 11, 0.95);
+  /* Node widths */
+  --width-node: 320px;
+  --width-node-variant: 480px;
+
+  /* Layout widths */
+  --width-sidebar: 14rem;
+  --width-palette: 13rem;
+  --height-header: 3rem;
 }
 
 /* ── Typography Tokens ───────────────────────────────────────────────── */

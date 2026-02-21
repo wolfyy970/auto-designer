@@ -94,15 +94,15 @@ Toggle the **Auto Layout** checkbox in the header. When on:
 
 When off, drag nodes freely.
 
-## Managing Specs
+## Managing Canvases
 
-Click **Specs** in the header to open the Spec Manager:
+Click **Canvases** in the header to open the Canvas Manager:
 
-- **Save Current** — Snapshot the active spec to localStorage
-- **New Spec** — Saves the current spec, creates a blank one
+- **Save Current** — Snapshot the active canvas to localStorage
+- **New Canvas** — Saves the current canvas, creates a blank canvas
 - **Duplicate** — Creates a copy for iteration
-- **Export JSON** — Downloads the spec as a `.json` file
-- **Import JSON** — Loads a previously exported spec
-- **Load** — Switch to a saved spec
-- **Delete** — Remove a saved spec from localStorage
+- **Export JSON** — Downloads the canvas as a `.json` file
+- **Import JSON** — Loads a previously exported canvas
+- **Load** — Switch to a saved canvas
+- **Delete** — Remove a saved canvas from localStorage
 

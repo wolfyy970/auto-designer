@@ -1,4 +1,4 @@
-import type { ChatMessage } from '../compiler';
+import type { ChatMessage } from '../../types/provider';
 import type {
   GenerationProvider,
   ProviderModel,

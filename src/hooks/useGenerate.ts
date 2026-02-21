@@ -91,8 +91,7 @@ export function useGenerate() {
               providerId,
               modelId: options.model,
               promptOverrides: {
-                agentSystemBuilder: getPrompt('agentSystemBuilder'),
-                agentSystemPlanner: getPrompt('agentSystemPlanner'),
+                genSystemHtml: getPrompt('genSystemHtml'),
               },
               supportsVision: options.supportsVision,
             },
@@ -102,27 +101,7 @@ export function useGenerate() {
                 updateResult(placeholderId, { activityLog: [...activityLog] });
               },
               onProgress: (status) => {
-                const updates: Partial<GenerationResult> = {
-                  progressMessage: status,
-                };
-
-                const planMatch = status.match(/^Plan ready: (\d+) files/);
-                if (planMatch) {
-                  updates.progressStep = { current: 1, total: parseInt(planMatch[1], 10) };
-                }
-
-                if (status.startsWith('Wrote ') || status.startsWith('Patched ')) {
-                  const prev = useGenerationStore.getState().results.find((r) => r.id === placeholderId);
-                  const prevStep = prev?.progressStep;
-                  if (prevStep && prevStep.current < prevStep.total) {
-                    updates.progressStep = {
-                      current: Math.min(prevStep.current + 1, prevStep.total),
-                      total: prevStep.total,
-                    };
-                  }
-                }
-
-                updateResult(placeholderId, updates);
+                updateResult(placeholderId, { progressMessage: status });
               },
               onCode: (code) => {
                 generatedCode = code;
@@ -136,7 +115,7 @@ export function useGenerate() {
           if (!generatedCode) {
             updateResult(placeholderId, {
               status: 'error',
-              error: 'Server returned no code. The model likely responded with prose instead of tool calls.',
+              error: 'Server returned no code.',
             });
             return;
           }

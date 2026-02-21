@@ -193,7 +193,7 @@ export function migrateCanvasState(
     const nodes = (st.nodes as Array<Record<string, unknown>>) ?? [];
     const edges = (st.edges as Array<Record<string, unknown>>) ?? [];
 
-    const specRaw = localStorage.getItem(STORAGE_KEYS.ACTIVE_SPEC);
+    const specRaw = localStorage.getItem(STORAGE_KEYS.ACTIVE_CANVAS);
     let dsContent = '';
     let dsImages: unknown[] = [];
     if (specRaw) {
@@ -248,7 +248,7 @@ export function migrateCanvasState(
     });
 
     if (hasDsNodeMissingContent) {
-      const specRaw = localStorage.getItem(STORAGE_KEYS.ACTIVE_SPEC);
+      const specRaw = localStorage.getItem(STORAGE_KEYS.ACTIVE_CANVAS);
       let dsContent = '';
       let dsImages: unknown[] = [];
       if (specRaw) {

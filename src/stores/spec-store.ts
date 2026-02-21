@@ -10,16 +10,16 @@ interface SpecStore {
   /** Transient (not persisted): section currently having an image captured */
   capturingImage: SpecSectionId | null;
   setCapturingImage: (sectionId: SpecSectionId | null) => void;
-  createNewSpec: (title?: string) => void;
+  createNewCanvas: (title?: string) => void;
   setTitle: (title: string) => void;
   updateSection: (sectionId: SpecSectionId, content: string) => void;
   addImage: (sectionId: SpecSectionId, image: ReferenceImage) => void;
   updateImageDescription: (sectionId: SpecSectionId, imageId: string, description: string) => void;
   removeImage: (sectionId: SpecSectionId, imageId: string) => void;
-  loadSpec: (spec: DesignSpec) => void;
+  loadCanvas: (spec: DesignSpec) => void;
 }
 
-function createNewDesignSpec(title: string = 'Untitled Spec'): DesignSpec {
+function createNewDesignSpec(title: string = 'Untitled Canvas'): DesignSpec {
   return {
     id: generateId(),
     title,
@@ -36,7 +36,7 @@ export const useSpecStore = create<SpecStore>()(
       spec: createNewDesignSpec(),
       capturingImage: null,
       setCapturingImage: (sectionId) => set({ capturingImage: sectionId }),
-      createNewSpec: (title) =>
+      createNewCanvas: (title) =>
         set({ spec: createNewDesignSpec(title) }),
 
       setTitle: (title) =>
@@ -128,7 +128,7 @@ export const useSpecStore = create<SpecStore>()(
           };
         }),
 
-      loadSpec: (spec) => {
+      loadCanvas: (spec) => {
         // Ensure all required sections exist when loading a spec
         const normalizedSections: Record<SpecSectionId, SpecSection> = {
           ...createEmptySections(),
@@ -143,7 +143,7 @@ export const useSpecStore = create<SpecStore>()(
       },
     }),
     {
-      name: STORAGE_KEYS.ACTIVE_SPEC,
+      name: STORAGE_KEYS.ACTIVE_CANVAS,
       version: 1,
       partialize: (state) => ({ spec: state.spec }),
       migrate: (persisted: unknown) => {

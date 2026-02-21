@@ -19,16 +19,10 @@ import CanvasToolbar from './CanvasToolbar';
 import CanvasContextMenu from './CanvasContextMenu';
 import VariantPreviewOverlay from './VariantPreviewOverlay';
 import { useCanvasOrchestrator } from './hooks/useCanvasOrchestrator';
-import { useThemeStore } from '../../stores/theme-store';
 import { useNodeDeletion } from './hooks/useNodeDeletion';
 import { useFeedbackLoopConnection } from './hooks/useFeedbackLoopConnection';
 
 function CanvasInner() {
-  const themeMode = useThemeStore((s) => s.mode);
-  const colorMode = themeMode === 'system'
-    ? (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-    : themeMode;
-
   useCanvasOrchestrator();
   useNodeDeletion();
   const { handleConnect } = useFeedbackLoopConnection();
@@ -139,7 +133,7 @@ function CanvasInner() {
     <div className="relative h-screen w-screen">
       <CanvasHeader />
       <ReactFlow
-        colorMode={colorMode}
+        colorMode="dark"
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}

@@ -1,9 +1,56 @@
+/**
+ * Agentic build orchestrator — CURRENTLY INACTIVE.
+ *
+ * This module implements a multi-turn LLM build loop where the model writes
+ * files into a VirtualWorkspace via XML tool calls. It was replaced by
+ * single-shot generation (genSystemHtml) which is more reliable across
+ * different model providers.
+ *
+ * Preserved for future use — the approach is architecturally sound but
+ * requires models that reliably produce structured tool calls.
+ */
+
 import { VirtualWorkspace } from './workspace';
-import { AgentToolError } from '../../lib/error-utils';
 import { logLlmCall } from '../../stores/log-store';
-import type { GenerationProvider, ToolDefinition, ToolCall } from '../../types/provider';
+import type { GenerationProvider } from '../../types/provider';
 import type { ProviderOptions } from '../../types/provider';
-import type { ChatMessage } from '../compiler';
+import type { ChatMessage } from '../../types/provider';
+
+// ── Local tool-calling types (moved here; only this inactive module uses them) ──
+
+class AgentToolError extends Error {
+  readonly toolName?: string;
+  constructor(message: string, toolName?: string) {
+    super(message);
+    this.name = 'AgentToolError';
+    this.toolName = toolName;
+  }
+}
+
+interface ToolDefinition {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
+interface ToolCall {
+  name: string;
+  args: Record<string, unknown>;
+}
+
+interface ToolChatResponse {
+  toolCalls: ToolCall[];
+  text?: string;
+}
+
+/** Extended provider interface for tool-capable models (local to this inactive module). */
+interface ToolCapableProvider extends GenerationProvider {
+  generateWithTools?(
+    messages: ChatMessage[],
+    tools: ToolDefinition[],
+    options: ProviderOptions
+  ): Promise<ToolChatResponse>;
+}
 
 // ── Build plan types ─────────────────────────────────────────────────
 
@@ -76,7 +123,7 @@ const AGENT_TOOLS: ToolDefinition[] = [
 async function runPlanningPass(
   plannerSystemPrompt: string,
   userPromptContext: string,
-  provider: GenerationProvider,
+  provider: ToolCapableProvider,
   providerOptions: ProviderOptions,
   onProgress?: (status: string) => void
 ): Promise<BuildPlan | null> {
@@ -334,7 +381,7 @@ export interface AgenticBuildOptions {
 export async function runAgenticBuild(
   builderSystemPrompt: string,
   userPromptContext: string,
-  provider: GenerationProvider,
+  provider: ToolCapableProvider,
   options: AgenticBuildOptions
 ): Promise<VirtualWorkspace> {
   const workspace = new VirtualWorkspace();

@@ -6,12 +6,12 @@ import { useCompilerStore } from '../../stores/compiler-store';
 import { useGenerationStore } from '../../stores/generation-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 import {
-  saveSpec,
-  getSpecList,
-  loadSpec,
-  deleteSpec,
-  exportSpec,
-  importSpec,
+  saveCanvas,
+  getCanvasList,
+  loadCanvas,
+  deleteCanvas,
+  exportCanvas,
+  importCanvas,
 } from '../../services/persistence';
 import { generateId, now } from '../../lib/utils';
 import Modal from './Modal';
@@ -23,16 +23,16 @@ interface SpecManagerProps {
 
 export default function SpecManager({ open, onClose }: SpecManagerProps) {
   const spec = useSpecStore((s) => s.spec);
-  const loadSpecAction = useSpecStore((s) => s.loadSpec);
-  const createNewSpec = useSpecStore((s) => s.createNewSpec);
+  const loadCanvasAction = useSpecStore((s) => s.loadCanvas);
+  const createNewCanvas = useSpecStore((s) => s.createNewCanvas);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Track the spec list in React state so mutations trigger re-renders
-  const [specs, setSpecs] = useState(() => getSpecList());
+  const [specs, setSpecs] = useState(() => getCanvasList());
   const [savedFeedback, setSavedFeedback] = useState(false);
 
   const refreshList = useCallback(() => {
-    setSpecs(getSpecList());
+    setSpecs(getCanvasList());
   }, []);
 
   // Refresh the list every time the modal opens
@@ -48,7 +48,7 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
   }, []);
 
   const handleSave = useCallback(() => {
-    saveSpec(spec);
+    saveCanvas(spec);
     refreshList();
     setSavedFeedback(true);
     setTimeout(() => setSavedFeedback(false), 1500);
@@ -57,27 +57,27 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
   const handleLoad = useCallback(
     (specId: string) => {
       // Auto-save current spec before switching
-      saveSpec(spec);
-      const loaded = loadSpec(specId);
+      saveCanvas(spec);
+      const loaded = loadCanvas(specId);
       if (loaded) {
         resetDependentStores();
-        loadSpecAction(loaded);
+        loadCanvasAction(loaded);
         onClose();
       }
     },
-    [spec, loadSpecAction, resetDependentStores, onClose]
+    [spec, loadCanvasAction, resetDependentStores, onClose]
   );
 
   const handleDelete = useCallback(
     (specId: string) => {
-      deleteSpec(specId);
+      deleteCanvas(specId);
       refreshList();
     },
     [refreshList]
   );
 
   const handleExport = useCallback(() => {
-    exportSpec(spec);
+    exportCanvas(spec);
   }, [spec]);
 
   const handleImport = useCallback(
@@ -86,17 +86,17 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
       if (!file) return;
       try {
         // Auto-save current spec before importing
-        saveSpec(spec);
-        const imported = await importSpec(file);
+        saveCanvas(spec);
+        const imported = await importCanvas(file);
         resetDependentStores();
-        loadSpecAction(imported);
+        loadCanvasAction(imported);
         onClose();
       } catch (err) {
         alert(normalizeError(err, 'Import failed'));
       }
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
-    [spec, loadSpecAction, resetDependentStores, onClose]
+    [spec, loadCanvasAction, resetDependentStores, onClose]
   );
 
   const handleDuplicate = useCallback(() => {
@@ -107,21 +107,21 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
       createdAt: now(),
       lastModified: now(),
     };
-    saveSpec(dup);
-    loadSpecAction(dup);
+    saveCanvas(dup);
+    loadCanvasAction(dup);
     onClose();
-  }, [spec, loadSpecAction, onClose]);
+  }, [spec, loadCanvasAction, onClose]);
 
   const handleNew = useCallback(() => {
     // Save current before creating new
-    saveSpec(spec);
+    saveCanvas(spec);
     resetDependentStores();
-    createNewSpec();
+    createNewCanvas();
     onClose();
-  }, [spec, createNewSpec, resetDependentStores, onClose]);
+  }, [spec, createNewCanvas, resetDependentStores, onClose]);
 
   return (
-    <Modal open={open} onClose={onClose} title="Spec Manager">
+    <Modal open={open} onClose={onClose} title="Canvas Manager">
       <div className="space-y-4">
         {/* Current spec info */}
         <div className="rounded-md border border-border bg-surface px-3 py-2">
@@ -150,7 +150,7 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
             onClick={handleNew}
             className="rounded-md border border-border px-3 py-1.5 text-xs text-fg-secondary hover:bg-surface"
           >
-            New Spec
+            New Canvas
           </button>
           <button
             onClick={handleDuplicate}
@@ -183,7 +183,7 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
         {specs.length > 0 ? (
           <div>
             <h3 className="mb-2 text-xs font-medium text-fg-secondary">
-              Saved Specs
+              Saved Canvases
             </h3>
             <div className="space-y-1">
               {specs.map((s) => {
@@ -224,11 +224,11 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
                           ? 'cursor-not-allowed text-fg-faint'
                           : 'text-fg-muted hover:bg-error-subtle hover:text-error'
                       }`}
-                      aria-label="Delete spec"
+                      aria-label="Delete canvas"
                       title={
                         isActive
-                          ? 'Cannot delete the active spec'
-                          : 'Delete spec'
+                          ? 'Cannot delete the active canvas'
+                          : 'Delete canvas'
                       }
                     >
                       <Trash2 size={14} />
@@ -240,7 +240,7 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
           </div>
         ) : (
           <p className="text-xs text-fg-muted">
-            No saved specs yet. Click &ldquo;Save Current&rdquo; to save your
+            No saved canvases yet. Click &ldquo;Save Current&rdquo; to save your
             work.
           </p>
         )}

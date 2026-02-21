@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { saveSpec, loadSpec, deleteSpec, getSpecList, importSpec } from '../persistence';
+import { saveCanvas, loadCanvas, deleteCanvas, getCanvasList, importCanvas } from '../persistence';
 import type { DesignSpec, SpecSection, SpecSectionId } from '../../types/spec';
 
 // Mock localStorage
@@ -35,72 +35,72 @@ function makeSpec(overrides: Partial<DesignSpec> & { id: string }): DesignSpec {
   };
 }
 
-// ── getAllSpecs validation ────────────────────────────────────────────
+// ── getAllCanvases validation ────────────────────────────────────────────
 
-describe('loadSpec / getAllSpecs validation', () => {
+describe('loadCanvas / getAllCanvases validation', () => {
   it('returns null for missing spec', () => {
-    expect(loadSpec('nonexistent')).toBeNull();
+    expect(loadCanvas('nonexistent')).toBeNull();
   });
 
   it('handles corrupt localStorage (not JSON)', () => {
-    storage.set('auto-designer-specs', '{{invalid json}}');
-    expect(loadSpec('any')).toBeNull();
+    storage.set('lattice-canvases', '{{invalid json}}');
+    expect(loadCanvas('any')).toBeNull();
   });
 
   it('handles localStorage containing an array instead of object', () => {
-    storage.set('auto-designer-specs', '[1,2,3]');
-    expect(loadSpec('any')).toBeNull();
+    storage.set('lattice-canvases', '[1,2,3]');
+    expect(loadCanvas('any')).toBeNull();
   });
 
   it('handles localStorage containing a string instead of object', () => {
-    storage.set('auto-designer-specs', '"just a string"');
-    expect(loadSpec('any')).toBeNull();
+    storage.set('lattice-canvases', '"just a string"');
+    expect(loadCanvas('any')).toBeNull();
   });
 
   it('handles localStorage containing null', () => {
-    storage.set('auto-designer-specs', 'null');
-    expect(loadSpec('any')).toBeNull();
+    storage.set('lattice-canvases', 'null');
+    expect(loadCanvas('any')).toBeNull();
   });
 });
 
-// ── saveSpec / loadSpec / deleteSpec ──────────────────────────────────
+// ── saveCanvas / loadCanvas / deleteCanvas ──────────────────────────────────
 
-describe('saveSpec and loadSpec', () => {
+describe('saveCanvas and loadCanvas', () => {
   it('round-trips a spec through save and load', () => {
     const spec = makeSpec({ id: 'spec-1', title: 'My Spec' });
-    saveSpec(spec);
-    const loaded = loadSpec('spec-1');
+    saveCanvas(spec);
+    const loaded = loadCanvas('spec-1');
     expect(loaded?.title).toBe('My Spec');
   });
 
-  it('deleteSpec removes a spec', () => {
+  it('deleteCanvas removes a spec', () => {
     const spec = makeSpec({ id: 'spec-del' });
-    saveSpec(spec);
-    expect(loadSpec('spec-del')).not.toBeNull();
-    deleteSpec('spec-del');
-    expect(loadSpec('spec-del')).toBeNull();
+    saveCanvas(spec);
+    expect(loadCanvas('spec-del')).not.toBeNull();
+    deleteCanvas('spec-del');
+    expect(loadCanvas('spec-del')).toBeNull();
   });
 });
 
-// ── getSpecList ──────────────────────────────────────────────────────
+// ── getCanvasList ──────────────────────────────────────────────────────
 
-describe('getSpecList', () => {
+describe('getCanvasList', () => {
   it('returns specs sorted by lastModified descending', () => {
-    saveSpec(makeSpec({ id: 's1', title: 'Old', lastModified: '2024-01-01' }));
-    saveSpec(makeSpec({ id: 's2', title: 'New', lastModified: '2024-06-01' }));
-    const list = getSpecList();
+    saveCanvas(makeSpec({ id: 's1', title: 'Old', lastModified: '2024-01-01' }));
+    saveCanvas(makeSpec({ id: 's2', title: 'New', lastModified: '2024-06-01' }));
+    const list = getCanvasList();
     expect(list[0].title).toBe('New');
     expect(list[1].title).toBe('Old');
   });
 
   it('returns empty array when no specs saved', () => {
-    expect(getSpecList()).toEqual([]);
+    expect(getCanvasList()).toEqual([]);
   });
 });
 
-// ── importSpec validation ────────────────────────────────────────────
+// ── importCanvas validation ────────────────────────────────────────────
 
-describe('importSpec', () => {
+describe('importCanvas', () => {
   function makeFile(content: string): File {
     return new File([content], 'test.json', { type: 'application/json' });
   }
@@ -108,32 +108,32 @@ describe('importSpec', () => {
   it('accepts a valid spec file', async () => {
     const spec = makeSpec({ id: 'imp-1' });
     const file = makeFile(JSON.stringify(spec));
-    const result = await importSpec(file);
+    const result = await importCanvas(file);
     expect(result.id).toBe('imp-1');
   });
 
   it('rejects file without id', async () => {
     const file = makeFile(JSON.stringify({ title: 'No ID', sections: {} }));
-    await expect(importSpec(file)).rejects.toThrow('missing required fields');
+    await expect(importCanvas(file)).rejects.toThrow('missing required fields');
   });
 
   it('rejects file without title', async () => {
     const file = makeFile(JSON.stringify({ id: 'x', sections: {} }));
-    await expect(importSpec(file)).rejects.toThrow('missing required fields');
+    await expect(importCanvas(file)).rejects.toThrow('missing required fields');
   });
 
   it('rejects file with non-object sections', async () => {
     const file = makeFile(JSON.stringify({ id: 'x', title: 'T', sections: 'string' }));
-    await expect(importSpec(file)).rejects.toThrow('missing required fields');
+    await expect(importCanvas(file)).rejects.toThrow('missing required fields');
   });
 
   it('rejects file with null sections', async () => {
     const file = makeFile(JSON.stringify({ id: 'x', title: 'T', sections: null }));
-    await expect(importSpec(file)).rejects.toThrow('missing required fields');
+    await expect(importCanvas(file)).rejects.toThrow('missing required fields');
   });
 
   it('rejects unparseable JSON', async () => {
     const file = makeFile('not json');
-    await expect(importSpec(file)).rejects.toThrow('could not parse JSON');
+    await expect(importCanvas(file)).rejects.toThrow('could not parse JSON');
   });
 });

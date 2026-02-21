@@ -230,46 +230,19 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
         {/* Generating state — activity log with live progress */}
         {result?.status === 'generating' && (
           <div className="absolute inset-0 flex flex-col bg-surface">
-            {/* Activity log */}
             <ActivityLog entries={result.activityLog} />
 
-            {/* Progress bar + status footer */}
             <div className="flex flex-col gap-2 border-t border-border-subtle px-4 py-3">
               <div className="h-1 w-full overflow-hidden rounded-full bg-border">
-                {result.progressStep ? (
-                  <div
-                    className="h-full rounded-full bg-accent transition-all duration-500 ease-out"
-                    style={{
-                      width: result.progressStep.total > 0
-                        ? `${Math.round((result.progressStep.current / result.progressStep.total) * 100)}%`
-                        : '8%',
-                    }}
-                  />
-                ) : (
-                  <div className="h-full w-[8%] animate-pulse rounded-full bg-accent/60" />
-                )}
+                <div className="h-full w-full animate-pulse rounded-full bg-accent/60" />
               </div>
 
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-xs text-fg-secondary">
                   <Loader2 size={10} className="animate-spin text-accent" />
-                  {(() => {
-                    const msg = result.progressMessage ?? '';
-                    if (!msg || msg === 'Planning build...') return 'Planning…';
-                    if (msg.startsWith('Plan ready:')) return 'Building…';
-                    if (msg.startsWith('Starting build')) return 'Starting…';
-                    if (msg.startsWith('Wrote ')) return msg.replace('Wrote ', '✓ ');
-                    if (msg.startsWith('Patched ')) return msg;
-                    if (msg.includes('complete') || msg.includes('Assembling')) return 'Assembling…';
-                    if (msg.startsWith('Build loop')) return 'Generating…';
-                    if (msg.startsWith('Validation')) return 'Validating…';
-                    return msg || 'Starting…';
-                  })()}
+                  {result.progressMessage || 'Generating…'}
                 </span>
                 <span className="tabular-nums text-xs text-fg-muted">
-                  {result.progressStep && (
-                    <span className="mr-2">{result.progressStep.current}/{result.progressStep.total}</span>
-                  )}
                   {elapsed}s
                 </span>
               </div>

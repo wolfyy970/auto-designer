@@ -1,18 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Settings, FolderOpen, Pencil, Sun, Moon, Monitor, ScrollText, RotateCcw } from 'lucide-react';
+import { Settings, FolderOpen, Pencil, ScrollText, RotateCcw } from 'lucide-react';
 import { useSpecStore } from '../../stores/spec-store';
 import { useCanvasStore } from '../../stores/canvas-store';
-import { useThemeStore, type ThemeMode } from '../../stores/theme-store';
 import SpecManager from '../shared/SpecManager';
 import SettingsModal from '../shared/SettingsModal';
 import LogViewer from './LogViewer';
-
-const THEME_CYCLE: ThemeMode[] = ['dark', 'light', 'system'];
-const THEME_ICON = {
-  dark: Moon,
-  light: Sun,
-  system: Monitor,
-} as const;
 
 export default function CanvasHeader() {
   const title = useSpecStore((s) => s.spec.title);
@@ -20,12 +12,10 @@ export default function CanvasHeader() {
   const autoLayout = useCanvasStore((s) => s.autoLayout);
   const toggleAutoLayout = useCanvasStore((s) => s.toggleAutoLayout);
   const resetCanvas = useCanvasStore((s) => s.resetCanvas);
-  const themeMode = useThemeStore((s) => s.mode);
-  const setThemeMode = useThemeStore((s) => s.setMode);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(title);
-  const [showSpecs, setShowSpecs] = useState(false);
+  const [showCanvases, setShowCanvases] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
 
@@ -56,21 +46,13 @@ export default function CanvasHeader() {
     [handleSave, title]
   );
 
-  const cycleTheme = useCallback(() => {
-    const idx = THEME_CYCLE.indexOf(themeMode);
-    const next = THEME_CYCLE[(idx + 1) % THEME_CYCLE.length];
-    setThemeMode(next);
-  }, [themeMode, setThemeMode]);
-
-  const ThemeIcon = THEME_ICON[themeMode];
-
   return (
     <>
       <div className="absolute top-0 left-0 right-0 z-10 flex h-header items-center justify-between border-b border-border bg-bg/90 px-4 backdrop-blur-sm">
         {/* Left: Identity + workspace controls */}
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-fg">
-            Auto Designer
+            Lattice
           </span>
           <span className="text-fg-faint">|</span>
           {isEditing ? (
@@ -87,7 +69,7 @@ export default function CanvasHeader() {
               onClick={() => setIsEditing(true)}
               className="flex items-center gap-1.5 text-sm text-fg-secondary hover:text-fg"
             >
-              {title || 'Untitled Spec'}
+              {title || 'Untitled Canvas'}
               <Pencil size={12} className="text-fg-muted" />
             </button>
           )}
@@ -117,7 +99,7 @@ export default function CanvasHeader() {
             <RotateCcw size={14} />
           </button>
           <button
-            onClick={() => setShowSpecs(true)}
+            onClick={() => setShowCanvases(true)}
             className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-fg-secondary hover:bg-surface-raised"
           >
             <FolderOpen size={14} />
@@ -132,13 +114,6 @@ export default function CanvasHeader() {
             Logs
           </button>
           <button
-            onClick={cycleTheme}
-            className="rounded-md p-1.5 text-fg-secondary hover:bg-surface-raised"
-            title={`Theme: ${themeMode}`}
-          >
-            <ThemeIcon size={16} />
-          </button>
-          <button
             onClick={() => setShowSettings(true)}
             className="rounded-md p-1.5 text-fg-secondary hover:bg-surface-raised"
           >
@@ -147,7 +122,7 @@ export default function CanvasHeader() {
         </div>
       </div>
 
-      <SpecManager open={showSpecs} onClose={() => setShowSpecs(false)} />
+      <SpecManager open={showCanvases} onClose={() => setShowCanvases(false)} />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
       <LogViewer open={showLogs} onClose={() => setShowLogs(false)} />
     </>

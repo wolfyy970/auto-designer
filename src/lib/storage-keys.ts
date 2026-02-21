@@ -4,19 +4,18 @@
  */
 export const STORAGE_KEYS = {
   // localStorage (Zustand persist)
-  ACTIVE_SPEC: 'auto-designer-active-spec',
-  CANVAS: 'auto-designer-canvas',
-  COMPILER: 'auto-designer-compiler',
-  GENERATION: 'auto-designer-generation',
-  PROMPTS: 'auto-designer-prompts',
-  THEME: 'auto-designer-theme',
+  ACTIVE_CANVAS: 'lattice-active-canvas',
+  CANVAS: 'lattice-canvas',
+  COMPILER: 'lattice-compiler',
+  GENERATION: 'lattice-generation',
+  PROMPTS: 'lattice-prompts',
 
   // localStorage (manual)
-  SPECS: 'auto-designer-specs',
-  API_KEYS: 'auto-designer-api-keys',
-  MIGRATION_FLAG: 'auto-designer-migrated-idb',
+  CANVASES: 'lattice-canvases',
+  API_KEYS: 'lattice-api-keys',
+  MIGRATION_FLAG: 'lattice-migrated-idb',
 
   // IndexedDB store names
-  IDB_CODE: 'auto-designer-code',
-  IDB_PROVENANCE: 'auto-designer-provenance',
+  IDB_CODE: 'lattice-code',
+  IDB_PROVENANCE: 'lattice-provenance',
 } as const;
