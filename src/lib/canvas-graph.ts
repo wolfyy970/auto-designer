@@ -2,6 +2,7 @@ import type { Node, Edge } from '@xyflow/react';
 import type { DesignSpec, ReferenceImage } from '../types/spec';
 import type { GenerationResult } from '../types/provider';
 import type { CritiqueInput } from './prompts/compiler-user';
+import type { DesignSystemNodeData, CritiqueNodeData, VariantNodeData } from '../types/canvas-data';
 import { loadCode } from '../services/idb-storage';
 import {
   NODE_TYPE_TO_SECTION,
@@ -38,15 +39,16 @@ export function collectDesignSystemInputs(
 
   const parts = dsNodes
     .map((n) => {
-      const t = (n.data.title as string) || 'Design System';
-      const c = (n.data.content as string) || '';
+      const data = n.data as DesignSystemNodeData;
+      const t = data.title || 'Design System';
+      const c = data.content || '';
       return c.trim() ? `## ${t}\n${c}` : '';
     })
     .filter(Boolean);
 
   return {
     content: parts.join('\n\n---\n\n') || undefined,
-    images: dsNodes.flatMap((n) => (n.data.images as ReferenceImage[]) || []),
+    images: dsNodes.flatMap((n) => (n.data as DesignSystemNodeData).images ?? []),
   };
 }
 
@@ -141,8 +143,9 @@ export async function buildCompileInputs(
   // Collect reference designs from connected variant nodes
   const referenceDesigns: { name: string; code: string }[] = [];
   const collectVariantCode = async (variantNode: AnyNode) => {
-    if (variantNode.type === 'variant' && variantNode.data.refId) {
-      const result = results.find((r) => r.id === variantNode.data.refId);
+    const variantData = variantNode.data as VariantNodeData;
+    if (variantNode.type === 'variant' && variantData.refId) {
+      const result = results.find((r) => r.id === variantData.refId);
       if (result) {
         // Try in-memory code first (during active generation), then IndexedDB
         const code = result.code ?? (await loadCode(result.id));
@@ -176,19 +179,20 @@ export async function buildCompileInputs(
   const critiques: CritiqueInput[] = [];
   for (const node of connectedNodes) {
     if (node.type === 'critique') {
+      const critiqueData = node.data as CritiqueNodeData;
       const critique: CritiqueInput = {
-        title: (node.data.title as string) || 'Critique',
-        strengths: (node.data.strengths as string) || '',
-        improvements: (node.data.improvements as string) || '',
-        direction: (node.data.direction as string) || '',
+        title: critiqueData.title || 'Critique',
+        strengths: critiqueData.strengths || '',
+        improvements: critiqueData.improvements || '',
+        direction: critiqueData.direction || '',
       };
 
       // Follow the critique's incoming edges to find the variant it references
       const critiqueInputEdges = edges.filter((e) => e.target === node.id);
       for (const e of critiqueInputEdges) {
         const sourceNode = nodes.find((n) => n.id === e.source);
-        if (sourceNode?.type === 'variant' && sourceNode.data.refId) {
-          const result = results.find((r) => r.id === sourceNode.data.refId);
+        if (sourceNode?.type === 'variant' && (sourceNode.data as VariantNodeData).refId) {
+          const result = results.find((r) => r.id === (sourceNode.data as VariantNodeData).refId);
           if (result) {
             const code = result.code ?? (await loadCode(result.id));
             if (code) {

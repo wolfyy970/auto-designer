@@ -9,6 +9,7 @@ import type {
   DesignSystemExtractRequest,
   DesignSystemExtractResponse,
 } from './types';
+import { normalizeError } from '../lib/error-utils';
 
 const API_BASE = '/api';
 
@@ -62,7 +63,14 @@ export async function generate(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text);
+    let message: string;
+    try {
+      const json = JSON.parse(text);
+      message = json.error ?? text;
+    } catch {
+      message = text;
+    }
+    throw new Error(normalizeError(message, 'Generation request failed'));
   }
 
   const reader = response.body?.getReader();

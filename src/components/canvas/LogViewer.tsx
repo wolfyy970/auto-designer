@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Trash2, Copy, Check } from 'lucide-react';
 import type { LlmLogEntry } from '../../api/types';
 import { getLogs as apiGetLogs, clearLogs as apiClearLogs } from '../../api/client';
 import Modal from '../shared/Modal';
+import { FEEDBACK_DISMISS_MS } from '../../lib/constants';
 
 const SOURCE_LABEL: Record<string, string> = {
   compiler: 'Incubator',
@@ -23,7 +24,7 @@ function CopyButton({ text }: { text: string }) {
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(text);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setTimeout(() => setCopied(false), FEEDBACK_DISMISS_MS);
   }, [text]);
 
   return (

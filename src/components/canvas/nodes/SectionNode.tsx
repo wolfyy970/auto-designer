@@ -3,12 +3,13 @@ import { type NodeProps, type Node } from '@xyflow/react';
 import { Loader2 } from 'lucide-react';
 import { useSpecStore } from '../../../stores/spec-store';
 import {
-  useCanvasStore,
   NODE_TYPE_TO_SECTION,
   type CanvasNodeType,
 } from '../../../stores/canvas-store';
 import type { SectionNodeData } from '../../../types/canvas-data';
 import { SPEC_SECTIONS } from '../../../lib/constants';
+import { filledOrEmpty } from '../../../lib/node-status';
+import { useNodeRemoval } from '../../../hooks/useNodeRemoval';
 import ReferenceImageUpload from '../../shared/ReferenceImageUpload';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';
@@ -16,7 +17,7 @@ import NodeHeader from './NodeHeader';
 type SectionNodeType = Node<SectionNodeData, CanvasNodeType>;
 
 function SectionNode({ id, type, selected }: NodeProps<SectionNodeType>) {
-  const removeNode = useCanvasStore((s) => s.removeNode);
+  const onRemove = useNodeRemoval(id);
   const sectionId = NODE_TYPE_TO_SECTION[type as CanvasNodeType]!;
   const meta = SPEC_SECTIONS.find((s) => s.id === sectionId)!;
   const section = useSpecStore((s) => s.spec.sections[sectionId]);
@@ -28,7 +29,7 @@ function SectionNode({ id, type, selected }: NodeProps<SectionNodeType>) {
   const hasImages = isExistingDesign;
   const isCapturing = isExistingDesign && capturingImage === sectionId;
 
-  const status = content.trim() ? 'filled' as const : 'empty' as const;
+  const status = filledOrEmpty(!!content.trim());
 
   return (
     <NodeShell
@@ -40,7 +41,7 @@ function SectionNode({ id, type, selected }: NodeProps<SectionNodeType>) {
       hasTarget={isExistingDesign}
       handleColor={content.trim() ? 'green' : 'amber'}
     >
-      <NodeHeader onRemove={() => removeNode(id)} description={meta.description}>
+      <NodeHeader onRemove={onRemove} description={meta.description}>
         <h3 className="text-xs font-semibold text-fg">{meta.title}</h3>
         {!meta.required && (
           <span className="text-nano text-fg-faint">optional</span>

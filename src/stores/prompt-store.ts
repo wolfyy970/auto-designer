@@ -13,8 +13,6 @@ export type { PromptMeta } from '../lib/prompts/defaults';
 export type PromptKey =
   | 'compilerSystem'
   | 'compilerUser'
-  | 'agentSystemPlanner'
-  | 'agentSystemBuilder'
   | 'genSystemHtml'
   | 'variant'
   | 'designSystemExtract';

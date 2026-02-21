@@ -3,14 +3,9 @@ import { Handle, Position } from '@xyflow/react';
 import { useLineageDim } from '../../../hooks/useLineageDim';
 import { useCanvasStore } from '../../../stores/canvas-store';
 import { isValidConnection } from '../../../lib/canvas-connections';
+import { type NodeStatus } from '../../../constants/canvas';
 
-export type NodeBorderStatus =
-  | 'selected'
-  | 'processing'
-  | 'error'
-  | 'dimmed'
-  | 'filled'
-  | 'empty';
+export type NodeBorderStatus = NodeStatus;
 
 const BORDER_CLASSES: Record<NodeBorderStatus, string> = {
   selected: 'border-accent',

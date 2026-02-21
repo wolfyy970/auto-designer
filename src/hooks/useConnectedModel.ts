@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { useCanvasStore } from '../stores/canvas-store';
 import { useProviderModels } from './useProviderModels';
 import { DEFAULT_COMPILER_PROVIDER } from '../lib/constants';
+import type { ModelNodeData } from '../types/canvas-data';
+import { NODE_TYPES } from '../constants/canvas';
 
 /**
  * Reads provider/model config from a connected Model node.
@@ -17,7 +19,7 @@ export function useConnectedModel(nodeId: string) {
     for (const e of s.edges) {
       if (e.target !== nodeId) continue;
       const source = s.nodes.find((n) => n.id === e.source);
-      if (source?.type === 'model') return source.id;
+      if (source?.type === NODE_TYPES.MODEL) return source.id;
     }
     return null;
   });
@@ -29,15 +31,16 @@ export function useConnectedModel(nodeId: string) {
   const providerId = useCanvasStore(
     (s) => {
       if (!modelNodeId) return null;
-      const stored = s.nodes.find((n) => n.id === modelNodeId)?.data.providerId as string | undefined;
-      return stored || DEFAULT_COMPILER_PROVIDER;
+      const data = s.nodes.find((n) => n.id === modelNodeId)?.data as ModelNodeData | undefined;
+      return data?.providerId || DEFAULT_COMPILER_PROVIDER;
     },
   );
 
   const modelId = useCanvasStore(
     (s) => {
       if (!modelNodeId) return null;
-      return (s.nodes.find((n) => n.id === modelNodeId)?.data.modelId as string | undefined) || null;
+      const data = s.nodes.find((n) => n.id === modelNodeId)?.data as ModelNodeData | undefined;
+      return data?.modelId || null;
     },
   );
 

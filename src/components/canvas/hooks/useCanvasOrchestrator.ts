@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useCompilerStore, allVariantStrategyIds } from '../../../stores/compiler-store';
 import { useGenerationStore } from '../../../stores/generation-store';
 import { useCanvasStore } from '../../../stores/canvas-store';
+import { GENERATION_STATUS } from '../../../constants/generation';
 
 /**
  * Lightweight orchestrator: cleans up orphaned canvas nodes
@@ -65,9 +66,9 @@ export function useCanvasOrchestrator() {
     // is true during active generation (prevents false "interrupted" errors).
     if (!useGenerationStore.getState().isGenerating) {
       for (const r of results) {
-        if (r.status === 'generating') {
+        if (r.status === GENERATION_STATUS.GENERATING) {
           useGenerationStore.getState().updateResult(r.id, {
-            status: 'error',
+            status: GENERATION_STATUS.ERROR,
             error: 'Generation interrupted by page reload',
           });
         }

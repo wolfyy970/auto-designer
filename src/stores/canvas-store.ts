@@ -13,6 +13,7 @@ import {
 import type { VariantStrategy } from '../types/compiler';
 import type { GenerationResult } from '../types/provider';
 import type { SpecSectionId } from '../types/spec';
+import type { HypothesisNodeData, VariantNodeData } from '../types/canvas-data';
 import { useCompilerStore } from './compiler-store';
 import { useGenerationStore } from './generation-store';
 import { useSpecStore } from './spec-store';
@@ -29,13 +30,19 @@ import {
   computeAdjacentPosition,
 } from '../lib/canvas-layout';
 import { isValidConnection as checkValidConnection, buildAutoConnectEdges, buildModelEdgeForNode, buildModelEdgesFromParent, findMissingPrerequisite } from '../lib/canvas-connections';
+import { buildEdgeId, EDGE_TYPES, EDGE_STATUS, type EdgeStatus } from '../constants/canvas';
 import { computeLineage } from '../lib/canvas-graph';
 import { STORAGE_KEYS } from '../lib/storage-keys';
-import { PREREQUISITE_DEFAULTS } from '../lib/constants';
+import { PREREQUISITE_DEFAULTS, AUTO_LAYOUT_DEBOUNCE_MS } from '../lib/constants';
 import { migrateCanvasState } from './canvas-migrations';
 
 // Debounced auto-layout on dimension changes (avoids infinite loop)
 let dimensionLayoutTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Layout spacing for hypothesis/variant stacking
+const HYPOTHESIS_STACK_GAP = 40;
+const HYPOTHESIS_STACK_NODE_H = 340;
+const HYPOTHESIS_STACK_SPACING = 60;
 
 // Re-export for consumers
 export { GRID_SIZE, SECTION_NODE_TYPES } from '../lib/canvas-layout';
@@ -60,7 +67,7 @@ export type CanvasNodeData = Record<string, unknown> & {
   variantStrategyId?: string;
 };
 
-export type EdgeStatus = 'idle' | 'processing' | 'complete' | 'error';
+export type { EdgeStatus } from '../constants/canvas';
 
 type CanvasNode = Node<CanvasNodeData, CanvasNodeType>;
 type CanvasEdge = Edge<{ status: EdgeStatus }>;
@@ -162,7 +169,7 @@ export const useCanvasStore = create<CanvasStore>()(
           dimensionLayoutTimer = setTimeout(() => {
             dimensionLayoutTimer = null;
             if (get().autoLayout) get().applyAutoLayout();
-          }, 200);
+          }, AUTO_LAYOUT_DEBOUNCE_MS);
         }
       },
 
@@ -191,12 +198,12 @@ export const useCanvasStore = create<CanvasStore>()(
         const sourceNode = nodes.find((n) => n.id === connection.source);
         const targetNode = nodes.find((n) => n.id === connection.target);
         if (!sourceNode || !targetNode) return false;
-        return checkValidConnection(sourceNode.type as string, targetNode.type as string);
+        return checkValidConnection(sourceNode.type ?? '', targetNode.type ?? '');
       },
 
       onConnect: (connection) => {
         if (!get().isValidConnection(connection)) return;
-        const edgeId = `edge-${connection.source}-to-${connection.target}`;
+        const edgeId = buildEdgeId(connection.source!, connection.target!);
         if (get().edges.some((e) => e.id === edgeId)) return;
         set({
           edges: [
@@ -205,8 +212,8 @@ export const useCanvasStore = create<CanvasStore>()(
               id: edgeId,
               source: connection.source!,
               target: connection.target!,
-              type: 'dataFlow',
-              data: { status: 'idle' as const },
+              type: EDGE_TYPES.DATA_FLOW,
+              data: { status: EDGE_STATUS.IDLE },
             },
           ],
         });
@@ -294,7 +301,7 @@ export const useCanvasStore = create<CanvasStore>()(
         // and remove the strategy from the compiler store
         const removeIds = new Set<string>([nodeId]);
         if (node.type === 'hypothesis') {
-          const refId = node.data.refId as string | undefined;
+          const refId = (node.data as HypothesisNodeData).refId;
           if (refId) useCompilerStore.getState().removeVariant(refId);
           for (const e of state.edges) {
             if (e.source !== nodeId) continue;
@@ -375,9 +382,6 @@ export const useCanvasStore = create<CanvasStore>()(
           }
         }
 
-        const GAP = 40;
-        const EST_H = 340;
-        const SPACING = 60;
         const ids: string[] = [];
         const newNodes = [...state.nodes];
         const newEdges = [...state.edges];
@@ -388,15 +392,15 @@ export const useCanvasStore = create<CanvasStore>()(
           newNodes.push({
             id: phId,
             type: 'hypothesis',
-            position: snap({ x: col.hypothesis, y: maxY + GAP + i * (EST_H + SPACING) }),
+            position: snap({ x: col.hypothesis, y: maxY + HYPOTHESIS_STACK_GAP + i * (HYPOTHESIS_STACK_NODE_H + HYPOTHESIS_STACK_SPACING) }),
             data: { placeholder: true },
           });
           newEdges.push({
-            id: `edge-${compilerNodeId}-to-${phId}`,
+            id: buildEdgeId(compilerNodeId, phId),
             source: compilerNodeId,
             target: phId,
-            type: 'dataFlow',
-            data: { status: 'processing' },
+            type: EDGE_TYPES.DATA_FLOW,
+            data: { status: EDGE_STATUS.PROCESSING },
           });
         }
 
@@ -452,18 +456,18 @@ export const useCanvasStore = create<CanvasStore>()(
           ],
           edges: [
             {
-              id: `edge-${briefId}-to-${compilerId}`,
+              id: buildEdgeId(briefId, compilerId),
               source: briefId,
               target: compilerId,
-              type: 'dataFlow',
-              data: { status: 'idle' },
+              type: EDGE_TYPES.DATA_FLOW,
+              data: { status: EDGE_STATUS.IDLE },
             },
             {
-              id: `edge-${modelId}-to-${compilerId}`,
+              id: buildEdgeId(modelId, compilerId),
               source: modelId,
               target: compilerId,
-              type: 'dataFlow',
-              data: { status: 'idle' },
+              type: EDGE_TYPES.DATA_FLOW,
+              data: { status: EDGE_STATUS.IDLE },
             },
           ],
         });
@@ -494,9 +498,6 @@ export const useCanvasStore = create<CanvasStore>()(
           }
         }
 
-        const GAP = 40;
-        const EST_H = 340;
-        const SPACING = 60;
         const addedNodes = [...state.nodes];
         const addedEdges = [...state.edges];
         let placed = 0;
@@ -510,18 +511,18 @@ export const useCanvasStore = create<CanvasStore>()(
           addedNodes.push({
             id: nodeId,
             type: 'hypothesis',
-            position: snap({ x: col.hypothesis, y: maxY + GAP + placed * (EST_H + SPACING) }),
+            position: snap({ x: col.hypothesis, y: maxY + HYPOTHESIS_STACK_GAP + placed * (HYPOTHESIS_STACK_NODE_H + HYPOTHESIS_STACK_SPACING) }),
             data: { refId: variant.id },
           });
           placed++;
           newHypothesisIds.push(nodeId);
 
           addedEdges.push({
-            id: `edge-${compilerNodeId}-to-${nodeId}`,
+            id: buildEdgeId(compilerNodeId, nodeId),
             source: compilerNodeId,
             target: nodeId,
-            type: 'dataFlow',
-            data: { status: 'complete' },
+            type: EDGE_TYPES.DATA_FLOW,
+            data: { status: EDGE_STATUS.COMPLETE },
           });
 
           // Structural edges only (designSystem→hypothesis)
@@ -557,10 +558,10 @@ export const useCanvasStore = create<CanvasStore>()(
             const target = state.nodes.find(
               (n) => n.id === e.target && n.type === 'variant',
             );
-            if (target?.data.variantStrategyId) {
+            if ((target?.data as VariantNodeData | undefined)?.variantStrategyId) {
               existingVariantByStrategy.set(
-                target.data.variantStrategyId as string,
-                target.id,
+                (target!.data as VariantNodeData).variantStrategyId!,
+                target!.id,
               );
             }
           }
@@ -595,7 +596,7 @@ export const useCanvasStore = create<CanvasStore>()(
             if (edgeIdx !== -1) {
               newEdges[edgeIdx] = {
                 ...newEdges[edgeIdx],
-                data: { status: 'processing' },
+                data: { status: EDGE_STATUS.PROCESSING },
               };
             }
             nodeIdMap.set(result.variantStrategyId, existingNodeId);
@@ -616,11 +617,11 @@ export const useCanvasStore = create<CanvasStore>()(
             });
 
             newEdges.push({
-              id: `edge-${hypothesisNodeId}-to-${nodeId}`,
+              id: buildEdgeId(hypothesisNodeId, nodeId),
               source: hypothesisNodeId,
               target: nodeId,
-              type: 'dataFlow',
-              data: { status: 'processing' },
+              type: EDGE_TYPES.DATA_FLOW,
+              data: { status: EDGE_STATUS.PROCESSING },
             });
             nodeIdMap.set(result.variantStrategyId, nodeId);
           }
@@ -655,7 +656,7 @@ export const useCanvasStore = create<CanvasStore>()(
         // Pin each variant with its current active result's runId
         const newNodes = state.nodes.map((n) => {
           if (!variantIdSet.has(n.id)) return n;
-          const vsId = n.data.variantStrategyId as string | undefined;
+          const vsId = (n.data as VariantNodeData).variantStrategyId;
           if (!vsId) return n;
 
           // Find the active result's runId for this variant

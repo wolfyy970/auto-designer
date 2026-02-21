@@ -7,10 +7,13 @@ import { useCompilerStore, findVariantStrategy } from '../../../stores/compiler-
 import { prepareIframeContent, renderErrorHtml } from '../../../lib/iframe-utils';
 import { useCanvasStore } from '../../../stores/canvas-store';
 import type { VariantNodeData } from '../../../types/canvas-data';
+import { useNodeRemoval } from '../../../hooks/useNodeRemoval';
 import { useResultCode } from '../../../hooks/useResultCode';
 import { useVersionStack } from '../../../hooks/useVersionStack';
 import { useVariantZoom } from '../../../hooks/useVariantZoom';
 import { useElapsedTimer } from '../../../hooks/useElapsedTimer';
+import { variantStatus } from '../../../lib/node-status';
+import { GENERATION_STATUS } from '../../../constants/generation';
 import NodeShell from './NodeShell';
 import VariantToolbar from './VariantToolbar';
 import VariantFooter from './VariantFooter';
@@ -122,7 +125,7 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
     return findVariantStrategy(s.dimensionMaps, vsId);
   });
 
-  const removeNode = useCanvasStore((s) => s.removeNode);
+  const onRemove = useNodeRemoval(id);
   const setExpandedVariant = useCanvasStore((s) => s.setExpandedVariant);
 
   const variantName = strategy?.name ?? 'Variant';
@@ -166,7 +169,7 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
 
   const { contentRef, zoom, zoomIn, zoomOut, resetZoom } = useVariantZoom();
 
-  const isGenerating = result?.status === 'generating';
+  const isGenerating = result?.status === GENERATION_STATUS.GENERATING;
   const elapsed = useElapsedTimer(isGenerating);
 
   const htmlContent = useMemo(() => {
@@ -178,17 +181,14 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
     }
   }, [code]);
 
-  const hasCode = result?.status === 'complete' && !!code;
+  const hasCode = result?.status === GENERATION_STATUS.COMPLETE && !!code;
 
-  const status = isArchived
-    ? 'dimmed' as const
-    : result?.status === 'error'
-      ? 'error' as const
-      : result?.status === 'generating'
-        ? 'processing' as const
-        : hasCode
-          ? 'filled' as const
-          : 'empty' as const;
+  const status = variantStatus({
+    isArchived,
+    isError: result?.status === GENERATION_STATUS.ERROR,
+    isGenerating: result?.status === GENERATION_STATUS.GENERATING,
+    hasCode,
+  });
 
   const stackClass = stackTotal >= 3
     ? 'variant-stack-deep'
@@ -222,13 +222,13 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
         onDownload={handleDownload}
         onDeleteVersion={handleDeleteVersion}
         onExpand={() => setExpandedVariant(id)}
-        onRemove={() => removeNode(id)}
+        onRemove={onRemove}
       />
 
       {/* ── Content area ──────────────────────────────────────── */}
       <div ref={contentRef} className="relative flex-1 overflow-hidden">
         {/* Generating state — activity log with live progress */}
-        {result?.status === 'generating' && (
+        {result?.status === GENERATION_STATUS.GENERATING && (
           <div className="absolute inset-0 flex flex-col bg-surface">
             <ActivityLog entries={result.activityLog} />
 
@@ -251,7 +251,7 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
         )}
 
         {/* Error state */}
-        {result?.status === 'error' && (
+        {result?.status === GENERATION_STATUS.ERROR && (
           <div className="flex h-full flex-col items-center justify-center bg-error-subtle p-4">
             <AlertCircle size={16} className="mb-2 text-error" />
             <p className="text-center text-xs text-error">
@@ -261,21 +261,21 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
         )}
 
         {/* Pending / no result */}
-        {(!result || result.status === 'pending') && (
+        {(!result || result.status === GENERATION_STATUS.PENDING) && (
           <div className="flex h-full items-center justify-center bg-surface">
             <p className="text-xs text-fg-muted">Waiting...</p>
           </div>
         )}
 
         {/* Loading code from IndexedDB */}
-        {result?.status === 'complete' && codeLoading && (
+        {result?.status === GENERATION_STATUS.COMPLETE && codeLoading && (
           <div className="flex h-full items-center justify-center bg-surface">
             <Loader2 size={14} className="animate-spin text-fg-muted" />
           </div>
         )}
 
         {/* Complete but code missing from IndexedDB */}
-        {result?.status === 'complete' && !codeLoading && !code && (
+        {result?.status === GENERATION_STATUS.COMPLETE && !codeLoading && !code && (
           <div className="flex h-full flex-col items-center justify-center bg-surface p-4">
             <AlertCircle size={16} className="mb-2 text-fg-muted" />
             <p className="text-center text-xs text-fg-muted">
@@ -303,7 +303,7 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
       </div>
 
       {/* ── Metadata footer ─────────────────────────────────── */}
-      {result?.status === 'complete' && (
+      {result?.status === GENERATION_STATUS.COMPLETE && (
         <VariantFooter result={result} />
       )}
     </NodeShell>

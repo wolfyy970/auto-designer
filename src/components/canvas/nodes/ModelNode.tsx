@@ -1,9 +1,10 @@
 import { memo } from 'react';
 import { type NodeProps, type Node } from '@xyflow/react';
-import { useCanvasStore } from '../../../stores/canvas-store';
 import type { ModelNodeData } from '../../../types/canvas-data';
 import { DEFAULT_COMPILER_PROVIDER } from '../../../lib/constants';
+import { filledOrEmpty } from '../../../lib/node-status';
 import { useNodeProviderModel } from '../../../hooks/useNodeProviderModel';
+import { useNodeRemoval } from '../../../hooks/useNodeRemoval';
 import ProviderSelector from '../../shared/ProviderSelector';
 import ModelSelector from '../../shared/ModelSelector';
 import NodeShell from './NodeShell';
@@ -12,7 +13,7 @@ import NodeHeader from './NodeHeader';
 type ModelNodeType = Node<ModelNodeData, 'model'>;
 
 function ModelNode({ id, selected }: NodeProps<ModelNodeType>) {
-  const removeNode = useCanvasStore((s) => s.removeNode);
+  const onRemove = useNodeRemoval(id);
 
   const {
     providerId,
@@ -23,7 +24,7 @@ function ModelNode({ id, selected }: NodeProps<ModelNodeType>) {
 
   const configured = !!modelId;
 
-  const status = configured ? 'filled' as const : 'empty' as const;
+  const status = filledOrEmpty(configured);
 
   return (
     <NodeShell
@@ -36,7 +37,7 @@ function ModelNode({ id, selected }: NodeProps<ModelNodeType>) {
       handleColor={configured ? 'green' : 'amber'}
     >
       <NodeHeader
-        onRemove={() => removeNode(id)}
+        onRemove={onRemove}
         description={configured ? `${providerId} / ${modelId.split('/').pop()}` : 'No model selected'}
       >
         <h3 className="text-xs font-semibold text-fg">Model</h3>

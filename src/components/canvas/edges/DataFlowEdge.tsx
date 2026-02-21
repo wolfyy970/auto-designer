@@ -7,15 +7,16 @@ import {
 } from '@xyflow/react';
 import { X } from 'lucide-react';
 import { useCanvasStore, type EdgeStatus } from '../../../stores/canvas-store';
+import { EDGE_STATUS } from '../../../constants/canvas';
 
 type DataFlowEdgeData = { status: EdgeStatus };
 type DataFlowEdge = Edge<DataFlowEdgeData, 'dataFlow'>;
 
-const STATUS_COLORS: Record<string, string> = {
-  idle: 'var(--color-fg-muted)',
-  processing: 'var(--color-info)',
-  complete: 'var(--color-fg-muted)',
-  error: 'var(--color-error)',
+const STATUS_COLORS: Record<EdgeStatus, string> = {
+  [EDGE_STATUS.IDLE]: 'var(--color-fg-muted)',
+  [EDGE_STATUS.PROCESSING]: 'var(--color-info)',
+  [EDGE_STATUS.COMPLETE]: 'var(--color-fg-muted)',
+  [EDGE_STATUS.ERROR]: 'var(--color-error)',
 };
 
 export default function DataFlowEdge({
@@ -30,7 +31,7 @@ export default function DataFlowEdge({
   selected,
   markerEnd,
 }: EdgeProps<DataFlowEdge>) {
-  const status = data?.status ?? 'idle';
+  const status = data?.status ?? EDGE_STATUS.IDLE;
   const removeEdge = useCanvasStore((s) => s.removeEdge);
   const lineageEdgeIds = useCanvasStore((s) => s.lineageEdgeIds);
   const [edgePath, labelX, labelY] = getBezierPath({
@@ -45,14 +46,14 @@ export default function DataFlowEdge({
   const lineageActive = lineageEdgeIds.size > 0;
   const inLineage = lineageEdgeIds.has(id);
 
-  const baseColor = STATUS_COLORS[status] ?? STATUS_COLORS.idle;
+  const baseColor = STATUS_COLORS[status];
   const color = selected
     ? 'var(--color-info)'
     : lineageActive && inLineage
       ? 'var(--color-accent)'
       : baseColor;
   const opacity = lineageActive && !inLineage && !selected ? 0.15 : 1;
-  const isProcessing = status === 'processing';
+  const isProcessing = status === EDGE_STATUS.PROCESSING;
 
   return (
     <>

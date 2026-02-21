@@ -1,3 +1,5 @@
+import { NODE_TYPES, EDGE_TYPES, EDGE_STATUS, buildEdgeId } from '../constants/canvas';
+
 // Local mirror of CanvasNodeType (avoids circular import with canvas-store)
 type NodeType =
   | 'designBrief' | 'existingDesign' | 'researchContext'
@@ -48,15 +50,15 @@ export function findMissingPrerequisite(
 
 interface MinimalNode { id: string; type?: string }
 interface MinimalEdge { source: string; target: string }
-export interface AutoEdge { id: string; source: string; target: string; type: 'dataFlow'; data: { status: 'idle' } }
+export interface AutoEdge { id: string; source: string; target: string; type: typeof EDGE_TYPES.DATA_FLOW; data: { status: typeof EDGE_STATUS.IDLE } }
 
-const SECTION_TYPES = new Set([
-  'designBrief', 'existingDesign', 'researchContext',
-  'objectivesMetrics', 'designConstraints',
+const SECTION_TYPES: Set<string> = new Set([
+  NODE_TYPES.DESIGN_BRIEF, NODE_TYPES.EXISTING_DESIGN, NODE_TYPES.RESEARCH_CONTEXT,
+  NODE_TYPES.OBJECTIVES_METRICS, NODE_TYPES.DESIGN_CONSTRAINTS,
 ]);
 
 function makeEdge(source: string, target: string): AutoEdge {
-  return { id: `edge-${source}-to-${target}`, source, target, type: 'dataFlow', data: { status: 'idle' } };
+  return { id: buildEdgeId(source, target), source, target, type: EDGE_TYPES.DATA_FLOW, data: { status: EDGE_STATUS.IDLE } };
 }
 
 // ── Auto-connect (palette / manual add) ─────────────────────────────
@@ -75,14 +77,14 @@ export function buildAutoConnectEdges(
   const edges: AutoEdge[] = [];
 
   if (SECTION_TYPES.has(type)) {
-    const compilers = existingNodes.filter((n) => n.type === 'compiler');
+    const compilers = existingNodes.filter((n) => n.type === NODE_TYPES.COMPILER);
     if (compilers.length === 1) {
       edges.push(makeEdge(newNodeId, compilers[0].id));
     }
   }
 
-  if (type === 'compiler') {
-    const existingCompilers = existingNodes.filter((n) => n.type === 'compiler');
+  if (type === NODE_TYPES.COMPILER) {
+    const existingCompilers = existingNodes.filter((n) => n.type === NODE_TYPES.COMPILER);
     if (existingCompilers.length === 0) {
       for (const sn of existingNodes.filter((n) => SECTION_TYPES.has(n.type ?? ''))) {
         edges.push(makeEdge(sn.id, newNodeId));
@@ -90,14 +92,14 @@ export function buildAutoConnectEdges(
     }
   }
 
-  if (type === 'designSystem') {
-    for (const hyp of existingNodes.filter((n) => n.type === 'hypothesis')) {
+  if (type === NODE_TYPES.DESIGN_SYSTEM) {
+    for (const hyp of existingNodes.filter((n) => n.type === NODE_TYPES.HYPOTHESIS)) {
       edges.push(makeEdge(newNodeId, hyp.id));
     }
   }
 
-  if (type === 'hypothesis') {
-    for (const ds of existingNodes.filter((n) => n.type === 'designSystem')) {
+  if (type === NODE_TYPES.HYPOTHESIS) {
+    for (const ds of existingNodes.filter((n) => n.type === NODE_TYPES.DESIGN_SYSTEM)) {
       edges.push(makeEdge(ds.id, newNodeId));
     }
   }
@@ -119,7 +121,7 @@ export function findModelsConnectedTo(
   for (const e of edges) {
     if (e.target === parentId) {
       const source = nodes.find((n) => n.id === e.source);
-      if (source?.type === 'model') modelIds.add(source.id);
+      if (source?.type === NODE_TYPES.MODEL) modelIds.add(source.id);
     }
   }
   return nodes.filter((n) => modelIds.has(n.id));
@@ -139,7 +141,7 @@ export function buildModelEdgesFromParent(
   let models = findModelsConnectedTo(parentId, nodes, edges);
 
   if (models.length === 0) {
-    const firstModel = nodes.find((n) => n.type === 'model');
+    const firstModel = nodes.find((n) => n.type === NODE_TYPES.MODEL);
     if (firstModel) models = [firstModel];
   }
 
@@ -161,10 +163,10 @@ export function buildModelEdgeForNode(
   nodeType: string,
   existingNodes: MinimalNode[],
 ): AutoEdge[] {
-  const needsModel = new Set(['compiler', 'hypothesis', 'designSystem']);
+  const needsModel: Set<string> = new Set([NODE_TYPES.COMPILER, NODE_TYPES.HYPOTHESIS, NODE_TYPES.DESIGN_SYSTEM]);
   if (!needsModel.has(nodeType)) return [];
 
-  const models = existingNodes.filter((n) => n.type === 'model');
+  const models = existingNodes.filter((n) => n.type === NODE_TYPES.MODEL);
   if (models.length === 0) return [];
 
   return [makeEdge(models[0].id, nodeId)];

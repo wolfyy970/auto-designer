@@ -18,7 +18,11 @@ import type { VariantStrategy } from '../../../types/compiler';
 import { compile as apiCompile } from '../../../api/client';
 import { getPrompt } from '../../../stores/prompt-store';
 import { buildCompileInputs } from '../../../lib/canvas-graph';
+import { FIT_VIEW_DELAY_MS, FIT_VIEW_DURATION_MS } from '../../../lib/constants';
+import { processingOrFilled } from '../../../lib/node-status';
+import { EDGE_STATUS } from '../../../constants/canvas';
 import { useConnectedModel } from '../../../hooks/useConnectedModel';
+import { useNodeRemoval } from '../../../hooks/useNodeRemoval';
 import { useElapsedTimer } from '../../../hooks/useElapsedTimer';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';
@@ -40,7 +44,7 @@ function CompilerNode({ id, data, selected }: NodeProps<CompilerNodeType>) {
   const setCompiling = useCompilerStore((s) => s.setCompiling);
   const setError = useCompilerStore((s) => s.setError);
 
-  const removeNode = useCanvasStore((s) => s.removeNode);
+  const onRemove = useNodeRemoval(id);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const syncAfterCompile = useCanvasStore((s) => s.syncAfterCompile);
   const addPlaceholderHypotheses = useCanvasStore((s) => s.addPlaceholderHypotheses);
@@ -93,7 +97,7 @@ function CompilerNode({ id, data, selected }: NodeProps<CompilerNodeType>) {
 
     setCompiling(true);
     setError(null);
-    setEdgeStatusBySource(id, 'processing');
+    setEdgeStatusBySource(id, EDGE_STATUS.PROCESSING);
 
     const placeholderIds = addPlaceholderHypotheses(id, hypothesisCount);
 
@@ -114,12 +118,12 @@ function CompilerNode({ id, data, selected }: NodeProps<CompilerNodeType>) {
       removePlaceholders(placeholderIds);
       appendVariantsToNode(id, map);
       syncAfterCompile(map.variants, id);
-      setEdgeStatusBySource(id, 'complete');
-      setTimeout(() => fitView({ duration: 400, padding: 0.15 }), 200);
+      setEdgeStatusBySource(id, EDGE_STATUS.COMPLETE);
+      setTimeout(() => fitView({ duration: FIT_VIEW_DURATION_MS, padding: 0.15 }), FIT_VIEW_DELAY_MS);
     } catch (err) {
       removePlaceholders(placeholderIds);
       setError(normalizeError(err, 'Compilation failed'));
-      setEdgeStatusBySource(id, 'error');
+      setEdgeStatusBySource(id, EDGE_STATUS.ERROR);
     } finally {
       setCompiling(false);
     }
@@ -144,7 +148,7 @@ function CompilerNode({ id, data, selected }: NodeProps<CompilerNodeType>) {
 
   const elapsed = useElapsedTimer(isCompiling);
 
-  const status = isCompiling ? 'processing' as const : 'filled' as const;
+  const status = processingOrFilled(isCompiling);
 
   const isReady = connectedInputCount > 0 && !!modelId;
 
@@ -169,7 +173,7 @@ function CompilerNode({ id, data, selected }: NodeProps<CompilerNodeType>) {
       targetPulse={!isReady}
     >
       <NodeHeader
-        onRemove={() => removeNode(id)}
+        onRemove={onRemove}
         description={`${connectedInputCount} input${connectedInputCount !== 1 ? 's' : ''} connected`}
       >
         <h3 className="text-xs font-semibold text-fg">Incubator</h3>

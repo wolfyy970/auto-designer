@@ -1,6 +1,7 @@
 /**
  * Shared iframe content preparation utilities.
  */
+import { SCREENSHOT_LOAD_DELAY_MS } from './constants';
 
 export function prepareIframeContent(code: string): string {
   return code;
@@ -77,7 +78,7 @@ export function captureScreenshot(
           cleanup();
           reject(err instanceof Error ? err : new Error(String(err)));
         }
-      }, 3000);
+      }, SCREENSHOT_LOAD_DELAY_MS);
     });
 
     document.body.appendChild(tempIframe);

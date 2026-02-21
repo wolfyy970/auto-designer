@@ -3,8 +3,6 @@ import { PROMPT_DEFAULTS } from '../../../src/lib/prompts/shared-defaults.ts';
 export type PromptKey =
   | 'compilerSystem'
   | 'compilerUser'
-  | 'agentSystemPlanner'
-  | 'agentSystemBuilder'
   | 'genSystemHtml'
   | 'variant'
   | 'designSystemExtract';

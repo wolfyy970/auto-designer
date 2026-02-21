@@ -2,7 +2,6 @@ import type { DesignSpec } from '../../types/spec';
 import type { VariantStrategy } from '../../types/compiler';
 import { interpolate } from '../utils';
 import { getSectionContent, collectImageLines } from './helpers';
-import { getPrompt } from '../../stores/prompt-store';
 
 function imageBlock(spec: DesignSpec): string {
   const lines = collectImageLines(spec);
@@ -25,11 +24,12 @@ export interface CompilerPromptOptions {
 
 export function buildCompilerUserPrompt(
   spec: DesignSpec,
+  compilerUserTemplate: string,
   referenceDesigns?: { name: string; code: string }[],
   critiques?: CritiqueInput[],
   options?: CompilerPromptOptions,
 ): string {
-  let prompt = interpolate(getPrompt('compilerUser'), {
+  let prompt = interpolate(compilerUserTemplate, {
     SPEC_TITLE: spec.title,
     DESIGN_BRIEF: getSectionContent(spec, 'design-brief'),
     EXISTING_DESIGN: getSectionContent(spec, 'existing-design'),
@@ -64,7 +64,6 @@ export function buildCompilerUserPrompt(
     }
   }
 
-  // Existing strategies context — let the LLM see what's already explored
   const existing = options?.existingStrategies;
   if (existing && existing.length > 0) {
     prompt += '\n\n## Existing Hypotheses (already explored)\n';
@@ -84,7 +83,6 @@ export function buildCompilerUserPrompt(
     }
   }
 
-  // Count directive
   const count = options?.count;
   if (count != null) {
     prompt += `\nProduce exactly ${count} new variant strategies.\n`;

@@ -2,6 +2,8 @@ import { memo, useCallback } from 'react';
 import { type NodeProps, type Node } from '@xyflow/react';
 import { useCanvasStore } from '../../../stores/canvas-store';
 import type { CritiqueNodeData } from '../../../types/canvas-data';
+import { useNodeRemoval } from '../../../hooks/useNodeRemoval';
+import { filledOrEmpty } from '../../../lib/node-status';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';
 import CompactField from './CompactField';
@@ -9,7 +11,7 @@ import CompactField from './CompactField';
 type CritiqueNodeType = Node<CritiqueNodeData, 'critique'>;
 
 function CritiqueNode({ id, data, selected }: NodeProps<CritiqueNodeType>) {
-  const removeNode = useCanvasStore((s) => s.removeNode);
+  const onRemove = useNodeRemoval(id);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
 
   const title = data.title || '';
@@ -23,7 +25,7 @@ function CritiqueNode({ id, data, selected }: NodeProps<CritiqueNodeType>) {
   );
 
   const hasFeedback = !!(strengths.trim() || improvements.trim() || direction.trim());
-  const status = hasFeedback ? 'filled' as const : 'empty' as const;
+  const status = filledOrEmpty(hasFeedback);
 
   return (
     <NodeShell
@@ -35,7 +37,7 @@ function CritiqueNode({ id, data, selected }: NodeProps<CritiqueNodeType>) {
       handleColor={strengths.trim() || improvements.trim() || direction.trim() ? 'green' : 'amber'}
     >
       <NodeHeader
-        onRemove={() => removeNode(id)}
+        onRemove={onRemove}
         className="border-b border-warning/20 bg-warning-subtle"
         description={<span className="text-warning">Feedback for next iteration</span>}
       >

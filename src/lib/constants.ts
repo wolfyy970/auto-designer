@@ -65,6 +65,18 @@ export const PREREQUISITE_DEFAULTS: Record<string, Record<string, unknown>> = {
 };
 
 
+// UI timing constants
+/** Duration of the fitView animation after nodes are added to the canvas (ms). */
+export const FIT_VIEW_DURATION_MS = 400;
+/** Delay before triggering fitView after nodes are placed, to let layout settle (ms). */
+export const FIT_VIEW_DELAY_MS = 200;
+/** Debounce delay for auto-layout recalculation on dimension changes (ms). */
+export const AUTO_LAYOUT_DEBOUNCE_MS = 200;
+/** Duration to show transient copy/save feedback indicators (ms). */
+export const FEEDBACK_DISMISS_MS = 1500;
+/** Delay for iframe to fully render before screenshot capture (ms). */
+export const SCREENSHOT_LOAD_DELAY_MS = 3000;
+
 function createEmptySection(id: SpecSectionId) {
   return {
     id,

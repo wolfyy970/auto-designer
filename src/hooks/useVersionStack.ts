@@ -6,6 +6,7 @@ import {
   getScopedStack,
   getScopedActiveResult,
 } from '../stores/generation-store';
+import { GENERATION_STATUS } from '../constants/generation';
 import type { GenerationResult } from '../types/provider';
 
 /**
@@ -44,7 +45,7 @@ export function useVersionStack(
       : variantStrategyId;
 
   const completedStack = useMemo(
-    () => stack.filter((r) => r.status === 'complete'),
+    () => stack.filter((r) => r.status === GENERATION_STATUS.COMPLETE),
     [stack],
   );
 

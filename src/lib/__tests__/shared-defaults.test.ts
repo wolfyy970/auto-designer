@@ -4,8 +4,6 @@ import { PROMPT_DEFAULTS } from '../prompts/shared-defaults';
 const EXPECTED_KEYS = [
   'compilerSystem',
   'compilerUser',
-  'agentSystemPlanner',
-  'agentSystemBuilder',
   'genSystemHtml',
   'variant',
   'designSystemExtract',

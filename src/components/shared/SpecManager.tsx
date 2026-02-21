@@ -5,6 +5,7 @@ import { useSpecStore } from '../../stores/spec-store';
 import { useCompilerStore } from '../../stores/compiler-store';
 import { useGenerationStore } from '../../stores/generation-store';
 import { useCanvasStore } from '../../stores/canvas-store';
+import { FEEDBACK_DISMISS_MS } from '../../lib/constants';
 import {
   saveCanvas,
   getCanvasList,
@@ -51,7 +52,7 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
     saveCanvas(spec);
     refreshList();
     setSavedFeedback(true);
-    setTimeout(() => setSavedFeedback(false), 1500);
+    setTimeout(() => setSavedFeedback(false), FEEDBACK_DISMISS_MS);
   }, [spec, refreshList]);
 
   const handleLoad = useCallback(

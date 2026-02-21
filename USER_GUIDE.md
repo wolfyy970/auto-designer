@@ -96,7 +96,7 @@ When off, drag nodes freely.
 
 ## Managing Canvases
 
-Click **Canvases** in the header to open the Canvas Manager:
+Click **Canvas Manager** in the header:
 
 - **Save Current** — Snapshot the active canvas to localStorage
 - **New Canvas** — Saves the current canvas, creates a blank canvas

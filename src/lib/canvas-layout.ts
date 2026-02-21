@@ -37,6 +37,8 @@ const FALLBACK_H: Record<string, number> = {
 export const DEFAULT_COL_GAP = 160;
 export const MIN_COL_GAP = 80;
 export const MAX_COL_GAP = 320;
+/** Fallback Y coordinate when no existing nodes can be used as an anchor. */
+export const DEFAULT_CANVAS_Y = 300;
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -115,7 +117,7 @@ export function computeDefaultPosition(
   }
   if (type === 'compiler') {
     const compilers = existingNodes.filter((n) => n.type === 'compiler');
-    if (compilers.length === 0) return snap({ x: col.compiler, y: 300 });
+    if (compilers.length === 0) return snap({ x: col.compiler, y: DEFAULT_CANVAS_Y });
     const lastY = Math.max(...compilers.map((n) => n.position.y + nodeH(n)));
     return snap({ x: col.compiler, y: lastY + NODE_SPACING });
   }
@@ -132,13 +134,13 @@ export function computeDefaultPosition(
     const variantNodes = existingNodes.filter((n) => n.type === 'variant');
     const baseY = variantNodes.length > 0
       ? Math.max(...variantNodes.map((n) => n.position.y + nodeH(n))) + NODE_SPACING
-      : 300;
+      : DEFAULT_CANVAS_Y;
     const y = critiqueNodes.length > 0
       ? Math.max(...critiqueNodes.map((n) => n.position.y + nodeH(n))) + NODE_SPACING
       : baseY;
     return snap({ x: col.variant + NODE_W_VARIANT + 80, y });
   }
-  return snap({ x: col.variant, y: 300 });
+  return snap({ x: col.variant, y: DEFAULT_CANVAS_Y });
 }
 
 export function computeHypothesisPositions(

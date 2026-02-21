@@ -1,9 +1,11 @@
+import type { GenerationStatus } from '../constants/generation';
+
+export type { GenerationStatus };
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string | ContentPart[];
 }
-
-type GenerationStatus = 'pending' | 'generating' | 'complete' | 'error';
 
 export type ContentPart =
   | { type: 'text'; text: string }

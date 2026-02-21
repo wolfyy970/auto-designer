@@ -58,24 +58,6 @@ function validatePrompt(key: PromptKey, value: string): Diagnostic[] {
     });
   }
 
-  // Agent planner: must return JSON
-  if (key === 'agentSystemPlanner' && !value.toLowerCase().includes('json')) {
-    diagnostics.push({
-      level: 'warning',
-      message:
-        'Should instruct the model to return JSON. The planner response is parsed with JSON.parse().',
-    });
-  }
-
-  // Agent builder: should mention XML tools
-  if (key === 'agentSystemBuilder' && !value.includes('<write_file')) {
-    diagnostics.push({
-      level: 'warning',
-      message:
-        'Should instruct the model to use <write_file path="..."> tags to build the workspace.',
-    });
-  }
-
   return diagnostics;
 }
 
@@ -83,7 +65,7 @@ function validatePrompt(key: PromptKey, value: string): Diagnostic[] {
 
 const GROUPS: { label: string; keys: PromptKey[] }[] = [
   { label: 'Incubator', keys: ['compilerSystem', 'compilerUser'] },
-  { label: 'Designer', keys: ['agentSystemPlanner', 'agentSystemBuilder', 'variant', 'genSystemHtml'] },
+  { label: 'Designer', keys: ['variant', 'genSystemHtml'] },
   { label: 'Design System', keys: ['designSystemExtract'] },
 ];
 

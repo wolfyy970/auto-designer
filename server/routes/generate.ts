@@ -5,6 +5,7 @@ import { getProvider } from '../services/providers/registry.ts';
 import { resolvePrompt } from '../lib/prompts/defaults.ts';
 import { extractCode } from '../lib/extract-code.ts';
 import { logLlmCall } from '../log-store.ts';
+import { normalizeError } from '../lib/error-utils.ts';
 import type { ChatMessage } from '../../src/types/provider.ts';
 
 const generate = new Hono();
@@ -71,8 +72,7 @@ generate.post('/', async (c) => {
       await stream.writeSSE({ data: JSON.stringify({ code }), event: 'code', id: String(id++) });
       await stream.writeSSE({ data: '{}', event: 'done', id: String(id++) });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      await stream.writeSSE({ data: JSON.stringify({ error: message }), event: 'error', id: String(id++) });
+      await stream.writeSSE({ data: JSON.stringify({ error: normalizeError(err) }), event: 'error', id: String(id++) });
     }
   });
 });

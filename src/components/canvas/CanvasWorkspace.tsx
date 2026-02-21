@@ -172,6 +172,7 @@ function CanvasInner() {
             nodeColor={miniMapNodeColor}
             maskColor="var(--color-overlay)"
             className="!bottom-4 !right-4 !border-border !shadow-sm"
+            style={{ width: 133, height: 100 }}
           />
         )}
         <CanvasToolbar />

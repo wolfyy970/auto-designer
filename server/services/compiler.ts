@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { DesignSpec, ReferenceImage } from '../../src/types/spec.ts';
 import type { CompiledPrompt, DimensionMap, VariantStrategy } from '../../src/types/compiler.ts';
 import type { ContentPart, ChatMessage } from '../../src/types/provider.ts';
@@ -84,37 +85,43 @@ function extractJSON(text: string): string {
   return text;
 }
 
-function validateDimensionMap(
-  raw: Record<string, unknown>,
-  specId: string,
-  model: string
-): DimensionMap {
-  const dimensions = Array.isArray(raw.dimensions)
-    ? raw.dimensions.map((d: Record<string, unknown>) => ({
-        name: String(d.name || ''),
-        range: String(d.range || ''),
-        isConstant: Boolean(d.isConstant),
-      }))
-    : [];
+const DimensionSchema = z.object({
+  name: z.string().default(''),
+  range: z.string().default(''),
+  isConstant: z.boolean().default(false),
+});
 
-  const variants = Array.isArray(raw.variants)
-    ? raw.variants.map((v: Record<string, unknown>) => ({
-        id: generateId(),
-        name: String(v.name || 'Unnamed Variant'),
-        hypothesis: String(v.hypothesis || v.primaryEmphasis || ''),
-        rationale: String(v.rationale || ''),
-        measurements: String(v.measurements || ''),
-        dimensionValues:
-          v.dimensionValues && typeof v.dimensionValues === 'object'
-            ? Object.fromEntries(
-                Object.entries(v.dimensionValues as Record<string, unknown>).map(
-                  ([k, val]) => [k, String(val)]
-                )
-              )
-            : {},
-      }))
-    : [];
+const VariantStrategySchema = z.object({
+  name: z.string().default('Unnamed Variant'),
+  hypothesis: z.string().optional().default(''),
+  primaryEmphasis: z.string().optional(),
+  rationale: z.string().default(''),
+  measurements: z.string().default(''),
+  dimensionValues: z.record(z.string(), z.unknown()).optional().default(() => ({})),
+}).transform((v) => ({
+  id: generateId(),
+  name: v.name,
+  hypothesis: v.hypothesis || v.primaryEmphasis || '',
+  rationale: v.rationale,
+  measurements: v.measurements,
+  dimensionValues: Object.fromEntries(
+    Object.entries(v.dimensionValues ?? {}).map(([k, val]) => [k, String(val)])
+  ),
+}));
 
+const LLMResponseSchema = z.object({
+  dimensions: z.array(z.unknown()).default([]).transform((arr) =>
+    arr.map((d) => DimensionSchema.parse(typeof d === 'object' && d !== null ? d : {}))
+  ),
+  variants: z.array(z.unknown()).default([]).transform((arr) =>
+    arr.map((v) => VariantStrategySchema.parse(typeof v === 'object' && v !== null ? v : {}))
+  ),
+});
+
+function parseDimensionMap(raw: unknown, specId: string, model: string): DimensionMap {
+  const { dimensions, variants } = LLMResponseSchema.parse(
+    typeof raw === 'object' && raw !== null ? raw : {}
+  );
   return {
     id: generateId(),
     specId,
@@ -183,9 +190,9 @@ export async function compileSpec(
   const durationMs = Math.round(performance.now() - t0);
 
   const jsonStr = extractJSON(response);
-  let parsed: Record<string, unknown>;
+  let raw: unknown;
   try {
-    parsed = JSON.parse(jsonStr);
+    raw = JSON.parse(jsonStr);
   } catch {
     logLlmCall({
       source: 'compiler',
@@ -212,7 +219,7 @@ export async function compileSpec(
     durationMs,
   });
 
-  return validateDimensionMap(parsed, spec.id, model);
+  return parseDimensionMap(raw, spec.id, model);
 }
 
 export function compileVariantPrompts(

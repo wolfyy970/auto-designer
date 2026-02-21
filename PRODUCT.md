@@ -55,7 +55,7 @@ The server receives the compiled variant prompt (hypothesis + spec context), app
 
 **Parallel generation.** Multiple hypotheses generate simultaneously when triggered. Within a single hypothesis, multiple connected Model nodes also generate in parallel. Progress and completion update independently per variant.
 
-**Agentic engine (preserved).** A multi-file agentic build loop (`server/services/agent/orchestrator.ts`) is preserved as an inactive stub for future use. It implements a two-phase planner + builder loop with VirtualWorkspace, fuzzy patching, and Markdown fallback parsing — but is not used for generation currently.
+**Agentic engine (archived).** A multi-file agentic build loop was prototyped and archived in `server/services/_archived/` and `src/services/_archived/`. It is excluded from compilation and not used for generation.
 
 ## Prompt Editor
 
@@ -68,8 +68,6 @@ All LLM prompts are exposed to the user and editable at runtime via the Prompt E
 | Designer — System | System prompt for single-shot HTML generation |
 | Designer — User | User prompt template for variant generation (variables: `{{STRATEGY_NAME}}`, `{{DESIGN_BRIEF}}`, etc.) |
 | Design System — Extract | Prompt for vision-based token extraction from screenshots |
-| Agentic Planner (inactive) | Reserved for future multi-file generation |
-| Agentic Builder (inactive) | Reserved for future multi-file generation |
 
 Overrides persist in localStorage.
 

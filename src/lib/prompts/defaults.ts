@@ -11,8 +11,6 @@ export const DEFAULTS: Record<PromptKey, string> = PROMPT_DEFAULTS as Record<Pro
 export const ENV_KEYS: Record<PromptKey, string> = {
   compilerSystem: 'VITE_PROMPT_COMPILER_SYSTEM',
   compilerUser: 'VITE_PROMPT_COMPILER_USER',
-  agentSystemPlanner: 'VITE_PROMPT_AGENT_SYSTEM_PLANNER',
-  agentSystemBuilder: 'VITE_PROMPT_AGENT_SYSTEM_BUILDER',
   genSystemHtml: 'VITE_PROMPT_GEN_SYSTEM_HTML',
   variant: 'VITE_PROMPT_VARIANT',
   designSystemExtract: 'VITE_PROMPT_DESIGN_SYSTEM_EXTRACT',
@@ -43,16 +41,6 @@ export const PROMPT_META: PromptMeta[] = [
     key: 'genSystemHtml',
     label: 'Designer — System',
     description: 'System prompt for design generation. The model receives this plus the hypothesis/spec context and returns a complete self-contained HTML document.',
-  },
-  {
-    key: 'agentSystemPlanner',
-    label: 'Agentic Planner (inactive)',
-    description: 'Reserved for future multi-file agentic generation. Currently unused.',
-  },
-  {
-    key: 'agentSystemBuilder',
-    label: 'Agentic Builder (inactive)',
-    description: 'Reserved for future multi-file agentic generation. Currently unused.',
   },
   {
     key: 'variant',

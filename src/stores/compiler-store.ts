@@ -30,12 +30,6 @@ export function allVariantStrategyIds(
   return ids;
 }
 
-/** Selector: returns the most recently added dimension map (backward compat) */
-export function selectDimensionMap(s: CompilerStore): DimensionMap | null {
-  const maps = Object.values(s.dimensionMaps);
-  return maps.length > 0 ? maps[maps.length - 1] : null;
-}
-
 // ── Store interface ────────────────────────────────────────────────
 
 interface CompilerStore {

@@ -5,6 +5,7 @@ import type { CritiqueInput } from '../lib/prompts/compiler-user.ts';
 import type { CompilerPromptOptions } from '../lib/prompts/compiler-user.ts';
 import { compileSpec } from '../services/compiler.ts';
 import { resolvePrompt } from '../lib/prompts/defaults.ts';
+import { normalizeError } from '../lib/error-utils.ts';
 
 const compile = new Hono();
 
@@ -55,8 +56,7 @@ compile.post('/', async (c) => {
     );
     return c.json(result);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return c.json({ error: message }, 500);
+    return c.json({ error: normalizeError(err) }, 500);
   }
 });
 

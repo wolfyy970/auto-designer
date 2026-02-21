@@ -8,6 +8,7 @@ import { useResultCode } from '../../hooks/useResultCode';
 import { useVersionStack } from '../../hooks/useVersionStack';
 import { badgeColor } from '../../lib/badge-colors';
 import type { GenerationResult } from '../../types/provider';
+import { GENERATION_STATUS } from '../../constants/generation';
 
 export default function VariantPreviewOverlay() {
   // expandedVariantId is now a canvas node ID
@@ -60,7 +61,7 @@ export default function VariantPreviewOverlay() {
 
   // Other complete results (for compare mode)
   const otherResults = useMemo(
-    () => results.filter((r: GenerationResult) => r.status === 'complete' && r.id !== result?.id),
+    () => results.filter((r: GenerationResult) => r.status === GENERATION_STATUS.COMPLETE && r.id !== result?.id),
     [results, result?.id],
   );
 

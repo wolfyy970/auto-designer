@@ -4,6 +4,7 @@ import {
   useGenerationStore,
   nextRunNumber,
 } from '../stores/generation-store';
+import { GENERATION_STATUS } from '../constants/generation';
 import { storage } from '../storage';
 import { getPrompt } from '../stores/prompt-store';
 import { generate as apiGenerate } from '../api/client';
@@ -68,7 +69,7 @@ export function useGenerate() {
           id: placeholderId,
           variantStrategyId: prompt.variantStrategyId,
           providerId,
-          status: 'generating',
+          status: GENERATION_STATUS.GENERATING,
           runId,
           runNumber: currentRunNumber,
           metadata: { model: options.model },
@@ -107,14 +108,14 @@ export function useGenerate() {
                 generatedCode = code;
               },
               onError: (error) => {
-                updateResult(placeholderId, { status: 'error', error });
+                updateResult(placeholderId, { status: GENERATION_STATUS.ERROR, error });
               },
             },
           );
 
           if (!generatedCode) {
             updateResult(placeholderId, {
-              status: 'error',
+              status: GENERATION_STATUS.ERROR,
               error: 'Server returned no code.',
             });
             return;
@@ -140,7 +141,7 @@ export function useGenerate() {
 
           updateResult(placeholderId, {
             id: placeholderId,
-            status: 'complete',
+            status: GENERATION_STATUS.COMPLETE,
             metadata: {
               model: options.model,
               completedAt: new Date().toISOString(),
@@ -149,7 +150,7 @@ export function useGenerate() {
           callbacks?.onResultComplete?.(placeholderId);
         } catch (err) {
           updateResult(placeholderId, {
-            status: 'error',
+            status: GENERATION_STATUS.ERROR,
             error: normalizeError(err, 'Generation failed'),
           });
         }
@@ -159,7 +160,7 @@ export function useGenerate() {
 
       if (manage) {
         const stillGenerating = useGenerationStore.getState().results.some(
-          (r) => r.status === 'generating',
+          (r) => r.status === GENERATION_STATUS.GENERATING,
         );
         if (!stillGenerating) setGenerating(false);
       }

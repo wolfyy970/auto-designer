@@ -9,6 +9,8 @@ import { extractDesignSystem } from '../../../api/client';
 import { getPrompt } from '../../../stores/prompt-store';
 import { generateId, now } from '../../../lib/utils';
 import { useConnectedModel } from '../../../hooks/useConnectedModel';
+import { useNodeRemoval } from '../../../hooks/useNodeRemoval';
+import { filledOrEmpty } from '../../../lib/node-status';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';
 import type { ReferenceImage } from '../../../types/spec';
@@ -16,7 +18,7 @@ import type { ReferenceImage } from '../../../types/spec';
 type DesignSystemNodeType = Node<DesignSystemNodeData, 'designSystem'>;
 
 function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType>) {
-  const removeNode = useCanvasStore((s) => s.removeNode);
+  const onRemove = useNodeRemoval(id);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
 
   const title = data.title || 'Design System';
@@ -108,7 +110,7 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
     accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'] },
   });
 
-  const status = content.trim() ? 'filled' as const : 'empty' as const;
+  const status = filledOrEmpty(!!content.trim());
 
   return (
     <NodeShell
@@ -120,7 +122,7 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
       handleColor={content.trim() ? 'green' : 'amber'}
     >
       <NodeHeader
-        onRemove={() => removeNode(id)}
+        onRemove={onRemove}
         description="Design tokens, components, and patterns"
       >
         <input

@@ -6,7 +6,11 @@ import { useCanvasStore } from '../../../stores/canvas-store';
 import { useGenerationStore } from '../../../stores/generation-store';
 import type { HypothesisNodeData } from '../../../types/canvas-data';
 import { useHypothesisGeneration } from '../../../hooks/useHypothesisGeneration';
+import { useNodeRemoval } from '../../../hooks/useNodeRemoval';
 import { useElapsedTimer } from '../../../hooks/useElapsedTimer';
+import { processingOrFilled } from '../../../lib/node-status';
+import { GENERATION_STATUS } from '../../../constants/generation';
+import { NODE_STATUS } from '../../../constants/canvas';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';
 import GeneratingSkeleton from './GeneratingSkeleton';
@@ -22,7 +26,7 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
   );
   const updateVariant = useCompilerStore((s) => s.updateVariant);
 
-  const removeNode = useCanvasStore((s) => s.removeNode);
+  const handleRemove = useNodeRemoval(nodeId);
 
   // Count connected Model nodes with a selected model (reactive for UI)
   const connectedModelCount = useCanvasStore((s) => {
@@ -37,7 +41,7 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
 
   // Check if THIS hypothesis is generating (not global)
   const isGenerating = useGenerationStore((s) =>
-    s.results.some((r) => r.variantStrategyId === strategyId && r.status === 'generating'),
+    s.results.some((r) => r.variantStrategyId === strategyId && r.status === GENERATION_STATUS.GENERATING),
   );
 
   const elapsed = useElapsedTimer(isGenerating);
@@ -67,8 +71,8 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
     if (variantCount > 0) {
       if (!window.confirm(`Delete this hypothesis and ${variantCount} connected ${variantCount === 1 ? 'variant' : 'variants'}?`)) return;
     }
-    removeNode(nodeId);
-  }, [nodeId, removeNode]);
+    handleRemove();
+  }, [handleRemove, nodeId]);
 
   if (data.placeholder) {
     return (
@@ -77,7 +81,7 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
         nodeType="hypothesis"
         selected={!!selected}
         width="w-node"
-        status="processing"
+        status={NODE_STATUS.PROCESSING}
         handleColor="amber"
         targetShape="diamond"
       >
@@ -106,7 +110,7 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
     );
   }
 
-  const status = isGenerating ? 'processing' as const : 'filled' as const;
+  const status = processingOrFilled(isGenerating);
 
   const hasModel = connectedModelCount > 0;
   const canGenerate = !!strategy.name.trim() && !!strategy.hypothesis.trim() && hasModel;

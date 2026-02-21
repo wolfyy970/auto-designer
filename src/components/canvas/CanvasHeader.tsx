@@ -49,32 +49,10 @@ export default function CanvasHeader() {
   return (
     <>
       <div className="absolute top-0 left-0 right-0 z-10 flex h-header items-center justify-between border-b border-border bg-bg/90 px-4 backdrop-blur-sm">
-        {/* Left: Identity + workspace controls */}
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-fg">
-            Lattice
-          </span>
-          <span className="text-fg-faint">|</span>
-          {isEditing ? (
-            <input
-              ref={inputRef}
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={handleKeyDown}
-              className="rounded border border-border px-2 py-0.5 text-sm text-fg-secondary input-focus"
-            />
-          ) : (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-1.5 text-sm text-fg-secondary hover:text-fg"
-            >
-              {title || 'Untitled Canvas'}
-              <Pencil size={12} className="text-fg-muted" />
-            </button>
-          )}
-          <span className="text-fg-faint">|</span>
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-fg-secondary select-none hover:text-fg">
+        {/* Left: App identity */}
+        <div className="flex w-0 min-w-0 flex-1 items-center gap-3">
+          <span className="text-sm font-semibold text-fg shrink-0">Lattice</span>
+          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-fg-secondary select-none hover:text-fg shrink-0">
             <input
               type="checkbox"
               checked={autoLayout}
@@ -85,8 +63,30 @@ export default function CanvasHeader() {
           </label>
         </div>
 
+        {/* Center: Document name */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleSave}
+              onKeyDown={handleKeyDown}
+              className="rounded border border-border px-2 py-0.5 text-sm text-fg text-center input-focus"
+            />
+          ) : (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-1.5 text-sm text-fg-secondary hover:text-fg"
+            >
+              {title || 'Untitled Canvas'}
+              <Pencil size={12} className="text-fg-muted" />
+            </button>
+          )}
+        </div>
+
         {/* Right: Navigation actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex w-0 min-w-0 flex-1 justify-end items-center gap-1">
           <button
             onClick={() => {
               if (window.confirm('Reset canvas to default template? This clears all nodes.')) {
@@ -103,7 +103,7 @@ export default function CanvasHeader() {
             className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-fg-secondary hover:bg-surface-raised"
           >
             <FolderOpen size={14} />
-            Specs
+            Canvas Manager
           </button>
           <button
             onClick={() => setShowLogs(true)}

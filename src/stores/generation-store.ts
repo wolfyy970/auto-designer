@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { GenerationResult } from '../types/provider';
+import { GENERATION_STATUS } from '../constants/generation';
 import { storage } from '../storage';
 import { STORAGE_KEYS } from '../lib/storage-keys';
 
@@ -147,8 +148,8 @@ export function getActiveResult(
   // Fall back to latest generating or complete result
   const stack = getStack(state, variantStrategyId);
   return (
-    stack.find((r) => r.status === 'generating') ??
-    stack.find((r) => r.status === 'complete') ??
+    stack.find((r) => r.status === GENERATION_STATUS.GENERATING) ??
+    stack.find((r) => r.status === GENERATION_STATUS.COMPLETE) ??
     stack[0]
   );
 }
@@ -179,8 +180,8 @@ export function getScopedActiveResult(
   }
   const stack = getScopedStack(state, variantStrategyId, runId);
   return (
-    stack.find((r) => r.status === 'generating') ??
-    stack.find((r) => r.status === 'complete') ??
+    stack.find((r) => r.status === GENERATION_STATUS.GENERATING) ??
+    stack.find((r) => r.status === GENERATION_STATUS.COMPLETE) ??
     stack[0]
   );
 }

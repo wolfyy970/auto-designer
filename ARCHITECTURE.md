@@ -111,16 +111,15 @@ All POST endpoints validate request bodies with Zod `safeParse` — malformed re
 | `routes/models.ts` | GET /api/models/:provider |
 | `routes/logs.ts` | GET/DELETE /api/logs |
 | `routes/design-system.ts` | POST /api/design-system/extract |
-| `services/agent/orchestrator.ts` | Agentic build loop — inactive stub, preserved for future use |
-| `services/agent/workspace.ts` | VirtualWorkspace — inactive stub, preserved for future use |
-| `services/compiler.ts` | LLM compilation (moved from client) |
+| `services/_archived/` | Inactive agentic build loop (orchestrator + workspace) — archived, not compiled or tested |
+| `services/compiler.ts` | LLM compilation — Zod-validates request/response boundaries |
 | `services/providers/openrouter.ts` | OpenRouter provider (direct API, auth header) |
 | `services/providers/lmstudio.ts` | LM Studio provider (direct URL) |
 | `services/providers/registry.ts` | Provider registration and lookup |
-| `lib/provider-helpers.ts` | Shared fetch helpers (moved from client) |
-| `lib/prompts/*` | Prompt defaults (imports from shared `src/lib/prompts/shared-defaults.ts`) and template builders |
-| `lib/extract-code.ts` | Code extraction from LLM responses |
-| `lib/error-utils.ts` | Error normalization |
+| `lib/provider-helpers.ts` | Re-exports from `src/lib/provider-fetch.ts` + server-specific `buildChatRequestFromMessages` |
+| `lib/prompts/*` | Re-exports from `src/lib/prompts/` — no server-side duplication |
+| `lib/extract-code.ts` | Re-exports `src/lib/extract-code.ts` |
+| `lib/error-utils.ts` | Error normalization (`normalizeError`) |
 | `lib/utils.ts` | ID generation, interpolation |
 
 ## Generation Engine
@@ -140,9 +139,9 @@ The client streams the SSE response, saves the code to StoragePort (IndexedDB), 
 
 SSE is unidirectional. The client holds an `AbortController` and calls `abort()` on unmount or user cancellation. The server checks `c.req.raw.signal.aborted` to detect client disconnection.
 
-### Agentic Engine (Inactive Stub)
+### Agentic Engine (Archived)
 
-`server/services/agent/orchestrator.ts` and `workspace.ts` preserve a multi-file agentic build loop for future use. It implements a two-phase planner + builder loop with VirtualWorkspace, fuzzy patching, and Markdown fallback parsing. Currently inactive — not called from any active route. Fully tested via `src/services/__tests__/orchestrator.test.ts`.
+A multi-file agentic build loop (two-phase planner + builder, VirtualWorkspace, fuzzy patching) was prototyped and is preserved in `server/services/_archived/` and `src/services/_archived/`. It is excluded from TypeScript compilation and Vitest runs. Not called from any active route.
 
 ## Canvas Architecture
 
@@ -220,6 +219,29 @@ Multiple hypotheses generate simultaneously via `Promise.all`. Within a single h
 | `useProviderModels.ts` | React Query hook — calls `apiClient.listModels()` |
 | `useResultCode.ts` | Loads generated code from StoragePort |
 | `useConnectedModel.ts` | Reads provider/model config from a connected Model node |
+| `useNodeRemoval.ts` | Shared node + associated-edges removal logic (used by all node components) |
+
+### Constants (`src/constants/`)
+
+Single source of truth for string literals shared across the codebase. Eliminates magic strings and enables type-safe comparisons.
+
+| File | What it exports |
+|------|----------------|
+| `canvas.ts` | `NODE_TYPES`, `EDGE_TYPES`, `EDGE_STATUS`, `NODE_STATUS`, `buildEdgeId` |
+| `generation.ts` | `GENERATION_STATUS` |
+
+### Shared Lib Utilities (`src/lib/`)
+
+| File | Purpose |
+|------|---------|
+| `node-status.ts` | `filledOrEmpty`, `processingOrFilled`, `variantStatus` — pure helpers for node visual state |
+| `provider-fetch.ts` | Environment-agnostic fetch utilities shared by client and server (`fetchChatCompletion`, `fetchModelList`, `parseChatResponse`, `extractMessageText`) |
+| `canvas-connections.ts` | Connection validation rules and auto-connect edge builders |
+| `canvas-graph.ts` | Lineage BFS (`computeLineage`) |
+| `canvas-layout.ts` | Sugiyama-style layout (`computeLayout`) |
+| `extract-code.ts` | LLM response code-block extraction |
+| `error-utils.ts` | `normalizeError` — consistent error normalization |
+| `constants.ts` | UI timing constants (`FIT_VIEW_DURATION_MS`, `AUTO_LAYOUT_DEBOUNCE_MS`, etc.) |
 
 ## Key Design Decisions
 
@@ -227,7 +249,11 @@ Multiple hypotheses generate simultaneously via `Promise.all`. Within a single h
 
 **Why prompts are sent per-request.** The prompt store lives in the browser (localStorage). The server is stateless — it carries defaults and applies client-provided overrides. No shared state between server and client beyond the request payload.
 
-**Why `src/lib/prompts/shared-defaults.ts`.** Prompt text is the same on client and server. A single shared module (`shared-defaults.ts`) is the one source of truth. Both `src/lib/prompts/defaults.ts` (client) and `server/lib/prompts/defaults.ts` (server) import from it. `tsconfig.server.json` explicitly includes the file.
+**Why `src/lib/prompts/shared-defaults.ts`.** Prompt text is the same on client and server. A single shared module is the one source of truth. Both `src/lib/prompts/defaults.ts` (client) and `server/lib/prompts/defaults.ts` (server) import from it. `tsconfig.server.json` explicitly includes the file.
+
+**Why `src/lib/provider-fetch.ts`.** LLM fetch logic is identical on client and server, but `import.meta.env` (client) and `process.env` (server) are incompatible. The shared module contains only environment-agnostic functions. Client and server each have their own `buildChatRequestFromMessages` that reads the correct env API, then re-export everything else from the shared module.
+
+**Why `src/constants/`.** String literals for node types, edge types, and generation statuses appear across stores, hooks, components, and edge/node definitions. A dedicated constants layer eliminates magic strings and ensures TypeScript narrows to exact union types at every call site.
 
 **Why SSE for generation.** Each variant is a separate SSE stream. Events: `activity` (thinking, file writes), `progress` (phase labels), `code` (final HTML), `error`, `done`. The client manages sequencing across variants.
 

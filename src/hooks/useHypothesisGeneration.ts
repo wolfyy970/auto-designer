@@ -8,7 +8,9 @@ import { compileVariantPrompts } from '../services/compiler';
 import { useGenerate, type ProvenanceContext } from './useGenerate';
 import { collectDesignSystemInputs } from '../lib/canvas-graph';
 import { generateId, now } from '../lib/utils';
-import { DEFAULT_COMPILER_PROVIDER } from '../lib/constants';
+import { DEFAULT_COMPILER_PROVIDER, FIT_VIEW_DELAY_MS, FIT_VIEW_DURATION_MS } from '../lib/constants';
+import { GENERATION_STATUS } from '../constants/generation';
+import { EDGE_STATUS } from '../constants/canvas';
 
 // Version stacking: when the user changes model and regenerates,
 // results accumulate within the same variant node (navigable with
@@ -67,7 +69,7 @@ export function useHypothesisGeneration({
   const setGenerating = useGenerationStore((s) => s.setGenerating);
   // Check if THIS hypothesis is generating (not global)
   const isGenerating = useGenerationStore((s) =>
-    s.results.some((r) => r.variantStrategyId === strategyId && r.status === 'generating'),
+    s.results.some((r) => r.variantStrategyId === strategyId && r.status === GENERATION_STATUS.GENERATING),
   );
 
   const syncAfterGenerate = useCanvasStore((s) => s.syncAfterGenerate);
@@ -109,7 +111,7 @@ export function useHypothesisGeneration({
     const prompts = compileVariantPrompts(spec, filteredMap, dsContent, dsImages);
     setCompiledPrompts(prompts);
 
-    setEdgeStatusBySource(nodeId, 'processing');
+    setEdgeStatusBySource(nodeId, EDGE_STATUS.PROCESSING);
     setGenerationError(null);
 
     // Build provenance context
@@ -144,7 +146,7 @@ export function useHypothesisGeneration({
               syncAfterGenerate(phs, nodeId);
               if (!hasFitView) {
                 hasFitView = true;
-                setTimeout(() => fitView({ duration: 400, padding: 0.15 }), 200);
+                setTimeout(() => fitView({ duration: FIT_VIEW_DURATION_MS, padding: 0.15 }), FIT_VIEW_DELAY_MS);
               }
             },
             onResultComplete: (placeholderId) => {
@@ -159,7 +161,7 @@ export function useHypothesisGeneration({
                   result.variantStrategyId,
                 );
                 if (variantNodeId) {
-                  setEdgeStatusByTarget(variantNodeId, 'complete');
+                  setEdgeStatusByTarget(variantNodeId, EDGE_STATUS.COMPLETE);
                 }
               }
             },
@@ -171,7 +173,7 @@ export function useHypothesisGeneration({
     );
 
     const stillGenerating = useGenerationStore.getState().results.some(
-      (r) => r.status === 'generating',
+      (r) => r.status === GENERATION_STATUS.GENERATING,
     );
     if (!stillGenerating) setGenerating(false);
 
@@ -179,7 +181,7 @@ export function useHypothesisGeneration({
       .flat()
       .filter((ph) => {
         const r = useGenerationStore.getState().results.find((x) => x.id === ph.id);
-        return r?.status === 'error';
+        return r?.status === GENERATION_STATUS.ERROR;
       }).length;
 
     if (errorCount > 0) {
@@ -191,7 +193,7 @@ export function useHypothesisGeneration({
     }
 
     clearVariantNodeIdMap();
-    setEdgeStatusBySource(nodeId, 'complete');
+    setEdgeStatusBySource(nodeId, EDGE_STATUS.COMPLETE);
   }, [
     strategy,
     nodeId,
