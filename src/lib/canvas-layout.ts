@@ -70,6 +70,21 @@ export function snap(pos: { x: number; y: number }): { x: number; y: number } {
   };
 }
 
+/**
+ * Position a prerequisite node in the column before its consumer.
+ * Model → Incubator: model lands in the sections column.
+ * Model → Hypothesis: model lands in the incubator column.
+ */
+export function computeAdjacentPosition(
+  consumerPosition: { x: number; y: number },
+  gap: number,
+): { x: number; y: number } {
+  return snap({
+    x: Math.max(0, consumerPosition.x - NODE_W_DEFAULT - gap),
+    y: consumerPosition.y,
+  });
+}
+
 // ── Position helpers ────────────────────────────────────────────────
 
 export function computeDefaultPosition(
@@ -207,7 +222,6 @@ export function computeAutoLayout(
       const minTargetRank = Math.min(...targets.map((t) => rank.get(t) ?? 0));
       rank.set(n.id, Math.max(0, minTargetRank - 1));
     } else {
-      // Disconnected model → place in compiler column
       rank.set(n.id, compilerRank);
     }
   }

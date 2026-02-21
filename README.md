@@ -7,10 +7,13 @@ Designers write structured specs. The compiler reasons about the exploration spa
 ## Quick Start
 
 ```bash
-pnpm install
+npm install
 cp .env.example .env.local  # add your API keys
-pnpm dev                     # http://localhost:5173
+npm run dev                  # Vite SPA on http://localhost:5173
+npm run dev:server           # Hono API on http://localhost:3001
 ```
+
+Both processes are required for local development. The Vite dev server proxies `/api/*` to the Hono server.
 
 ### API Configuration
 
@@ -39,11 +42,11 @@ Nodes connect left-to-right. Auto-layout arranges everything based on connection
 
 | Command | What it does |
 |---------|-------------|
-| `pnpm dev` | Start dev server |
-| `pnpm build` | Type-check and production build |
-| `pnpm test` | Run unit tests (Vitest) |
-| `pnpm lint` | Run ESLint |
-| `pnpm preview` | Serve production build locally |
+| `npm run dev` | Start Vite SPA dev server (port 5173) |
+| `npm run dev:server` | Start Hono API server (port 3001) |
+| `npm run build` | Type-check and production build |
+| `npm test` | Run unit tests (Vitest) |
+| `npm run lint` | Run ESLint |
 
 ## Documentation
 

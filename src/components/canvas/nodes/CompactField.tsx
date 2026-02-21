@@ -6,7 +6,6 @@ export default function CompactField({
   placeholder,
   rows = 2,
   labelClassName = 'text-fg-muted',
-  focusClassName = 'focus:border-accent',
 }: {
   label: string;
   value: string;
@@ -14,7 +13,6 @@ export default function CompactField({
   placeholder?: string;
   rows?: number;
   labelClassName?: string;
-  focusClassName?: string;
 }) {
   return (
     <div>
@@ -26,7 +24,7 @@ export default function CompactField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={rows}
-        className={`nodrag nowheel w-full resize-none rounded border border-border px-2 py-1.5 text-micro text-fg-secondary placeholder:text-fg-faint outline-none ${focusClassName}`}
+        className={`nodrag nowheel w-full resize-none rounded border border-border px-2 py-1.5 text-micro text-fg-secondary placeholder:text-fg-faint input-focus`}
       />
     </div>
   );

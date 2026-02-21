@@ -5,7 +5,7 @@ import { ImagePlus, Sparkles, Loader2, X } from 'lucide-react';
 import { normalizeError } from '../../../lib/error-utils';
 import { useCanvasStore } from '../../../stores/canvas-store';
 import type { DesignSystemNodeData } from '../../../types/canvas-data';
-import { callLLM } from '../../../services/compiler';
+import { extractDesignSystem } from '../../../api/client';
 import { getPrompt } from '../../../stores/prompt-store';
 import { generateId, now } from '../../../lib/utils';
 import { useConnectedModel } from '../../../hooks/useConnectedModel';
@@ -81,16 +81,15 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
     setExtracting(true);
     setExtractError(null);
     try {
-      const systemPrompt = getPrompt('designSystemExtract');
-      const result = await callLLM(
-        [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: 'Extract the design system from the provided images.' },
-        ],
-        modelId!,
-        providerId!,
-        { temperature: 0.3, max_tokens: 4096, images },
-      );
+      const response = await extractDesignSystem({
+        images,
+        providerId: providerId!,
+        modelId: modelId!,
+        promptOverrides: {
+          designSystemExtract: getPrompt('designSystemExtract'),
+        },
+      });
+      const result = response.result;
 
       if (content.trim()) {
         update('content', content + '\n\n---\n\n' + result);
@@ -109,11 +108,7 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
     accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'] },
   });
 
-  const borderClass = selected
-    ? 'border-accent ring-2 ring-accent/20'
-    : content.trim()
-      ? 'border-border'
-      : 'border-dashed border-border';
+  const status = content.trim() ? 'filled' as const : 'empty' as const;
 
   return (
     <NodeShell
@@ -121,7 +116,7 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
       nodeType="designSystem"
       selected={!!selected}
       width="w-node"
-      borderClass={borderClass}
+      status={status}
       handleColor={content.trim() ? 'green' : 'amber'}
     >
       <NodeHeader
@@ -143,7 +138,7 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
           onChange={(e) => update('content', e.target.value)}
           placeholder="Paste design system tokens, or drop images below and click Extract..."
           rows={4}
-          className="nodrag nowheel w-full resize-none rounded border border-border px-2.5 py-2 text-xs text-fg-secondary placeholder:text-fg-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent/20"
+          className="nodrag nowheel w-full resize-none rounded border border-border px-2.5 py-2 text-xs text-fg-secondary placeholder:text-fg-faint outline-none input-focus"
         />
 
         {/* Image upload */}
@@ -169,7 +164,7 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
                       onChange={(e) => updateImageDescription(img.id, e.target.value)}
                       placeholder="Describe what this image shows..."
                       rows={2}
-                      className="w-full resize-none rounded border border-border bg-bg px-2 py-1 text-nano text-fg-secondary placeholder-fg-muted outline-none focus:border-accent"
+                      className="w-full resize-none rounded border border-border bg-bg px-2 py-1 text-nano text-fg-secondary placeholder-fg-muted input-focus"
                     />
                   </div>
                   <button

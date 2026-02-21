@@ -1,4 +1,7 @@
-import type { ChatMessage } from '../services/compiler';
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string | ContentPart[];
+}
 
 type GenerationStatus = 'pending' | 'generating' | 'complete' | 'error';
 
@@ -52,6 +55,8 @@ export interface GenerationResult {
   progressMessage?: string;
   /** File-level progress: how many planned files have been written vs. total. */
   progressStep?: { current: number; total: number };
+  /** Accumulated activity log entries from the orchestrator (thinking, file writes, etc.) */
+  activityLog?: string[];
 }
 
 export interface ChatResponse {

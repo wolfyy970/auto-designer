@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { GenerationResult } from '../types/provider';
-import { deleteCode, deleteProvenance, clearAllCodes } from '../services/idb-storage';
+import { storage } from '../storage';
 import { STORAGE_KEYS } from '../lib/storage-keys';
 
 /** Fire-and-forget cleanup — log in dev, silent in prod */
@@ -51,8 +51,8 @@ export const useGenerationStore = create<GenerationStore>()(
         })),
 
       deleteResult: (resultId) => {
-        idbCleanup(deleteCode(resultId));
-        idbCleanup(deleteProvenance(resultId));
+        idbCleanup(storage.deleteCode(resultId));
+        idbCleanup(storage.deleteProvenance(resultId));
 
         set((state) => {
           const filtered = state.results.filter((r) => r.id !== resultId);
@@ -76,8 +76,8 @@ export const useGenerationStore = create<GenerationStore>()(
           }
 
           for (const id of toDelete) {
-            idbCleanup(deleteCode(id));
-            idbCleanup(deleteProvenance(id));
+            idbCleanup(storage.deleteCode(id));
+            idbCleanup(storage.deleteProvenance(id));
           }
 
           return { results: filtered, selectedVersions: sv };
@@ -86,7 +86,7 @@ export const useGenerationStore = create<GenerationStore>()(
 
       reset: () => {
         set({ results: [], isGenerating: false, selectedVersions: {} });
-        idbCleanup(clearAllCodes());
+        idbCleanup(storage.clearAllCodes());
       },
     }),
     {

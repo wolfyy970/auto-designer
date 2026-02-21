@@ -1,5 +1,6 @@
 import { VirtualWorkspace } from './workspace';
 import { AgentToolError } from '../../lib/error-utils';
+import { logLlmCall } from '../../stores/log-store';
 import type { GenerationProvider, ToolDefinition, ToolCall } from '../../types/provider';
 import type { ProviderOptions } from '../../types/provider';
 import type { ChatMessage } from '../compiler';
@@ -84,12 +85,33 @@ async function runPlanningPass(
     { role: 'system', content: plannerSystemPrompt },
     { role: 'user', content: userPromptContext },
   ];
+  const t0 = performance.now();
   const response = await provider.generateChat(messages, providerOptions);
+  const durationMs = Math.round(performance.now() - t0);
   try {
     const plan = JSON.parse(response.raw) as BuildPlan;
+    logLlmCall({
+      source: 'planner',
+      model: providerOptions.model ?? 'unknown',
+      provider: provider.id,
+      systemPrompt: plannerSystemPrompt,
+      userPrompt: userPromptContext,
+      response: response.raw,
+      durationMs,
+    });
     onProgress?.(`Plan ready: ${plan.files.length} files — ${plan.intent}`);
     return plan;
   } catch {
+    logLlmCall({
+      source: 'planner',
+      model: providerOptions.model ?? 'unknown',
+      provider: provider.id,
+      systemPrompt: plannerSystemPrompt,
+      userPrompt: userPromptContext,
+      response: response.raw,
+      durationMs,
+      error: 'Failed to parse plan JSON',
+    });
     onProgress?.('Warning: Could not parse build plan. Proceeding without plan.');
     return null;
   }
@@ -149,6 +171,29 @@ function formatWorkspaceStatus(workspace: VirtualWorkspace, plan: BuildPlan | nu
   }
 
   return lines.join('\n');
+}
+
+// ── Thinking extraction (for activity log) ──────────────────────────
+
+/** Extract model's prose/thinking text before any tool calls or code blocks. */
+function extractThinking(raw: string): string {
+  // Strip everything from the first XML tool tag or markdown code fence onwards
+  const cutPoints = [
+    raw.search(/<write_file\s/),
+    raw.search(/<edit_file\s/),
+    raw.search(/<read_file\s/),
+    raw.search(/<finish_build/),
+    raw.search(/```\w/),
+  ].filter((i) => i >= 0);
+
+  const text = cutPoints.length > 0
+    ? raw.slice(0, Math.min(...cutPoints))
+    : raw;
+
+  // Clean up and truncate
+  const cleaned = text.replace(/\n{3,}/g, '\n\n').trim();
+  if (!cleaned) return '';
+  return cleaned.length > 300 ? cleaned.slice(0, 297) + '…' : cleaned;
 }
 
 // ── XML fallback parser ──────────────────────────────────────────────
@@ -282,6 +327,8 @@ export interface AgenticBuildOptions {
   maxLoops?: number;
   plannerSystemPrompt?: string;
   onProgress?: (status: string) => void;
+  /** Rich activity log entries for live UI display (thinking, file writes, etc.) */
+  onActivity?: (entry: string) => void;
 }
 
 export async function runAgenticBuild(
@@ -315,6 +362,10 @@ export async function runAgenticBuild(
     );
     if (activePlan) {
       buildPlanContext = '\n\n' + formatPlanContext(activePlan);
+      options.onActivity?.(`Plan: ${activePlan.intent}`);
+      for (const f of activePlan.files) {
+        options.onActivity?.(`  ○ ${f.path} — ${f.responsibility}`);
+      }
     }
   }
 
@@ -331,13 +382,13 @@ export async function runAgenticBuild(
 
     let toolCalls: ToolCall[];
     let rawAssistantContent: string;
+    const loopT0 = performance.now();
 
     if (useNativeTools) {
       const response = await provider.generateWithTools!(messages, AGENT_TOOLS, providerOptions);
       rawAssistantContent = response.text ?? '';
       toolCalls = response.toolCalls;
 
-      // Represent the turn as a compact assistant message for context compression
       messages.push({ role: 'assistant', content: rawAssistantContent || '[tool call]' });
     } else {
       const response = await provider.generateChat(messages, providerOptions);
@@ -353,6 +404,29 @@ export async function runAgenticBuild(
       }
 
       messages.push({ role: 'assistant', content: rawAssistantContent });
+    }
+
+    // Log the build loop LLM call
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+    logLlmCall({
+      source: 'builder',
+      phase: `Loop ${loops + 1}/${maxLoops}`,
+      model: options.model,
+      provider: provider.id,
+      systemPrompt: builderSystemPrompt,
+      userPrompt: typeof lastUserMsg?.content === 'string' ? lastUserMsg.content : '[multipart]',
+      response: rawAssistantContent,
+      durationMs: Math.round(performance.now() - loopT0),
+      toolCalls: toolCalls.map((tc) => ({
+        name: tc.name,
+        path: (tc.args as Record<string, unknown>).path as string | undefined,
+      })),
+    });
+
+    // Emit model thinking to activity log
+    const thinking = extractThinking(rawAssistantContent);
+    if (thinking) {
+      options.onActivity?.(thinking);
     }
 
     if (toolCalls.length === 0) {
@@ -371,15 +445,29 @@ export async function runAgenticBuild(
         const result = dispatchToolCall(call, workspace, activePlan, options.onProgress);
 
         if (result.readContent !== undefined) {
-          // read_file: inject file content as a user message immediately
           const path = (call.args as { path: string }).path;
           messages.push({ role: 'user', content: `Contents of ${path}:\n\n${result.readContent}` });
+          options.onActivity?.(`Read ${path}`);
           continue;
         }
 
         if (result.finished) {
+          options.onActivity?.('\u2713 Build complete');
           isFinished = true;
           break;
+        }
+
+        // Emit file operations to activity log
+        if (call.name === 'write_file') {
+          const { path: fpath, content: fcontent } = call.args as { path: string; content: string };
+          const lineCount = (fcontent.match(/\n/g) ?? []).length + 1;
+          options.onActivity?.(`\u2713 Wrote ${fpath} (${lineCount} lines)`);
+        } else if (call.name === 'edit_file') {
+          options.onActivity?.(`\u270E Patched ${(call.args as { path: string }).path}`);
+        }
+
+        if (result.feedback.includes('FAILED')) {
+          options.onActivity?.(`\u2717 ${result.feedback}`);
         }
 
         turnFeedback += result.feedback + '\n';

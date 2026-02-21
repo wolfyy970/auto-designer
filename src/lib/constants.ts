@@ -53,6 +53,17 @@ export const LMSTUDIO_PROXY = '/lmstudio-api';
 export const DEFAULT_COMPILER_PROVIDER = import.meta.env.VITE_DEFAULT_COMPILER_PROVIDER || 'openrouter';
 export const DEFAULT_GENERATION_PROVIDER = import.meta.env.VITE_DEFAULT_GENERATION_PROVIDER || 'lmstudio';
 
+// Default model for auto-created Model nodes (OpenRouter ID)
+export const DEFAULT_MODEL_ID = import.meta.env.VITE_DEFAULT_MODEL_ID || 'z-ai/glm-5';
+
+/**
+ * Default node data for each auto-created prerequisite type.
+ * Keyed by node type — extend this map when adding new prerequisite rules.
+ */
+export const PREREQUISITE_DEFAULTS: Record<string, Record<string, unknown>> = {
+  model: { providerId: DEFAULT_COMPILER_PROVIDER, modelId: DEFAULT_MODEL_ID },
+};
+
 
 function createEmptySection(id: SpecSectionId) {
   return {

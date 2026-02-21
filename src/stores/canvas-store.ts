@@ -20,17 +20,18 @@ import { generateId, now } from '../lib/utils';
 import {
   computeAutoLayout,
   computeDefaultPosition,
-  computeHypothesisPositions,
   columnX,
   snap,
   DEFAULT_COL_GAP,
   MIN_COL_GAP,
   MAX_COL_GAP,
   SECTION_NODE_TYPES,
+  computeAdjacentPosition,
 } from '../lib/canvas-layout';
-import { isValidConnection as checkValidConnection, buildAutoConnectEdges } from '../lib/canvas-connections';
+import { isValidConnection as checkValidConnection, buildAutoConnectEdges, buildModelEdgeForNode, buildModelEdgesFromParent, findMissingPrerequisite } from '../lib/canvas-connections';
 import { computeLineage } from '../lib/canvas-graph';
 import { STORAGE_KEYS } from '../lib/storage-keys';
+import { PREREQUISITE_DEFAULTS } from '../lib/constants';
 import { migrateCanvasState } from './canvas-migrations';
 
 // Debounced auto-layout on dimension changes (avoids infinite loop)
@@ -114,6 +115,8 @@ interface CanvasStore {
   setExpandedVariant: (id: string | null) => void;
   computeLineage: (selectedNodeId: string | null) => void;
 
+  addPlaceholderHypotheses: (compilerNodeId: string, count: number) => string[];
+  removePlaceholders: (placeholderIds: string[]) => void;
   initializeCanvas: () => void;
   syncAfterCompile: (newVariants: VariantStrategy[], compilerNodeId: string) => void;
   syncAfterGenerate: (results: GenerationResult[], hypothesisNodeId: string) => void;
@@ -124,6 +127,7 @@ interface CanvasStore {
   setEdgeStatusByTarget: (targetId: string, status: EdgeStatus) => void;
 
   applyAutoLayout: () => void;
+  resetCanvas: () => void;
   reset: () => void;
 }
 
@@ -218,13 +222,29 @@ export const useCanvasStore = create<CanvasStore>()(
 
         // All nodes get unique IDs
         const id = `${type}-${generateId()}`;
+        const col = columnX(state.colGap);
+        const targetPos = snap(position ?? computeDefaultPosition(type, state.nodes, col));
 
         const newNode: CanvasNode = {
           id,
           type,
-          position: snap(position ?? computeDefaultPosition(type, state.nodes, columnX(state.colGap))),
-          data: {},
+          position: targetPos,
+          data: { ...PREREQUISITE_DEFAULTS[type] },
         };
+
+        // Auto-create prerequisite nodes (driven by PREREQUISITE_RULES)
+        let intermediateNodes = state.nodes;
+        const prereqType = findMissingPrerequisite(type, state.nodes);
+        if (prereqType) {
+          const prereqId = `${prereqType}-${generateId()}`;
+          const prereqNode: CanvasNode = {
+            id: prereqId,
+            type: prereqType as CanvasNodeType,
+            position: computeAdjacentPosition(targetPos, state.colGap),
+            data: PREREQUISITE_DEFAULTS[prereqType] ?? {},
+          };
+          intermediateNodes = [...intermediateNodes, prereqNode];
+        }
 
         // For manually added hypotheses, create a variant in the compiler store
         if (type === 'hypothesis') {
@@ -251,9 +271,10 @@ export const useCanvasStore = create<CanvasStore>()(
           }
         }
 
-        const autoEdges = buildAutoConnectEdges(id, type, state.nodes);
+        const structuralEdges = buildAutoConnectEdges(id, type, intermediateNodes);
+        const modelEdges = buildModelEdgeForNode(id, type, intermediateNodes);
 
-        set({ nodes: [...state.nodes, newNode], edges: [...state.edges, ...autoEdges] });
+        set({ nodes: [...intermediateNodes, newNode], edges: [...state.edges, ...structuralEdges, ...modelEdges] });
         if (get().autoLayout) get().applyAutoLayout();
       },
 
@@ -338,6 +359,60 @@ export const useCanvasStore = create<CanvasStore>()(
         }
       },
 
+      // ── Placeholder hypothesis nodes (skeleton during incubation) ──
+
+      addPlaceholderHypotheses: (compilerNodeId, count) => {
+        const state = get();
+        const col = columnX(state.colGap);
+
+        let maxY = state.nodes.find((n) => n.id === compilerNodeId)?.position.y ?? 300;
+        for (const e of state.edges) {
+          if (e.source !== compilerNodeId) continue;
+          const target = state.nodes.find((n) => n.id === e.target && n.type === 'hypothesis');
+          if (target) {
+            const bottom = target.position.y + (target.measured?.height ?? 300);
+            if (bottom > maxY) maxY = bottom;
+          }
+        }
+
+        const GAP = 40;
+        const EST_H = 340;
+        const SPACING = 60;
+        const ids: string[] = [];
+        const newNodes = [...state.nodes];
+        const newEdges = [...state.edges];
+
+        for (let i = 0; i < count; i++) {
+          const phId = `placeholder-${generateId()}`;
+          ids.push(phId);
+          newNodes.push({
+            id: phId,
+            type: 'hypothesis',
+            position: snap({ x: col.hypothesis, y: maxY + GAP + i * (EST_H + SPACING) }),
+            data: { placeholder: true },
+          });
+          newEdges.push({
+            id: `edge-${compilerNodeId}-to-${phId}`,
+            source: compilerNodeId,
+            target: phId,
+            type: 'dataFlow',
+            data: { status: 'processing' },
+          });
+        }
+
+        set({ nodes: newNodes, edges: newEdges });
+        if (get().autoLayout) get().applyAutoLayout();
+        return ids;
+      },
+
+      removePlaceholders: (placeholderIds) => {
+        const idSet = new Set(placeholderIds);
+        set({
+          nodes: get().nodes.filter((n) => !idSet.has(n.id)),
+          edges: get().edges.filter((e) => !idSet.has(e.source) && !idSet.has(e.target)),
+        });
+      },
+
       // ── Initialize canvas with template ─────────────────────────
 
       initializeCanvas: () => {
@@ -348,9 +423,10 @@ export const useCanvasStore = create<CanvasStore>()(
           return;
         }
 
-        // Template: Design Brief + Compiler
+        // Template: Design Brief + Model + Incubator (all connected)
         const col = columnX(state.colGap);
         const briefId = `designBrief-${generateId()}`;
+        const modelId = `model-${generateId()}`;
         const compilerId = `compiler-${generateId()}`;
 
         set({
@@ -362,9 +438,15 @@ export const useCanvasStore = create<CanvasStore>()(
               data: {},
             },
             {
+              id: modelId,
+              type: 'model',
+              position: snap({ x: col.compiler, y: 100 }),
+              data: { ...PREREQUISITE_DEFAULTS['model'] },
+            },
+            {
               id: compilerId,
               type: 'compiler',
-              position: snap({ x: col.compiler, y: 300 }),
+              position: snap({ x: col.compiler, y: 400 }),
               data: {},
             },
           ],
@@ -372,6 +454,13 @@ export const useCanvasStore = create<CanvasStore>()(
             {
               id: `edge-${briefId}-to-${compilerId}`,
               source: briefId,
+              target: compilerId,
+              type: 'dataFlow',
+              data: { status: 'idle' },
+            },
+            {
+              id: `edge-${modelId}-to-${compilerId}`,
+              source: modelId,
               target: compilerId,
               type: 'dataFlow',
               data: { status: 'idle' },
@@ -389,6 +478,11 @@ export const useCanvasStore = create<CanvasStore>()(
         const compilerNode = state.nodes.find((n) => n.id === compilerNodeId);
         const compilerY = compilerNode?.position.y ?? 300;
 
+        // Existing hypothesis node IDs to prevent duplicates
+        const existingHypIds = new Set(
+          state.nodes.filter((n) => n.type === 'hypothesis').map((n) => n.data.refId),
+        );
+
         // Find bottom-most existing hypothesis Y connected to this compiler
         let maxY = compilerY;
         for (const e of state.edges) {
@@ -400,39 +494,48 @@ export const useCanvasStore = create<CanvasStore>()(
           }
         }
 
-        // Position new hypotheses below existing ones
-        const startY = maxY + 40; // gap below last existing hypothesis
-        const positions = computeHypothesisPositions(
-          newVariants.length,
-          startY,
-          col
-        );
-
+        const GAP = 40;
+        const EST_H = 340;
+        const SPACING = 60;
         const addedNodes = [...state.nodes];
         const addedEdges = [...state.edges];
+        let placed = 0;
 
-        newVariants.forEach((variant, i) => {
+        const newHypothesisIds: string[] = [];
+
+        newVariants.forEach((variant) => {
+          if (existingHypIds.has(variant.id)) return;
+
           const nodeId = `hypothesis-${variant.id}`;
           addedNodes.push({
             id: nodeId,
             type: 'hypothesis',
-            position: positions[i],
+            position: snap({ x: col.hypothesis, y: maxY + GAP + placed * (EST_H + SPACING) }),
             data: { refId: variant.id },
           });
+          placed++;
+          newHypothesisIds.push(nodeId);
 
-          // compiler → hypothesis edge
           addedEdges.push({
-            id: `edge-${compilerNodeId}-to-${variant.id}`,
+            id: `edge-${compilerNodeId}-to-${nodeId}`,
             source: compilerNodeId,
             target: nodeId,
             type: 'dataFlow',
             data: { status: 'complete' },
           });
 
-          // Auto-connect designSystem nodes to new hypothesis
-          const dsEdges = buildAutoConnectEdges(nodeId, 'hypothesis', addedNodes);
-          addedEdges.push(...dsEdges);
+          // Structural edges only (designSystem→hypothesis)
+          const structuralEdges = buildAutoConnectEdges(nodeId, 'hypothesis', addedNodes);
+          addedEdges.push(...structuralEdges);
         });
+
+        if (placed === 0) return;
+
+        // Propagate the compiler's model to all new hypotheses
+        const modelEdges = buildModelEdgesFromParent(
+          compilerNodeId, newHypothesisIds, addedNodes, addedEdges,
+        );
+        addedEdges.push(...modelEdges);
 
         set({ nodes: addedNodes, edges: addedEdges });
 
@@ -610,6 +713,18 @@ export const useCanvasStore = create<CanvasStore>()(
       },
 
       // ── Reset ───────────────────────────────────────────────────
+
+      resetCanvas: () => {
+        set({
+          nodes: [],
+          edges: [],
+          viewport: { x: 0, y: 0, zoom: 0.85 },
+          expandedVariantId: null,
+          lineageNodeIds: new Set(),
+          lineageEdgeIds: new Set(),
+        });
+        get().initializeCanvas();
+      },
 
       reset: () =>
         set({

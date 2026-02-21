@@ -15,11 +15,14 @@ import {
 } from '../../../stores/canvas-store';
 import type { CompilerNodeData } from '../../../types/canvas-data';
 import type { VariantStrategy } from '../../../types/compiler';
-import { compileSpec } from '../../../services/compiler';
+import { compile as apiCompile } from '../../../api/client';
+import { getPrompt } from '../../../stores/prompt-store';
 import { buildCompileInputs } from '../../../lib/canvas-graph';
 import { useConnectedModel } from '../../../hooks/useConnectedModel';
+import { useElapsedTimer } from '../../../hooks/useElapsedTimer';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';
+import GeneratingSkeleton from './GeneratingSkeleton';
 
 const COUNT_OPTIONS = [1, 2, 3, 5];
 const DEFAULT_COUNT = 3;
@@ -40,6 +43,8 @@ function CompilerNode({ id, data, selected }: NodeProps<CompilerNodeType>) {
   const removeNode = useCanvasStore((s) => s.removeNode);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const syncAfterCompile = useCanvasStore((s) => s.syncAfterCompile);
+  const addPlaceholderHypotheses = useCanvasStore((s) => s.addPlaceholderHypotheses);
+  const removePlaceholders = useCanvasStore((s) => s.removePlaceholders);
   const setEdgeStatusBySource = useCanvasStore((s) => s.setEdgeStatusBySource);
   const edges = useCanvasStore((s) => s.edges);
   const nodes = useCanvasStore((s) => s.nodes);
@@ -76,7 +81,6 @@ function CompilerNode({ id, data, selected }: NodeProps<CompilerNodeType>) {
     const { partialSpec, referenceDesigns, critiques } =
       await buildCompileInputs(nodes, edges, spec, id, results);
 
-    // Gather existing strategies from connected hypothesis nodes
     const dimensionMaps = useCompilerStore.getState().dimensionMaps;
     const existingStrategies: VariantStrategy[] = [];
     for (const edge of edges) {
@@ -90,18 +94,30 @@ function CompilerNode({ id, data, selected }: NodeProps<CompilerNodeType>) {
     setCompiling(true);
     setError(null);
     setEdgeStatusBySource(id, 'processing');
+
+    const placeholderIds = addPlaceholderHypotheses(id, hypothesisCount);
+
     try {
-      const map = await compileSpec(
-        partialSpec, modelId!, providerId!, referenceDesigns,
-        critiques.length > 0 ? critiques : undefined,
+      const map = await apiCompile({
+        spec: partialSpec,
+        providerId: providerId!,
+        modelId: modelId!,
+        promptOverrides: {
+          compilerSystem: getPrompt('compilerSystem'),
+          compilerUser: getPrompt('compilerUser'),
+        },
+        referenceDesigns,
+        critiques: critiques.length > 0 ? critiques : undefined,
         supportsVision,
-        { count: hypothesisCount, existingStrategies },
-      );
+        promptOptions: { count: hypothesisCount, existingStrategies },
+      });
+      removePlaceholders(placeholderIds);
       appendVariantsToNode(id, map);
       syncAfterCompile(map.variants, id);
       setEdgeStatusBySource(id, 'complete');
       setTimeout(() => fitView({ duration: 400, padding: 0.15 }), 200);
     } catch (err) {
+      removePlaceholders(placeholderIds);
       setError(normalizeError(err, 'Compilation failed'));
       setEdgeStatusBySource(id, 'error');
     } finally {
@@ -120,15 +136,15 @@ function CompilerNode({ id, data, selected }: NodeProps<CompilerNodeType>) {
     setError,
     appendVariantsToNode,
     syncAfterCompile,
+    addPlaceholderHypotheses,
+    removePlaceholders,
     setEdgeStatusBySource,
     fitView,
   ]);
 
-  const borderClass = selected
-    ? 'border-accent ring-2 ring-accent/20'
-    : isCompiling
-      ? 'border-accent animate-pulse'
-      : 'border-border';
+  const elapsed = useElapsedTimer(isCompiling);
+
+  const status = isCompiling ? 'processing' as const : 'filled' as const;
 
   const isReady = connectedInputCount > 0 && !!modelId;
 
@@ -147,7 +163,7 @@ function CompilerNode({ id, data, selected }: NodeProps<CompilerNodeType>) {
       nodeType="compiler"
       selected={!!selected}
       width="w-node"
-      borderClass={borderClass}
+      status={status}
       handleColor={isReady ? 'green' : 'amber'}
       targetShape="diamond"
       targetPulse={!isReady}
@@ -158,6 +174,9 @@ function CompilerNode({ id, data, selected }: NodeProps<CompilerNodeType>) {
       >
         <h3 className="text-xs font-semibold text-fg">Incubator</h3>
       </NodeHeader>
+
+      {/* Skeleton overlay while compiling */}
+      {isCompiling && <GeneratingSkeleton label="Incubating…" elapsed={elapsed} />}
 
       {/* Controls */}
       <div className="space-y-2 px-3 py-2.5">

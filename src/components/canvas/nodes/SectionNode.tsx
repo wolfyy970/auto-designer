@@ -28,11 +28,7 @@ function SectionNode({ id, type, selected }: NodeProps<SectionNodeType>) {
   const hasImages = isExistingDesign;
   const isCapturing = isExistingDesign && capturingImage === sectionId;
 
-  const borderClass = selected
-    ? 'border-accent ring-2 ring-accent/20'
-    : content.trim()
-      ? 'border-border'
-      : 'border-dashed border-border';
+  const status = content.trim() ? 'filled' as const : 'empty' as const;
 
   return (
     <NodeShell
@@ -40,7 +36,7 @@ function SectionNode({ id, type, selected }: NodeProps<SectionNodeType>) {
       nodeType={type as string}
       selected={!!selected}
       width="w-node"
-      borderClass={borderClass}
+      status={status}
       hasTarget={isExistingDesign}
       handleColor={content.trim() ? 'green' : 'amber'}
     >
@@ -62,7 +58,7 @@ function SectionNode({ id, type, selected }: NodeProps<SectionNodeType>) {
               : `Describe the ${meta.title.toLowerCase()}...`
           }
           rows={isDesignBrief ? 5 : 3}
-          className="nodrag nowheel w-full resize-none rounded border border-border px-2.5 py-2 text-xs text-fg-secondary placeholder:text-fg-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent/20"
+          className="nodrag nowheel w-full resize-none rounded border border-border px-2.5 py-2 text-xs text-fg-secondary placeholder:text-fg-faint outline-none input-focus"
         />
 
         {/* Reference images for existing design */}

@@ -4,12 +4,29 @@ import { useLineageDim } from '../../../hooks/useLineageDim';
 import { useCanvasStore } from '../../../stores/canvas-store';
 import { isValidConnection } from '../../../lib/canvas-connections';
 
+export type NodeBorderStatus =
+  | 'selected'
+  | 'processing'
+  | 'error'
+  | 'dimmed'
+  | 'filled'
+  | 'empty';
+
+const BORDER_CLASSES: Record<NodeBorderStatus, string> = {
+  selected: 'border-accent',
+  processing: 'border-accent/50 animate-pulse',
+  error: 'border-error/50',
+  dimmed: 'border-border/50',
+  filled: 'border-border',
+  empty: 'border-dashed border-border',
+};
+
 interface NodeShellProps {
   nodeId: string;
   nodeType: string;
   selected: boolean;
   width: string;
-  borderClass: string;
+  status: NodeBorderStatus;
   className?: string;
   hasTarget?: boolean;
   hasSource?: boolean;
@@ -24,7 +41,7 @@ export default function NodeShell({
   nodeType,
   selected,
   width,
-  borderClass,
+  status,
   className,
   hasTarget = true,
   hasSource = true,
@@ -36,10 +53,11 @@ export default function NodeShell({
   const lineageDim = useLineageDim(nodeId, selected);
   const connectingFrom = useCanvasStore((s) => s.connectingFrom);
 
+  const borderClass = selected ? BORDER_CLASSES.selected : BORDER_CLASSES[status];
+
   const isGreen = handleColor === 'green';
   const handleFill = isGreen ? '!bg-success' : '!bg-warning';
 
-  // Layer 3A: compute glow/dim during connection drag
   let targetGlow = '';
   let sourceGlow = '';
   if (connectingFrom) {
@@ -53,7 +71,6 @@ export default function NodeShell({
     }
   }
 
-  // Layer 1: diamond shape + breathing pulse for target handle
   const shapeClass = targetShape === 'diamond' ? 'handle-diamond' : '';
   const pulseClass = targetPulse && !targetGlow ? 'handle-pulse' : '';
 
@@ -63,7 +80,7 @@ export default function NodeShell({
         <Handle
           type="target"
           position={Position.Left}
-          className={`!h-3 !w-3 !border-2 !border-surface-raised ${handleFill} ${shapeClass} ${pulseClass} ${targetGlow}`}
+          className={`!h-3 !w-3 !rounded-full !border-2 !border-surface-raised ${handleFill} ${shapeClass} ${pulseClass} ${targetGlow}`}
         />
       )}
       {children}
@@ -71,7 +88,7 @@ export default function NodeShell({
         <Handle
           type="source"
           position={Position.Right}
-          className={`!h-3 !w-3 !border-2 !border-surface-raised ${handleFill} ${sourceGlow}`}
+          className={`!h-3 !w-3 !rounded-full !border-2 !border-surface-raised ${handleFill} ${sourceGlow}`}
         />
       )}
     </div>

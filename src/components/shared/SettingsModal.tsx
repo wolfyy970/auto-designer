@@ -99,7 +99,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
               value={openrouterKey}
               onChange={(e) => setOpenrouterKey(e.target.value)}
               placeholder="sk-or-..."
-              className="w-full rounded-md border border-border px-3 py-2 text-sm outline-none focus:border-accent"
+              className="w-full rounded-md border border-border px-3 py-2 text-sm input-focus"
             />
             <p className="mt-1 text-xs text-fg-muted">
               Get one at openrouter.ai — gives access to Claude, GPT-4o, Gemini,

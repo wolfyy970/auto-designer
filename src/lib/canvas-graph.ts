@@ -68,32 +68,24 @@ export function computeLineage(
   const nodeIds = new Set<string>([selectedNodeId]);
   const edgeIds = new Set<string>();
 
-  // Walk backwards (ancestors)
-  const backQueue = [selectedNodeId];
-  while (backQueue.length > 0) {
-    const current = backQueue.pop()!;
+  // Full connected-component walk: from each discovered node, traverse
+  // both directions so sibling inputs to shared targets are included.
+  const queue = [selectedNodeId];
+  while (queue.length > 0) {
+    const current = queue.pop()!;
     for (const e of edges) {
-      if (e.target === current) {
+      if (e.target === current && !nodeIds.has(e.source)) {
         edgeIds.add(e.id);
-        if (!nodeIds.has(e.source)) {
-          nodeIds.add(e.source);
-          backQueue.push(e.source);
-        }
+        nodeIds.add(e.source);
+        queue.push(e.source);
       }
-    }
-  }
-
-  // Walk forwards (descendants)
-  const fwdQueue = [selectedNodeId];
-  while (fwdQueue.length > 0) {
-    const current = fwdQueue.pop()!;
-    for (const e of edges) {
-      if (e.source === current) {
+      if (e.source === current && !nodeIds.has(e.target)) {
         edgeIds.add(e.id);
-        if (!nodeIds.has(e.target)) {
-          nodeIds.add(e.target);
-          fwdQueue.push(e.target);
-        }
+        nodeIds.add(e.target);
+        queue.push(e.target);
+      }
+      if (e.source === current || e.target === current) {
+        edgeIds.add(e.id);
       }
     }
   }

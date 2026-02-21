@@ -1,5 +1,29 @@
 # Architecture
 
+## Client-Server Overview
+
+```
+┌─────────────────────────────────────────────┐
+│  Vercel Platform                            │
+│                                             │
+│  CDN ─── Static SPA (Vite build)           │
+│  /api/* ─── Serverless Function (Hono)     │
+└──────────────────┬──────────────────────────┘
+                   │
+┌──────────────────▼──────────────────────────┐
+│  Browser (React SPA)                        │
+│  Canvas UI → API Client → /api/*           │
+│  Zustand stores (UI state)                 │
+│  StoragePort (IndexedDB — swappable)       │
+└─────────────────────────────────────────────┘
+```
+
+**Client** — React SPA with Zustand stores, `@xyflow/react` canvas, IndexedDB for generated code. Makes REST and SSE calls to `/api/*`.
+
+**Server** — Hono app deployed as a Vercel serverless function. Handles all LLM orchestration: compilation, agentic generation, model listing, design system extraction. Holds API keys server-side.
+
+**Local dev** — Two processes: Vite (SPA + HMR on 5173) and Hono (API on 3001 via `tsx watch`). Vite proxy forwards `/api/*` to Hono.
+
 ## Four Abstraction Layers
 
 ```
@@ -15,19 +39,16 @@
 └──────────────────┬──────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────┐
-│  2. Prompt Compiler                         │
-│  Spec → DimensionMap → CompiledPrompt[]     │
-│  services/compiler.ts, lib/prompts/         │
-│  Providers: OpenRouter, LM Studio           │
+│  2. API Client + Prompt Compiler            │
+│  Client: compileVariantPrompts() (local)    │
+│  Server: compileSpec() → DimensionMap       │
+│  Server: runAgenticBuild() → HTML           │
 └──────────────────┬──────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────┐
-│  3. Agentic Generation Engine               │
-│  CompiledPrompt → VirtualWorkspace → HTML   │
-│  services/agent/orchestrator.ts             │
-│  services/agent/workspace.ts                │
-│  Phase 1: Planning (JSON build plan)        │
-│  Phase 2: Build loop (XML tool calls)       │
+│  3. Storage Abstraction                     │
+│  StoragePort interface (swappable)          │
+│  BrowserStorage → IndexedDB                 │
 └──────────────────┬──────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────┐
@@ -37,26 +58,24 @@
 └─────────────────────────────────────────────┘
 ```
 
-Each layer is independent. The UI can change without touching the compiler. The compiler can swap models without touching providers. The agentic engine can be upgraded without touching any other layer.
-
 ## Data Flow
 
 ```
 DesignSpec (freeform text + images)
     │
-    ▼ compileSpec()
+    ▼ POST /api/compile  (client sends spec + prompt overrides)
 DimensionMap (dimensions + variant strategies)
     │
     ▼ user edits hypotheses on canvas
     │
-    ▼ compileVariantPrompts() (with optional designSystemOverride)
+    ▼ compileVariantPrompts() runs client-side (prompt assembly only)
 CompiledPrompt[] (one full prompt per variant)
     │
-    ▼ runAgenticBuild()
-    │  Phase 1: plannerLLM → BuildPlan (JSON)
-    │  Phase 2: builderLLM loop → VirtualWorkspace (file system)
-    │  bundleToHtml() → self-contained HTML
-    │  code → IndexedDB, metadata → localStorage
+    ▼ POST /api/generate  (SSE stream per variant)
+    │  Server: plannerLLM → BuildPlan (JSON)
+    │  Server: builderLLM loop → VirtualWorkspace → bundleToHtml()
+    │  SSE events: activity, progress, code, done
+    │  Client: code → StoragePort (IndexedDB), metadata → Zustand
     │
     ▼ iframe srcdoc attribute
 Rendered variants (sandboxed, interactive)
@@ -65,9 +84,47 @@ Rendered variants (sandboxed, interactive)
 Next iteration cycle
 ```
 
+## API Surface
+
+| Endpoint | Method | Purpose | Response |
+|---|---|---|---|
+| `/api/compile` | POST | Compile spec into dimension map | JSON: `DimensionMap` |
+| `/api/generate` | POST | Run agentic build for one variant | SSE stream: activity, progress, code, done |
+| `/api/models/:provider` | GET | List available models | JSON: `ProviderModel[]` |
+| `/api/models` | GET | List available providers | JSON: `ProviderInfo[]` |
+| `/api/logs` | GET | Fetch LLM call log entries (dev-only) | JSON: `LlmLogEntry[]` |
+| `/api/logs` | DELETE | Clear log entries (dev-only) | 204 |
+| `/api/design-system/extract` | POST | Extract design tokens from screenshots | JSON: extracted tokens |
+| `/api/health` | GET | Health check | JSON: `{ ok: true }` |
+
+## Server Architecture (`server/`)
+
+| File | Responsibility |
+|------|---------------|
+| `app.ts` | Hono app: mounts routes, CORS |
+| `env.ts` | `process.env` config (replaces `import.meta.env`) |
+| `dev.ts` | Local dev entry (Hono + `@hono/node-server` on 3001) |
+| `log-store.ts` | In-memory LLM call log (dev-only, no Zustand) |
+| `routes/compile.ts` | POST /api/compile |
+| `routes/generate.ts` | POST /api/generate (SSE stream) |
+| `routes/models.ts` | GET /api/models/:provider |
+| `routes/logs.ts` | GET/DELETE /api/logs |
+| `routes/design-system.ts` | POST /api/design-system/extract |
+| `services/agent/orchestrator.ts` | Agentic build loop (moved from client) |
+| `services/agent/workspace.ts` | VirtualWorkspace (moved from client) |
+| `services/compiler.ts` | LLM compilation (moved from client) |
+| `services/providers/openrouter.ts` | OpenRouter provider (direct API, auth header) |
+| `services/providers/lmstudio.ts` | LM Studio provider (direct URL) |
+| `services/providers/registry.ts` | Provider registration and lookup |
+| `lib/provider-helpers.ts` | Shared fetch helpers (moved from client) |
+| `lib/prompts/*` | Prompt defaults and template builders (server-side copy) |
+| `lib/extract-code.ts` | Code extraction from LLM responses |
+| `lib/error-utils.ts` | Error normalization |
+| `lib/utils.ts` | ID generation, interpolation |
+
 ## Agentic Engine
 
-The generation engine (`services/agent/`) breaks LLM output token limits via an iterative tool-calling loop. It is an independently upgradeable module.
+The generation engine (`server/services/agent/`) breaks LLM output token limits via an iterative tool-calling loop. It is an independently upgradeable module.
 
 ### VirtualWorkspace (`workspace.ts`)
 
@@ -87,27 +144,16 @@ An in-memory file system. The LLM writes files into it via tool calls; the works
 
 2. **Build loop**: starts with `[system, user + buildPlanContext]` message array. Each iteration:
    - Calls `provider.generateChat(messages, options)`
-   - Parses tool calls via three strategies: strict XML tags (`<write_file>`, `<edit_file>`, `<finish_build>`), permissive Markdown fenced-block fallback (for models like Gemini that ignore XML), and plan-aware file path alignment. `finish_build` is always processed last regardless of response ordering.
+   - Parses tool calls via three strategies: strict XML tags, permissive Markdown fallback, and plan-aware file path alignment. `finish_build` is always processed last.
    - Executes tools against `VirtualWorkspace`
-   - Appends tool feedback as a user message (success or structured `AgentToolError`)
-   - Nudges the model if no tool calls are detected
-   - Reports progress via `onProgress` callback (phase labels, file writes, elapsed status)
+   - Appends tool feedback as a user message
+   - Reports progress via SSE `progress` and `activity` events
    - Stops when `finish_build` is called or `maxLoops` is reached
-   - Runs a validation correction pass: if planned files are missing, re-enters the loop to request them
+   - Runs a validation correction pass: if planned files are missing, re-enters the loop
 
-### Provider Interface
+### Generation Cancellation
 
-```typescript
-interface GenerationProvider {
-  generateChat(messages: ChatMessage[], options: ProviderOptions): Promise<ChatResponse>;
-  listModels(): Promise<ProviderModel[]>;
-  isAvailable(): boolean;
-  supportsImages: boolean;
-  supportsParallel: boolean;
-}
-```
-
-`generateChat` takes the full conversation array — enabling the stateful, multi-turn build loop. Both OpenRouter and LM Studio providers implement this interface.
+SSE is unidirectional. The client holds an `AbortController` and calls `abort()` on unmount or user cancellation. The server checks `c.req.raw.signal.aborted` to detect client disconnection and stops the build loop.
 
 ## Canvas Architecture
 
@@ -115,38 +161,55 @@ The primary interface is a node-graph canvas built on `@xyflow/react` v12.
 
 ### Node Types
 
-11 node types in 3 categories: 5 input nodes rendered by shared `SectionNode.tsx`, plus `ModelNode`, `DesignSystemNode`, `CompilerNode`, `HypothesisNode`, `VariantNode`, and `CritiqueNode`. `ModelNode` centralizes provider/model selection — processing nodes read config from a connected Model node via `useConnectedModel` hook. Design System is self-contained (data in `node.data`, not spec store). Each node uses a typed data interface from `types/canvas-data.ts` and a shared `NodeHeader`.
+11 node types in 3 categories: 5 input nodes rendered by shared `SectionNode.tsx`, plus `ModelNode`, `DesignSystemNode`, `CompilerNode`, `HypothesisNode`, `VariantNode`, and `CritiqueNode`. `ModelNode` centralizes provider/model selection. Design System is self-contained (data in `node.data`, not spec store). Each node uses a typed data interface from `types/canvas-data.ts`.
 
-### Auto-Layout
+### Auto-Connection Logic (`canvas-connections.ts`)
 
-Edge-driven Sugiyama-style algorithm in `canvas-layout.ts`:
-1. Build directed adjacency from edges
-2. Assign ranks via longest-path DFS (cycle-safe)
-3. Force designSystem nodes to compiler rank, disconnected variants to variant rank
-4. Group nodes into layers, sort by parent barycenter
-5. Stack each layer using measured heights, centered on tallest layer
-6. Nudge single-node layers toward parent/child averages
+Centralized rules for what connects to what when nodes are added or generated:
 
-Toggled via checkbox in header. When on, nodes are not draggable.
+- **`buildAutoConnectEdges`** — Structural connections only: section→compiler, design system→hypothesis.
+- **`buildModelEdgeForNode`** — When a node is added from the palette, connects it to the first available Model node on the canvas.
+- **`buildModelEdgesFromParent`** — When hypotheses are generated from an Incubator, they inherit that Incubator's connected Model — not every Model on the canvas.
+
+Model connections are column-scoped: a Model node connects only to adjacent-column nodes.
+
+### Lineage & Dimming (`canvas-graph.ts`)
+
+`computeLineage` performs a full connected-component walk (bidirectional BFS). Selecting a node highlights every node reachable through any chain of edges — including sibling inputs to shared targets. Unconnected nodes dim to 40%.
 
 ### Version Stacking
 
-Results accumulate across generation runs. Each result has a `runId` (UUID) and `runNumber` (sequential per hypothesis). Variant nodes reuse the same canvas node across runs, with ChevronLeft/Right navigation to browse versions. Fork detection: if provider/model changes, existing variants are pinned (archived) and new ones created.
+Results accumulate across generation runs. Each result has a `runId` (UUID) and `runNumber` (sequential per hypothesis). Variant nodes reuse the same canvas node across runs, with version navigation.
 
-### State Management
+### Parallel Generation
 
-`canvas-store.ts` — Zustand with persist. Owns nodes, edges, viewport, layout preferences. Provides orchestration actions: `syncAfterCompile`, `syncAfterGenerate`, `applyAutoLayout`, `forkHypothesisVariants`. Migration logic extracted to `canvas-migrations.ts` (version chain v0→v13).
+Multiple hypotheses generate simultaneously via `Promise.all`. Within a single hypothesis, multiple connected Models also generate in parallel. The global `isGenerating` flag only clears when all in-flight results reach a terminal status, preventing premature UI resets.
 
-## Module Boundaries
+## Client Module Boundaries
 
 ### Types (`src/types/`)
 
 | File | Key types |
 |------|-----------|
-| `spec.ts` | `DesignSpec`, `SpecSection`, `ReferenceImage`, `SpecSectionId` (Zod schemas + inferred types) |
-| `compiler.ts` | `DimensionMap`, `VariantStrategy`, `Dimension`, `CompiledPrompt` |
-| `provider.ts` | `GenerationProvider`, `GenerationResult`, `ProviderOptions`, `ChatResponse`, `ContentPart`, `ProviderModel` |
-| `canvas-data.ts` | Per-node typed data interfaces (`HypothesisNodeData`, `VariantNodeData`, `DesignSystemNodeData`, etc.) |
+| `spec.ts` | `DesignSpec`, `SpecSection`, `ReferenceImage` (Zod schemas) |
+| `compiler.ts` | `DimensionMap`, `VariantStrategy`, `CompiledPrompt` |
+| `provider.ts` | `GenerationProvider`, `GenerationResult`, `ChatMessage`, `ProviderOptions`, `ChatResponse`, `ContentPart`, `ProviderModel` |
+| `canvas-data.ts` | Per-node typed data interfaces |
+
+### API Client (`src/api/`)
+
+| File | Purpose |
+|------|---------|
+| `client.ts` | REST + SSE fetch wrappers with AbortController support |
+| `types.ts` | Request/response interfaces for all endpoints |
+
+### Storage (`src/storage/`)
+
+| File | Purpose |
+|------|---------|
+| `types.ts` | `StoragePort` interface — swappable storage backend |
+| `browser-storage.ts` | `BrowserStorage` — wraps `idb-storage.ts` for IndexedDB |
+| `index.ts` | Default storage export |
 
 ### Stores (`src/stores/`)
 
@@ -154,96 +217,52 @@ Results accumulate across generation runs. Each result has a `runId` (UUID) and 
 |-------|-------------|--------------|
 | `spec-store` | localStorage | Active `DesignSpec`, section/image CRUD |
 | `compiler-store` | localStorage | `DimensionMap` per compiler node, `CompiledPrompt[]`, variant editing |
-| `generation-store` | localStorage + IndexedDB | `GenerationResult[]` metadata in localStorage, code in IndexedDB. Version stacking via `runId`/`runNumber`. |
+| `generation-store` | localStorage + StoragePort | `GenerationResult[]` metadata in localStorage, code in IndexedDB via StoragePort |
 | `canvas-store` | localStorage | Nodes, edges, viewport, auto-layout preferences |
-| `prompt-store` | localStorage | Prompt template overrides (all prompts: planner, builder, compiler, variant, design system extract) |
+| `prompt-store` | localStorage | Prompt template overrides (sent as per-request overrides to server) |
 | `theme-store` | localStorage | Theme preference (light/dark/system) |
-
-### Services (`src/services/`)
-
-| File | Responsibility |
-|------|---------------|
-| `compiler.ts` | `compileSpec()`, `compileVariantPrompts()`, `callLLM()` — routes to provider |
-| `agent/orchestrator.ts` | `runAgenticBuild()` — planning pass + iterative build loop with XML tool parsing |
-| `agent/workspace.ts` | `VirtualWorkspace` — in-memory file system, CSS/JS bundling |
-| `providers/claude.ts` | OpenRouter provider — `generateChat()`, model listing, vision support |
-| `providers/lmstudio.ts` | LM Studio provider — OpenAI-compatible endpoint, vision support |
-| `providers/registry.ts` | Provider registration and lookup |
-| `persistence.ts` | `DesignSpec` CRUD via localStorage with Zod validation |
-| `idb-storage.ts` | IndexedDB helpers via idb-keyval (code + provenance stores, garbage collection) |
-| `migration.ts` | One-time localStorage→IndexedDB migration (runs before stores hydrate) |
-
-### Shared Utilities (`src/lib/`)
-
-| File | Purpose |
-|------|---------|
-| `extract-code.ts` | LLM response → code extraction (fence detection, raw code fallback) |
-| `iframe-utils.ts` | React code wrapping, HTML detection, screenshot capture |
-| `constants.ts` | Provider defaults, env overrides |
-| `storage-keys.ts` | Centralized localStorage key constants |
-| `prompts/defaults.ts` | Default prompt text for all prompts (planner, builder, compiler, variant, design system) |
-| `prompts/helpers.ts` | Spec section content extraction, image line collection |
-| `badge-colors.ts` | Version badge color cycling (v1, v2, etc.) |
-| `canvas-layout.ts` | Auto-layout algorithm (Sugiyama-style), grid snapping, column positions |
-| `canvas-connections.ts` | Valid connection rules between node types |
-| `canvas-graph.ts` | Graph traversal helpers for compilation inputs |
-| `provider-helpers.ts` | Multimodal content building, chat request construction, native tool calling utilities |
-| `error-utils.ts` | `normalizeError()` + `AgentToolError` (structured tool failure reporting) |
-| `utils.ts` | `generateId()`, `interpolate()`, `envNewlines()` |
-
-### Canvas Components (`src/components/canvas/`)
-
-| File | Purpose |
-|------|---------|
-| `CanvasWorkspace.tsx` | ReactFlow wrapper, connection handling |
-| `CanvasHeader.tsx` | Title editing, auto-layout toggle, navigation |
-| `CanvasToolbar.tsx` | Node palette, minimap/grid toggles |
-| `CanvasContextMenu.tsx` | Right-click add nodes at position |
-| `VariantPreviewOverlay.tsx` | Full-screen variant preview with version navigation |
-| `nodes/` | 7 node components + shared sub-components (`NodeHeader`, `VariantToolbar`, `VariantFooter`, `CompactField`) + type registry |
-| `edges/` | Custom DataFlowEdge with animated status |
-| `hooks/useCanvasOrchestrator.ts` | Syncs spec/compiler/generation stores → canvas nodes |
-| `hooks/useNodeDeletion.ts` | Keyboard deletion with system node protection and cascade deletion |
-| `hooks/useFeedbackLoopConnection.ts` | Screenshot capture when variant connects to Existing Design |
 
 ### Hooks (`src/hooks/`)
 
 | File | Purpose |
 |------|---------|
-| `useGenerate.ts` | Shared generation orchestration — calls `runAgenticBuild()`, handles version stacking, IndexedDB writes, provenance |
-| `useHypothesisGeneration.ts` | Generation orchestration specific to hypothesis nodes |
-| `useVersionStack.ts` | Version navigation state management for variant nodes |
-| `useVariantZoom.ts` | Zoom/resize logic for variant previews (ResizeObserver + clamping) |
-| `useProviderModels.ts` | React Query hook for dynamic model fetching |
-| `useResultCode.ts` | Async hook to load generated code from IndexedDB. Accepts an optional `reloadTrigger` to auto-refetch when generation status changes. |
-| `useNodeProviderModel.ts` | Per-node provider/model selection persisted in canvas node data (used by ModelNode) |
-| `useConnectedModel.ts` | Reads provider/model config from a connected Model node via edge traversal |
-| `useLineageDim.ts` | Lineage highlighting for selected nodes |
-| `useThemeEffect.ts` | Applies dark/light class to document based on theme store |
+| `useGenerate.ts` | Generation orchestration — calls `apiClient.generate()` SSE stream, saves code to StoragePort |
+| `useHypothesisGeneration.ts` | Generation orchestration for hypothesis nodes |
+| `useProviderModels.ts` | React Query hook — calls `apiClient.listModels()` |
+| `useResultCode.ts` | Loads generated code from StoragePort |
+| `useConnectedModel.ts` | Reads provider/model config from a connected Model node |
 
 ## Key Design Decisions
 
-**Why a two-phase agentic engine.** Single-shot generation is bounded by the LLM's output token limit (typically 4K–64K tokens). A well-designed UI variant — structured HTML, comprehensive CSS, interactive JS — can easily exceed this. The planning pass constrains the problem space before code is written; the build loop then executes one bounded file at a time. Total output is unbounded.
+**Why a Hono server on Vercel.** All LLM orchestration runs server-side. API keys never reach the browser. The agentic build loop — with its multi-turn conversation, tool parsing, and workspace management — runs in a serverless function with SSE streaming. Vercel supports 300s timeout (Hobby) or 800s (Pro) for streaming functions.
 
-**Why XML tool calls instead of native function calling.** The XML format is model-agnostic and works identically across OpenRouter and LM Studio. It also makes the prompt fully inspectable and user-editable via the Prompt Editor, which is a core product value.
+**Why prompts are sent per-request.** The prompt store lives in the browser (localStorage). The server is stateless — it carries defaults and applies client-provided overrides. No shared state between server and client beyond the request payload.
 
-**Why localStorage + IndexedDB.** Local-first single-user tool. Specs and store metadata fit in localStorage (~50KB). Generated code and provenance snapshots go to IndexedDB to avoid the ~5MB localStorage limit. Migration runs once on startup.
+**Why SSE for generation.** Each variant is a separate SSE stream. Events: `activity` (thinking, file writes), `progress` (phase labels), `code` (final HTML), `error`, `done`. The client manages sequencing across variants.
 
-**Why API keys proxied server-side.** `OPENROUTER_API_KEY` (no `VITE_` prefix) is only available to the Vite dev server proxy, never bundled into client code. LM Studio runs on a local network and doesn't need keys.
+**Why StoragePort.** Generated code currently lives in IndexedDB (browser-local). The `StoragePort` abstraction allows swapping to a server-backed database later without changing any consuming code.
 
-**Why sandboxed iframes with srcdoc.** Generated code is untrusted. `sandbox="allow-scripts"` enables JS but blocks navigation, forms, and parent DOM access. `allow-same-origin` deliberately omitted.
+**Why LM Studio is local-dev only.** Vercel serverless functions can't reach `localhost:1234`. In production, only cloud providers (OpenRouter) work.
 
-**Why independent provider selection via Model nodes.** Compilation needs high reasoning (expensive). Generation needs consistent code output (can be cheaper/local). Model nodes make provider/model selection a first-class canvas concept — visually explicit and composable.
+**Why two TypeScript configs.** `tsconfig.app.json` targets the browser (DOM lib, JSX, Vite types). `tsconfig.server.json` targets Node.js (no DOM). Prevents browser globals from leaking into server code.
 
-**Why edge-driven auto-layout.** Pure type-based column assignment breaks when nodes have feedback connections (variant → existing design). The Sugiyama-style algorithm assigns ranks from actual edge connections, handles cycles, and uses measured heights to prevent overlap.
-
-**Why Zod at persistence boundaries.** `DesignSpec` loaded from localStorage or imported from files is validated at parse time. Invalid data returns an empty state and logs a warning rather than crashing. Schema types are derived from Zod schemas (`z.infer<typeof DesignSpecSchema>`) so runtime validation and static types stay in sync.
+**Why sandboxed iframes with srcdoc.** Generated code is untrusted. `sandbox="allow-scripts"` enables JS but blocks navigation, forms, and parent DOM access.
 
 ## Adding a New Provider
 
-1. Create `src/services/providers/yourprovider.ts`
-2. Implement the `GenerationProvider` interface from `types/provider.ts` — specifically `generateChat()` for the agentic loop, plus `listModels()` and `isAvailable()`
-3. Register it in `src/services/providers/registry.ts`
-4. Add the provider to `callLLM()` in `src/services/compiler.ts` for compilation support
+1. Create `server/services/providers/yourprovider.ts`
+2. Implement the `GenerationProvider` interface from `src/types/provider.ts`
+3. Register it in `server/services/providers/registry.ts`
+4. Add the provider config to `getProviderConfig()` in `server/services/compiler.ts`
 
-The provider receives a `ChatMessage[]` array and returns `{ raw: string }`. The agentic engine handles all message history management.
+## Deployment
+
+**Vercel:**
+- `vercel.json` configures static output from `dist/` and API routes via `api/[[...route]].ts`
+- Set `OPENROUTER_API_KEY` as a Vercel environment variable
+- `npm run build` produces the SPA; Vercel bundles the serverless function automatically
+
+**Local dev:**
+- `npm run dev` — Vite dev server (port 5173)
+- `npm run dev:server` — Hono API server (port 3001)
+- Vite proxy forwards `/api/*` to Hono

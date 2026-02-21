@@ -30,7 +30,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 bg-overlay"
         onClick={onClose}
       />
       <div className={`relative z-10 mx-4 max-h-[80vh] w-full ${SIZE_CLASSES[size]} overflow-y-auto rounded-xl bg-surface-raised shadow-xl`}>

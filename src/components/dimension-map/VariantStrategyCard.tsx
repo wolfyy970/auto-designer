@@ -80,13 +80,13 @@ function Field({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           rows={rows}
-          className="w-full resize-none rounded border border-border px-3 py-2 text-sm text-fg-secondary outline-none focus:border-accent"
+          className="w-full resize-none rounded border border-border px-3 py-2 text-sm text-fg-secondary input-focus"
         />
       ) : (
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded border border-border px-3 py-2 text-sm text-fg-secondary outline-none focus:border-accent"
+          className="w-full rounded border border-border px-3 py-2 text-sm text-fg-secondary input-focus"
         />
       )}
     </div>

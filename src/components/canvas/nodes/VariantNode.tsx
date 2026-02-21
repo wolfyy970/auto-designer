@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import { type NodeProps, type Node } from '@xyflow/react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useGenerationStore } from '../../../stores/generation-store';
@@ -10,11 +10,78 @@ import type { VariantNodeData } from '../../../types/canvas-data';
 import { useResultCode } from '../../../hooks/useResultCode';
 import { useVersionStack } from '../../../hooks/useVersionStack';
 import { useVariantZoom } from '../../../hooks/useVariantZoom';
+import { useElapsedTimer } from '../../../hooks/useElapsedTimer';
 import NodeShell from './NodeShell';
 import VariantToolbar from './VariantToolbar';
 import VariantFooter from './VariantFooter';
 
 type VariantNodeType = Node<VariantNodeData, 'variant'>;
+
+/** Scrolling terminal-like activity log during generation */
+function ActivityLog({ entries }: { entries?: string[] }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [entries?.length]);
+
+  if (!entries || entries.length === 0) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col justify-between p-4">
+        <div className="flex flex-col gap-2.5">
+          <div className="h-4 w-4/5 animate-pulse rounded bg-border/50" />
+          <div className="h-3 w-full animate-pulse rounded bg-border/40" style={{ animationDelay: '75ms' }} />
+          <div className="h-3 w-[90%] animate-pulse rounded bg-border/40" style={{ animationDelay: '150ms' }} />
+          <div className="h-3 w-3/4 animate-pulse rounded bg-border/40" style={{ animationDelay: '225ms' }} />
+        </div>
+        <div className="flex flex-col gap-2.5">
+          <div className="h-3 w-[85%] animate-pulse rounded bg-border/30" style={{ animationDelay: '300ms' }} />
+          <div className="h-3 w-full animate-pulse rounded bg-border/30" style={{ animationDelay: '375ms' }} />
+          <div className="h-3 w-2/3 animate-pulse rounded bg-border/30" style={{ animationDelay: '450ms' }} />
+        </div>
+        <div className="flex flex-col gap-2.5">
+          <div className="h-3 w-[70%] animate-pulse rounded bg-border/20" style={{ animationDelay: '525ms' }} />
+          <div className="h-3 w-[90%] animate-pulse rounded bg-border/20" style={{ animationDelay: '600ms' }} />
+          <div className="h-3 w-4/5 animate-pulse rounded bg-border/20" style={{ animationDelay: '675ms' }} />
+          <div className="h-3 w-3/5 animate-pulse rounded bg-border/20" style={{ animationDelay: '750ms' }} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={scrollRef}
+      className="nodrag nowheel min-h-0 flex-1 overflow-y-auto px-4 py-3 font-mono text-[11px] leading-[1.6]"
+    >
+      {entries.map((entry, i) => {
+        const isSuccess = entry.startsWith('\u2713');
+        const isError = entry.startsWith('\u2717');
+        const isPlan = entry.startsWith('Plan:') || entry.startsWith('  \u25cb');
+        const isThinking = !isSuccess && !isError && !isPlan;
+
+        return (
+          <div
+            key={i}
+            className={`py-0.5 ${
+              isSuccess ? 'text-success' :
+              isError ? 'text-error' :
+              isPlan ? 'text-accent' :
+              'text-fg-muted'
+            }`}
+          >
+            {isThinking ? (
+              <span className="italic">{entry}</span>
+            ) : (
+              entry
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
   const variantStrategyId = data.variantStrategyId;
@@ -99,20 +166,8 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
 
   const { contentRef, zoom, zoomIn, zoomOut, resetZoom } = useVariantZoom();
 
-  // Elapsed timer during generation
-  const [elapsed, setElapsed] = useState(0);
   const isGenerating = result?.status === 'generating';
-  useEffect(() => {
-    if (!isGenerating) {
-      setElapsed(0);
-      return;
-    }
-    const start = Date.now();
-    const tick = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - start) / 1000));
-    }, 1000);
-    return () => clearInterval(tick);
-  }, [isGenerating]);
+  const elapsed = useElapsedTimer(isGenerating);
 
   const htmlContent = useMemo(() => {
     if (!code) return '';
@@ -125,17 +180,15 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
 
   const hasCode = result?.status === 'complete' && !!code;
 
-  const borderClass = selected
-    ? 'border-accent ring-2 ring-accent/20'
-    : isArchived
-      ? 'border-border/50'
-      : result?.status === 'error'
-        ? 'border-error/50'
-        : result?.status === 'generating'
-          ? 'border-accent/50 animate-pulse'
-          : hasCode
-            ? 'border-border'
-            : 'border-dashed border-border';
+  const status = isArchived
+    ? 'dimmed' as const
+    : result?.status === 'error'
+      ? 'error' as const
+      : result?.status === 'generating'
+        ? 'processing' as const
+        : hasCode
+          ? 'filled' as const
+          : 'empty' as const;
 
   const stackClass = stackTotal >= 3
     ? 'variant-stack-deep'
@@ -149,7 +202,7 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
       nodeType="variant"
       selected={!!selected}
       width="w-node-variant"
-      borderClass={borderClass}
+      status={status}
       className={`relative flex h-full min-h-[420px] flex-col${isArchived ? ' opacity-75' : ''} ${stackClass}`}
       handleColor={hasCode ? 'green' : 'amber'}
     >
@@ -174,21 +227,14 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
 
       {/* ── Content area ──────────────────────────────────────── */}
       <div ref={contentRef} className="relative flex-1 overflow-hidden">
-        {/* Generating state — skeleton with live progress */}
+        {/* Generating state — activity log with live progress */}
         {result?.status === 'generating' && (
-          <div className="flex h-full flex-col bg-surface p-4">
-            {/* Top shimmer bars */}
-            <div className="flex flex-col gap-2">
-              <div className="h-5 w-3/4 animate-pulse rounded bg-border" />
-              <div className="h-3 w-full animate-pulse rounded bg-border/60" style={{ animationDelay: '75ms' }} />
-              <div className="h-3 w-5/6 animate-pulse rounded bg-border/60" style={{ animationDelay: '150ms' }} />
-              <div className="h-3 w-2/3 animate-pulse rounded bg-border/60" style={{ animationDelay: '225ms' }} />
-              <div className="h-3 w-4/5 animate-pulse rounded bg-border/60" style={{ animationDelay: '300ms' }} />
-            </div>
+          <div className="absolute inset-0 flex flex-col bg-surface">
+            {/* Activity log */}
+            <ActivityLog entries={result.activityLog} />
 
-            {/* Progress section */}
-            <div className="my-auto flex flex-col gap-3 py-6">
-              {/* Bar track */}
+            {/* Progress bar + status footer */}
+            <div className="flex flex-col gap-2 border-t border-border-subtle px-4 py-3">
               <div className="h-1 w-full overflow-hidden rounded-full bg-border">
                 {result.progressStep ? (
                   <div
@@ -204,44 +250,29 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
                 )}
               </div>
 
-              {/* Phase label */}
-              <p className="truncate text-xs text-fg-secondary">
-                {(() => {
-                  const msg = result.progressMessage ?? '';
-                  if (!msg || msg === 'Planning build...') return 'Planning…';
-                  if (msg.startsWith('Plan ready:')) return 'Plan ready — building…';
-                  if (msg.startsWith('Starting build')) return 'Starting build…';
-                  if (msg.startsWith('Wrote ')) return msg.replace('Wrote ', '');
-                  if (msg.startsWith('Patched ')) return `Patched ${msg.replace('Patched ', '')}`;
-                  if (msg.includes('complete') || msg.includes('Assembling')) return 'Assembling…';
-                  if (msg.startsWith('Build loop')) return 'Generating…';
-                  if (msg.startsWith('Validation')) return 'Validating…';
-                  return msg;
-                })()}
-              </p>
-
-              {/* Step counter + elapsed */}
               <div className="flex items-center justify-between">
-                {result.progressStep ? (
-                  <span className="text-xs text-fg-muted">
-                    {result.progressStep.current} / {result.progressStep.total} files
-                  </span>
-                ) : (
-                  <span />
-                )}
+                <span className="flex items-center gap-1.5 text-xs text-fg-secondary">
+                  <Loader2 size={10} className="animate-spin text-accent" />
+                  {(() => {
+                    const msg = result.progressMessage ?? '';
+                    if (!msg || msg === 'Planning build...') return 'Planning…';
+                    if (msg.startsWith('Plan ready:')) return 'Building…';
+                    if (msg.startsWith('Starting build')) return 'Starting…';
+                    if (msg.startsWith('Wrote ')) return msg.replace('Wrote ', '✓ ');
+                    if (msg.startsWith('Patched ')) return msg;
+                    if (msg.includes('complete') || msg.includes('Assembling')) return 'Assembling…';
+                    if (msg.startsWith('Build loop')) return 'Generating…';
+                    if (msg.startsWith('Validation')) return 'Validating…';
+                    return msg || 'Starting…';
+                  })()}
+                </span>
                 <span className="tabular-nums text-xs text-fg-muted">
+                  {result.progressStep && (
+                    <span className="mr-2">{result.progressStep.current}/{result.progressStep.total}</span>
+                  )}
                   {elapsed}s
                 </span>
               </div>
-            </div>
-
-            {/* Bottom shimmer bars */}
-            <div className="flex flex-col gap-2 mt-auto">
-              <div className="h-3 w-5/6 animate-pulse rounded bg-border/60" style={{ animationDelay: '375ms' }} />
-              <div className="h-3 w-2/3 animate-pulse rounded bg-border/60" style={{ animationDelay: '450ms' }} />
-              <div className="h-3 w-full animate-pulse rounded bg-border/60" style={{ animationDelay: '525ms' }} />
-              <div className="h-3 w-3/4 animate-pulse rounded bg-border/60" style={{ animationDelay: '600ms' }} />
-              <div className="h-3 w-4/5 animate-pulse rounded bg-border/60" style={{ animationDelay: '675ms' }} />
             </div>
           </div>
         )}

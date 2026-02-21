@@ -75,7 +75,7 @@ export default function DataFlowEdge({
           opacity,
           transition: 'opacity 0.3s, stroke 0.3s',
           filter: lineageActive && inLineage && !selected
-            ? 'drop-shadow(0 0 3px rgba(249, 115, 22, 0.4))'
+            ? 'drop-shadow(0 0 3px var(--color-accent-glow))'
             : undefined,
         }}
       />

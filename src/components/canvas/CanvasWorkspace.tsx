@@ -9,7 +9,7 @@ import {
   type Viewport,
   type OnSelectionChangeParams,
 } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
+import '@xyflow/react/dist/base.css';
 
 import { useCanvasStore, SECTION_NODE_TYPES, GRID_SIZE, type CanvasNodeType } from '../../stores/canvas-store';
 import { nodeTypes } from './nodes/node-types';
@@ -19,10 +19,16 @@ import CanvasToolbar from './CanvasToolbar';
 import CanvasContextMenu from './CanvasContextMenu';
 import VariantPreviewOverlay from './VariantPreviewOverlay';
 import { useCanvasOrchestrator } from './hooks/useCanvasOrchestrator';
+import { useThemeStore } from '../../stores/theme-store';
 import { useNodeDeletion } from './hooks/useNodeDeletion';
 import { useFeedbackLoopConnection } from './hooks/useFeedbackLoopConnection';
 
 function CanvasInner() {
+  const themeMode = useThemeStore((s) => s.mode);
+  const colorMode = themeMode === 'system'
+    ? (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : themeMode;
+
   useCanvasOrchestrator();
   useNodeDeletion();
   const { handleConnect } = useFeedbackLoopConnection();
@@ -133,6 +139,7 @@ function CanvasInner() {
     <div className="relative h-screen w-screen">
       <CanvasHeader />
       <ReactFlow
+        colorMode={colorMode}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -169,7 +176,7 @@ function CanvasInner() {
         {showMiniMap && (
           <MiniMap
             nodeColor={miniMapNodeColor}
-            maskColor="rgba(0,0,0,0.08)"
+            maskColor="var(--color-overlay)"
             className="!bottom-4 !right-4 !border-border !shadow-sm"
           />
         )}

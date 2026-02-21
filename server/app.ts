@@ -1,0 +1,23 @@
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import compile from './routes/compile.ts';
+import generate from './routes/generate.ts';
+import models from './routes/models.ts';
+import logs from './routes/logs.ts';
+import designSystem from './routes/design-system.ts';
+
+const app = new Hono().basePath('/api');
+
+app.use(
+  '*',
+  cors({ origin: ['http://localhost:5173', 'http://localhost:4173'] }),
+);
+
+app.get('/health', (c) => c.json({ ok: true }));
+app.route('/compile', compile);
+app.route('/generate', generate);
+app.route('/models', models);
+app.route('/logs', logs);
+app.route('/design-system', designSystem);
+
+export default app;

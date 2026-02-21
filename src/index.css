@@ -21,7 +21,7 @@
   /* Surfaces — light mode defaults, overridden in .dark */
   --color-bg: #ffffff;
   --color-surface: #f4f4f5;
-  --color-surface-raised: #ffffff;
+  --color-surface-raised: #fafafa;
 
   /* Borders */
   --color-border: #e4e4e7;
@@ -33,8 +33,13 @@
   --color-fg-muted: #a1a1aa;
   --color-fg-faint: #d4d4d8;
 
-  /* Accent subtle */
+  /* Accent subtle & derived */
   --color-accent-subtle: #fff7ed;
+  --color-accent-glow: rgba(249, 115, 22, 0.4);
+
+  /* Overlays */
+  --color-overlay: rgba(0, 0, 0, 0.50);
+  --color-overlay-heavy: rgba(9, 9, 11, 0.95);
 
   /* Status — derived from accent orange (H25°) via color wheel relationships */
   --color-error: #e5484d;          /* H358° analogous-warm — warm red */
@@ -62,12 +67,12 @@
   --color-bg: #09090b;
   --color-surface: #18181b;
   --color-surface-raised: #27272a;
-  --color-border: #27272a;
-  --color-border-subtle: #1e1e22;
+  --color-border: #3f3f46;
+  --color-border-subtle: #27272a;
   --color-fg: #fafafa;
   --color-fg-secondary: #a1a1aa;
   --color-fg-muted: #71717a;
-  --color-fg-faint: #3f3f46;
+  --color-fg-faint: #52525b;
 
   --color-accent-subtle: rgba(249, 115, 22, 0.09);
 
@@ -80,6 +85,10 @@
   --color-success-subtle: rgba(46, 158, 106, 0.09);
   --color-info: #5b9de0;
   --color-info-subtle: rgba(48, 120, 208, 0.09);
+
+  --color-accent-glow: rgba(249, 115, 22, 0.5);
+  --color-overlay: rgba(0, 0, 0, 0.60);
+  --color-overlay-heavy: rgba(9, 9, 11, 0.95);
 }
 
 /* ── Typography Tokens ───────────────────────────────────────────────── */
@@ -128,6 +137,14 @@
     letter-spacing: 0.05em;
     color: var(--color-fg-muted);
   }
+
+  .input-focus {
+    outline: none;
+  }
+  .input-focus:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 20%, transparent);
+  }
 }
 
 /* ── Base ────────────────────────────────────────────────────────────── */
@@ -141,6 +158,15 @@ body {
 
 #root {
   min-height: 100vh;
+}
+
+/* ── React Flow Theme Override ──────────────────────────────────────── */
+
+.react-flow {
+  --xy-node-boxshadow-selected: none;
+  --xy-selection-background-color: rgba(249, 115, 22, 0.06);
+  --xy-selection-border: 1px solid var(--color-accent);
+  --xy-edge-stroke-selected: var(--color-accent);
 }
 
 /* ── React Flow Edge Animation ───────────────────────────────────────── */

@@ -29,7 +29,7 @@ export default function ImagePreview({ image, sectionId }: ImagePreviewProps) {
           }
           placeholder="Describe what this image shows..."
           rows={2}
-          className="w-full resize-none rounded border border-border bg-bg px-2 py-1.5 text-xs text-fg-secondary placeholder-fg-muted outline-none focus:border-accent"
+          className="w-full resize-none rounded border border-border bg-bg px-2 py-1.5 text-xs text-fg-secondary placeholder-fg-muted input-focus"
         />
       </div>
       <button

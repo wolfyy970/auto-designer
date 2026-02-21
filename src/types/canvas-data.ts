@@ -18,7 +18,8 @@ export type CompilerNodeData = NodeData<{
 }>;
 
 export type HypothesisNodeData = NodeData<{
-  refId: string;
+  refId?: string;
+  placeholder?: boolean;
   providerId?: string;
   modelId?: string;
 }>;

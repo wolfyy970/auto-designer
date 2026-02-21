@@ -25,12 +25,13 @@ A visual node-graph workspace built on @xyflow/react v12. Nodes connect left-to-
 ### Canvas Features
 
 - **Auto-layout** — Edge-driven Sugiyama-style layout. Toggleable checkbox in header. Positions all nodes based on connections, prevents overlap, centers layers vertically.
-- **Auto-connect** — Adding a node auto-connects it to the appropriate upstream node (sections→incubator, design systems→hypotheses)
+- **Auto-connect** — Adding a node auto-connects structural edges (sections→incubator, design systems→hypotheses). Model connections are scoped: when hypotheses are generated from an Incubator, they inherit that Incubator's model — not every model on the canvas.
 - **Context menu** — Right-click canvas to add nodes at click position
 - **Node palette** — Grouped picker (input/processing/output) in toolbar
-- **Lineage highlighting** — Select a node to highlight its connected upstream/downstream chain
+- **Lineage highlighting** — Select a node to highlight its full connected component (siblings, ancestors, descendants). Unconnected nodes dim to 40% opacity.
 - **Edge animations** — Custom DataFlowEdge with status indicators (idle/processing/complete/error)
 - **Full-screen preview** — Expand any variant to full-screen overlay with version navigation
+- **Reset canvas** — Reset button in header clears all nodes and re-initializes with the default template (Design Brief + Model + Incubator)
 - **Screenshot capture** — Connect a variant to Existing Design to automatically capture a screenshot as a reference image for the next iteration
 - **Version stacking** — Results accumulate across generation runs. Each variant shows version badges (v1, v2, ...) with ChevronLeft/Right navigation to browse previous versions.
 
@@ -58,7 +59,9 @@ This two-phase approach overcomes LLM output token limits — the total output i
 
 **Fuzzy patching.** `edit_file` uses multi-strategy string matching (exact, line-trimmed, indentation-flexible, block-anchored, Levenshtein distance) to handle whitespace drift between what the LLM remembers and what's actually in the workspace.
 
-**Real-time progress.** During generation, the variant node shows a live progress bar with phase labels ("Planning…", "Wrote index.html", "Assembling…"), a file step counter (e.g., "2 / 3 files"), and elapsed time. Driven by the orchestrator's `onProgress` callback.
+**Real-time progress.** During generation, the variant node shows a live activity log, progress bar, and elapsed time. The file counter shows which file is currently being built (e.g., "2/3" means working on file 2 of 3). Driven by the orchestrator's `onProgress` and `onActivity` callbacks via SSE.
+
+**Parallel generation.** Multiple hypotheses generate simultaneously when triggered. Within a single hypothesis, multiple connected Model nodes also generate in parallel. Progress and completion update independently per variant.
 
 ## Prompt Editor
 

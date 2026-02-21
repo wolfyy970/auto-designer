@@ -132,50 +132,55 @@ export function useHypothesisGeneration({
     setGenerationProgress({ completed: 0, total: connectedModels.length });
 
     let hasFitView = false;
-    let errorCount = 0;
 
-    for (const model of connectedModels) {
-      const placeholders = await generate(
-        model.providerId,
-        prompts,
-        { model: model.modelId },
-        {
-          onPlaceholdersReady: (phs) => {
-            syncAfterGenerate(phs, nodeId);
-            if (!hasFitView) {
-              hasFitView = true;
-              setTimeout(() => fitView({ duration: 400, padding: 0.15 }), 200);
-            }
-          },
-          onResultComplete: (placeholderId) => {
-            setGenerationProgress((prev) =>
-              prev ? { ...prev, completed: prev.completed + 1 } : null,
-            );
-            const result = useGenerationStore.getState().results.find(
-              (r) => r.id === placeholderId,
-            );
-            if (result) {
-              const variantNodeId = useCanvasStore.getState().variantNodeIdMap.get(
-                result.variantStrategyId,
-              );
-              if (variantNodeId) {
-                setEdgeStatusByTarget(variantNodeId, 'complete');
+    const allResults = await Promise.all(
+      connectedModels.map((model) =>
+        generate(
+          model.providerId,
+          prompts,
+          { model: model.modelId },
+          {
+            onPlaceholdersReady: (phs) => {
+              syncAfterGenerate(phs, nodeId);
+              if (!hasFitView) {
+                hasFitView = true;
+                setTimeout(() => fitView({ duration: 400, padding: 0.15 }), 200);
               }
-            }
+            },
+            onResultComplete: (placeholderId) => {
+              setGenerationProgress((prev) =>
+                prev ? { ...prev, completed: prev.completed + 1 } : null,
+              );
+              const result = useGenerationStore.getState().results.find(
+                (r) => r.id === placeholderId,
+              );
+              if (result) {
+                const variantNodeId = useCanvasStore.getState().variantNodeIdMap.get(
+                  result.variantStrategyId,
+                );
+                if (variantNodeId) {
+                  setEdgeStatusByTarget(variantNodeId, 'complete');
+                }
+              }
+            },
           },
-        },
-        provenanceCtx,
-        { manageGenerating: false },
-      );
+          provenanceCtx,
+          { manageGenerating: false },
+        ),
+      ),
+    );
 
-      // Check each model's result
-      for (const ph of placeholders) {
+    const stillGenerating = useGenerationStore.getState().results.some(
+      (r) => r.status === 'generating',
+    );
+    if (!stillGenerating) setGenerating(false);
+
+    const errorCount = allResults
+      .flat()
+      .filter((ph) => {
         const r = useGenerationStore.getState().results.find((x) => x.id === ph.id);
-        if (r?.status === 'error') errorCount++;
-      }
-    }
-
-    setGenerating(false);
+        return r?.status === 'error';
+      }).length;
 
     if (errorCount > 0) {
       setGenerationError(

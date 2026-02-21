@@ -1,17 +1,15 @@
 import type { DesignSpec, ReferenceImage } from '../types/spec';
 import type { CompiledPrompt, DimensionMap, VariantStrategy } from '../types/compiler';
-import type { ContentPart } from '../types/provider';
+import type { ContentPart, ChatMessage } from '../types/provider';
 import { getPrompt } from '../stores/prompt-store';
 import { buildCompilerUserPrompt, type CritiqueInput, type CompilerPromptOptions } from '../lib/prompts/compiler-user';
 import { buildVariantPrompt } from '../lib/prompts/variant-prompt';
 import { generateId, now } from '../lib/utils';
 import { OPENROUTER_PROXY, LMSTUDIO_PROXY } from '../lib/constants';
 import { fetchChatCompletion, extractMessageText } from '../lib/provider-helpers';
+import { logLlmCall } from '../stores/log-store';
 
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string | ContentPart[];
-}
+export type { ChatMessage } from '../types/provider';
 
 /** Build multimodal content: text + image parts for the user message */
 function buildMultimodalContent(text: string, images: ReferenceImage[]): ContentPart[] {
@@ -137,15 +135,35 @@ export async function compileSpec(
     ? Object.values(spec.sections).flatMap((s) => s.images).filter((img) => img.dataUrl)
     : undefined;
 
-  const response = await callLLM(
-    [
-      { role: 'system', content: getPrompt('compilerSystem') },
-      { role: 'user', content: userPrompt },
-    ],
-    model,
-    providerId,
-    { temperature: 0.7, max_tokens: 4096, images }
-  );
+  const systemPrompt = getPrompt('compilerSystem');
+  const t0 = performance.now();
+  let response: string;
+  let logError: string | undefined;
+  try {
+    response = await callLLM(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      model,
+      providerId,
+      { temperature: 0.7, max_tokens: 4096, images }
+    );
+  } catch (err) {
+    logError = String(err);
+    logLlmCall({
+      source: 'compiler',
+      model,
+      provider: providerId,
+      systemPrompt,
+      userPrompt,
+      response: '',
+      durationMs: Math.round(performance.now() - t0),
+      error: logError,
+    });
+    throw err;
+  }
+  const durationMs = Math.round(performance.now() - t0);
 
   const jsonStr = extractJSON(response);
 
@@ -153,10 +171,31 @@ export async function compileSpec(
   try {
     parsed = JSON.parse(jsonStr);
   } catch {
+    logError = 'Invalid JSON response';
+    logLlmCall({
+      source: 'compiler',
+      model,
+      provider: providerId,
+      systemPrompt,
+      userPrompt,
+      response,
+      durationMs,
+      error: logError,
+    });
     throw new Error(
       `Compiler returned invalid JSON. This can happen with some models. Try re-compiling or switching models.\n\nRaw response:\n${response.slice(0, 500)}`
     );
   }
+
+  logLlmCall({
+    source: 'compiler',
+    model,
+    provider: providerId,
+    systemPrompt,
+    userPrompt,
+    response,
+    durationMs,
+  });
 
   return validateDimensionMap(parsed, spec.id, model);
 }

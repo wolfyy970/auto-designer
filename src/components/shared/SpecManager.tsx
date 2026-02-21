@@ -44,7 +44,7 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
   const resetDependentStores = useCallback(() => {
     useCompilerStore.getState().reset();
     useGenerationStore.getState().reset();
-    useCanvasStore.getState().reset();
+    useCanvasStore.getState().resetCanvas();
   }, []);
 
   const handleSave = useCallback(() => {

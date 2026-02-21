@@ -161,7 +161,7 @@ export default function VariantPreviewOverlay() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#09090b]/95">
+    <div className="fixed inset-0 z-50 flex flex-col bg-overlay-heavy">
       {/* Top bar */}
       <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-3">
         <div className="flex items-center gap-4">
@@ -259,7 +259,7 @@ export default function VariantPreviewOverlay() {
                       <option
                         key={r.id}
                         value={r.id}
-                        className="bg-[#09090b] text-white"
+                        className="bg-bg text-white"
                       >
                         {s?.name ?? r.metadata?.model ?? r.id}
                         {r.runNumber != null ? ` (v${r.runNumber})` : ''}

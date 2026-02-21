@@ -2,7 +2,9 @@ import { Plus, RefreshCw, Check } from 'lucide-react';
 import { normalizeError } from '../../lib/error-utils';
 import { useCompilerStore, selectDimensionMap } from '../../stores/compiler-store';
 import { useSpecStore } from '../../stores/spec-store';
-import { compileSpec, compileVariantPrompts } from '../../services/compiler';
+import { compileVariantPrompts } from '../../services/compiler';
+import { compile as apiCompile } from '../../api/client';
+import { getPrompt } from '../../stores/prompt-store';
 import ModelSelector from '../shared/ModelSelector';
 import ProviderSelector from '../shared/ProviderSelector';
 import VariantStrategyCard from './VariantStrategyCard';
@@ -36,7 +38,15 @@ export default function DimensionMapView() {
     setCompiling(true);
     setError(null);
     try {
-      const map = await compileSpec(spec, selectedModel, selectedProvider);
+      const map = await apiCompile({
+        spec,
+        providerId: selectedProvider,
+        modelId: selectedModel,
+        promptOverrides: {
+          compilerSystem: getPrompt('compilerSystem'),
+          compilerUser: getPrompt('compilerUser'),
+        },
+      });
       setDimensionMapForNode(DEFAULT_NODE_KEY, map);
     } catch (err) {
       setError(normalizeError(err, 'Compilation failed'));

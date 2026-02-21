@@ -6,14 +6,16 @@ import { useCanvasStore } from '../../../stores/canvas-store';
 import { useGenerationStore } from '../../../stores/generation-store';
 import type { HypothesisNodeData } from '../../../types/canvas-data';
 import { useHypothesisGeneration } from '../../../hooks/useHypothesisGeneration';
+import { useElapsedTimer } from '../../../hooks/useElapsedTimer';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';
+import GeneratingSkeleton from './GeneratingSkeleton';
 import CompactField from './CompactField';
 
 type HypothesisNodeType = Node<HypothesisNodeData, 'hypothesis'>;
 
 function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNodeType>) {
-  const strategyId = data.refId;
+  const strategyId = data.refId ?? '';
 
   const strategy = useCompilerStore(
     (s) => findVariantStrategy(s.dimensionMaps, strategyId),
@@ -37,6 +39,8 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
   const isGenerating = useGenerationStore((s) =>
     s.results.some((r) => r.variantStrategyId === strategyId && r.status === 'generating'),
   );
+
+  const elapsed = useElapsedTimer(isGenerating);
 
   const { handleGenerate, generationProgress, generationError } =
     useHypothesisGeneration({ nodeId, strategyId });
@@ -66,6 +70,25 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
     removeNode(nodeId);
   }, [nodeId, removeNode]);
 
+  if (data.placeholder) {
+    return (
+      <NodeShell
+        nodeId={nodeId}
+        nodeType="hypothesis"
+        selected={!!selected}
+        width="w-node"
+        status="processing"
+        handleColor="amber"
+        targetShape="diamond"
+      >
+        <NodeHeader onRemove={() => {}}>
+          <h3 className="text-xs font-semibold text-fg-secondary">New Hypothesis</h3>
+        </NodeHeader>
+        <GeneratingSkeleton label="Incubating…" />
+      </NodeShell>
+    );
+  }
+
   if (!strategy) {
     return (
       <div className="relative w-node rounded-lg border border-dashed border-border bg-surface-raised p-4 text-center text-xs text-fg-muted">
@@ -83,11 +106,7 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
     );
   }
 
-  const borderClass = selected
-    ? 'border-accent ring-2 ring-accent/20'
-    : isGenerating
-      ? 'border-accent/50 animate-pulse'
-      : 'border-border';
+  const status = isGenerating ? 'processing' as const : 'filled' as const;
 
   const hasModel = connectedModelCount > 0;
   const canGenerate = !!strategy.name.trim() && !!strategy.hypothesis.trim() && hasModel;
@@ -113,7 +132,7 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
       nodeType="hypothesis"
       selected={!!selected}
       width="w-node"
-      borderClass={borderClass}
+      status={status}
       handleColor={canGenerate ? 'green' : 'amber'}
       targetShape="diamond"
       targetPulse={!hasModel}
@@ -159,7 +178,7 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
           value={strategy.hypothesis}
           onChange={(e) => update('hypothesis', e.target.value)}
           rows={2}
-          className="nodrag nowheel w-full resize-none rounded border border-border px-2 py-1.5 text-micro text-fg-secondary outline-none focus:border-accent"
+          className="nodrag nowheel w-full resize-none rounded border border-border px-2 py-1.5 text-micro text-fg-secondary input-focus"
         />
       </div>
 
@@ -188,6 +207,9 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
           />
         </div>
       )}
+
+      {/* Skeleton while generating */}
+      {isGenerating && <GeneratingSkeleton label="Creating design…" elapsed={elapsed} />}
 
       {/* ── Generation Controls ──────────────────────────────── */}
       <div className="border-t border-border-subtle px-3 py-2.5">

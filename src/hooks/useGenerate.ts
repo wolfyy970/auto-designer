@@ -4,10 +4,9 @@ import {
   useGenerationStore,
   nextRunNumber,
 } from '../stores/generation-store';
-import { getProvider } from '../services/providers/registry';
-import { saveCode, saveProvenance } from '../services/idb-storage';
-import { runAgenticBuild } from '../services/agent/orchestrator';
+import { storage } from '../storage';
 import { getPrompt } from '../stores/prompt-store';
+import { generate as apiGenerate } from '../api/client';
 import type { CompiledPrompt } from '../types/compiler';
 import type {
   GenerationResult,
@@ -30,7 +29,6 @@ export interface ProvenanceContext {
 /**
  * Shared generation orchestration hook.
  * Results accumulate across runs (no reset). Code is stored in IndexedDB.
- * Runs parallel for providers that support it, sequential otherwise.
  */
 export function useGenerate() {
   const addResult = useGenerationStore((s) => s.addResult);
@@ -52,16 +50,12 @@ export function useGenerate() {
       provenanceCtx?: ProvenanceContext,
       config?: { manageGenerating?: boolean },
     ): Promise<GenerationResult[]> => {
-      const provider = getProvider(providerId);
-      if (!provider || prompts.length === 0) return [];
+      if (prompts.length === 0) return [];
 
       const manage = config?.manageGenerating !== false;
       const runId = crypto.randomUUID();
-      // No resetResults() — results accumulate across runs
       if (manage) setGenerating(true);
 
-      // Create placeholders — read nextRunNumber live from current state
-      // so rapid double-clicks get sequential numbers (addResult is synchronous)
       const placeholderMap = new Map<string, string>();
       const placeholders = prompts.map((prompt) => {
         const placeholderId = crypto.randomUUID();
@@ -73,7 +67,7 @@ export function useGenerate() {
         const result: GenerationResult = {
           id: placeholderId,
           variantStrategyId: prompt.variantStrategyId,
-          providerId: provider.id,
+          providerId,
           status: 'generating',
           runId,
           runNumber: currentRunNumber,
@@ -83,40 +77,44 @@ export function useGenerate() {
         return result;
       });
 
-      // Notify caller so it can create/update skeleton nodes before generation starts
       callbacks?.onPlaceholdersReady?.(placeholders);
 
       const generateOne = async (prompt: CompiledPrompt) => {
         const placeholderId = placeholderMap.get(prompt.variantStrategyId)!;
         try {
-          const workspace = await runAgenticBuild(
-            getPrompt('agentSystemBuilder'),
-            prompt.prompt,
-            provider,
-            {
-              model: options.model,
-              supportsVision: options.supportsVision,
-              plannerSystemPrompt: getPrompt('agentSystemPlanner'),
-              onProgress: (status) => {
-                if (import.meta.env.DEV) {
-                  console.log(`[Agent ${placeholderId.slice(0, 8)}] ${status}`);
-                }
+          const activityLog: string[] = [];
+          let generatedCode = '';
 
-                const updates: Partial<import('../types/provider').GenerationResult> = {
+          await apiGenerate(
+            {
+              prompt: prompt.prompt,
+              providerId,
+              modelId: options.model,
+              promptOverrides: {
+                agentSystemBuilder: getPrompt('agentSystemBuilder'),
+                agentSystemPlanner: getPrompt('agentSystemPlanner'),
+              },
+              supportsVision: options.supportsVision,
+            },
+            {
+              onActivity: (entry) => {
+                activityLog.push(entry);
+                updateResult(placeholderId, { activityLog: [...activityLog] });
+              },
+              onProgress: (status) => {
+                const updates: Partial<GenerationResult> = {
                   progressMessage: status,
                 };
 
-                // "Plan ready: 3 files — Bold landing page" → total = 3, reset current
                 const planMatch = status.match(/^Plan ready: (\d+) files/);
                 if (planMatch) {
-                  updates.progressStep = { current: 0, total: parseInt(planMatch[1], 10) };
+                  updates.progressStep = { current: 1, total: parseInt(planMatch[1], 10) };
                 }
 
-                // "Wrote index.html" → increment current
-                if (status.startsWith('Wrote ')) {
+                if (status.startsWith('Wrote ') || status.startsWith('Patched ')) {
                   const prev = useGenerationStore.getState().results.find((r) => r.id === placeholderId);
                   const prevStep = prev?.progressStep;
-                  if (prevStep) {
+                  if (prevStep && prevStep.current < prevStep.total) {
                     updates.progressStep = {
                       current: Math.min(prevStep.current + 1, prevStep.total),
                       total: prevStep.total,
@@ -126,41 +124,25 @@ export function useGenerate() {
 
                 updateResult(placeholderId, updates);
               },
-            }
+              onCode: (code) => {
+                generatedCode = code;
+              },
+              onError: (error) => {
+                updateResult(placeholderId, { status: 'error', error });
+              },
+            },
           );
 
-          const files = workspace.listFiles();
-          const bundledHtml = workspace.bundleToHtml();
-
-          if (import.meta.env.DEV) {
-            console.log(`[useGenerate] workspace files: [${files.join(', ') || 'NONE'}]`);
-            console.log(`[useGenerate] bundledHtml length: ${bundledHtml.length}`);
-            if (!bundledHtml) {
-              console.error('[useGenerate] bundledHtml is empty — model did not write any files via XML tool tags. Check the raw model response above.');
-            }
-          }
-
-          // Save code to IndexedDB (not in Zustand store)
-          if (bundledHtml) {
-            try {
-              await saveCode(placeholderId, bundledHtml);
-              if (import.meta.env.DEV) {
-                console.log(`[useGenerate] Saved bundled code for ${placeholderId.slice(0, 8)}... (${bundledHtml.length} chars)`);
-              }
-            } catch (saveErr) {
-              console.error('[useGenerate] Failed to save code to IndexedDB:', saveErr);
-              throw new Error(`Failed to save code: ${normalizeError(saveErr)}`);
-            }
-          } else {
-            // Surface the empty workspace as an error so the node shows the reason
+          if (!generatedCode) {
             updateResult(placeholderId, {
               status: 'error',
-              error: `Model completed but wrote no files. It likely responded with prose instead of XML tool calls. Check the browser console for the raw response.`,
+              error: 'Server returned no code. The model likely responded with prose instead of tool calls.',
             });
             return;
           }
 
-          // Save provenance snapshot to IndexedDB
+          await storage.saveCode(placeholderId, generatedCode);
+
           if (provenanceCtx) {
             const strategySnapshot =
               provenanceCtx.strategies[prompt.variantStrategyId];
@@ -173,11 +155,10 @@ export function useGenerate() {
                 model: options.model,
                 timestamp: new Date().toISOString(),
               };
-              await saveProvenance(placeholderId, provenance);
+              await storage.saveProvenance(placeholderId, provenance);
             }
           }
 
-          // Update metadata in Zustand
           updateResult(placeholderId, {
             id: placeholderId,
             status: 'complete',
@@ -195,16 +176,14 @@ export function useGenerate() {
         }
       };
 
-      if (provider.supportsParallel) {
-        await Promise.all(prompts.map(generateOne));
-      } else {
-        // Sequential — LM Studio returns 500 on concurrent requests
-        for (const prompt of prompts) {
-          await generateOne(prompt);
-        }
-      }
+      await Promise.all(prompts.map((prompt) => generateOne(prompt)));
 
-      if (manage) setGenerating(false);
+      if (manage) {
+        const stillGenerating = useGenerationStore.getState().results.some(
+          (r) => r.status === 'generating',
+        );
+        if (!stillGenerating) setGenerating(false);
+      }
       return placeholders;
     },
     [addResult, updateResult, setGenerating],

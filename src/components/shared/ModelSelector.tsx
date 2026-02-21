@@ -150,7 +150,7 @@ export default function ModelSelector({
             onKeyDown={handleKeyDown}
             placeholder={isLoading ? 'Loading models...' : 'Search models...'}
             disabled={isLoading}
-            className="w-full rounded-md border border-border bg-bg py-2 pl-2.5 pr-7 text-xs text-fg-secondary outline-none focus:border-accent disabled:opacity-60"
+            className="w-full rounded-md border border-border bg-bg py-2 pl-2.5 pr-7 text-xs text-fg-secondary input-focus disabled:opacity-60"
           />
           <span className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 text-fg-muted">
             {!isOpen && selectedModel?.supportsVision && (

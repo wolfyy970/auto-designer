@@ -3,7 +3,7 @@
 ## Setup
 
 ```bash
-pnpm install
+npm install
 cp .env.example .env.local
 ```
 
@@ -20,8 +20,11 @@ VITE_LMSTUDIO_VISION_MODELS=llava,minicpm-v,qwen2-vl
 ```
 
 ```bash
-pnpm dev
+npm run dev          # Vite SPA (port 5173)
+npm run dev:server   # Hono API (port 3001)
 ```
+
+Both processes are needed for local development.
 
 ## Canvas Workflow
 
@@ -29,7 +32,7 @@ The canvas (`/canvas`) is the default interface. Nodes connect left-to-right.
 
 ### 1. Fill in Input Nodes
 
-The canvas starts with a **Design Brief** node and an **Incubator**. Add more input nodes from the toolbar:
+The canvas starts with a **Design Brief**, a **Model**, and an **Incubator** — all pre-connected. Add more input nodes from the toolbar:
 
 - **Design Brief** — The primary directive. What are you designing and why?
 - **Existing Design** — Describe what exists today. Drag-and-drop screenshots as reference images.

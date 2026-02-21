@@ -23,11 +23,7 @@ function ModelNode({ id, selected }: NodeProps<ModelNodeType>) {
 
   const configured = !!modelId;
 
-  const borderClass = selected
-    ? 'border-accent ring-2 ring-accent/20'
-    : configured
-      ? 'border-border'
-      : 'border-dashed border-border';
+  const status = configured ? 'filled' as const : 'empty' as const;
 
   return (
     <NodeShell
@@ -35,7 +31,7 @@ function ModelNode({ id, selected }: NodeProps<ModelNodeType>) {
       nodeType="model"
       selected={!!selected}
       width="w-node"
-      borderClass={borderClass}
+      status={status}
       hasTarget={false}
       handleColor={configured ? 'green' : 'amber'}
     >

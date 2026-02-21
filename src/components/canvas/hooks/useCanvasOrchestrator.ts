@@ -24,8 +24,14 @@ export function useCanvasOrchestrator() {
     // change or be deleted while other versions still exist.
     const resultVsIds = new Set(results.map((r) => r.variantStrategyId));
 
+    const isCompiling = useCompilerStore.getState().isCompiling;
     const orphanIds = new Set<string>();
     for (const node of nodes) {
+      // Clean up stale placeholders left over from interrupted compilation
+      if (node.type === 'hypothesis' && node.data.placeholder && !isCompiling) {
+        orphanIds.add(node.id);
+        continue;
+      }
       if (
         node.type === 'hypothesis' &&
         node.data.refId &&

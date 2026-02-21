@@ -1,4 +1,4 @@
-import type { ChatMessage } from '../services/compiler';
+import type { ChatMessage } from '../types/provider';
 import type { ProviderModel, ChatResponse, ToolDefinition, ToolCall, ToolChatResponse } from '../types/provider';
 
 /** Build OpenAI-compatible chat request body from an array of messages */

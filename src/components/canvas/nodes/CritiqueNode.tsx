@@ -22,11 +22,8 @@ function CritiqueNode({ id, data, selected }: NodeProps<CritiqueNodeType>) {
     [id, updateNodeData]
   );
 
-  const borderClass = selected
-    ? 'border-warning ring-2 ring-warning/20'
-    : (strengths.trim() || improvements.trim() || direction.trim())
-      ? 'border-warning/50'
-      : 'border-dashed border-warning/30';
+  const hasFeedback = !!(strengths.trim() || improvements.trim() || direction.trim());
+  const status = hasFeedback ? 'filled' as const : 'empty' as const;
 
   return (
     <NodeShell
@@ -34,7 +31,7 @@ function CritiqueNode({ id, data, selected }: NodeProps<CritiqueNodeType>) {
       nodeType="critique"
       selected={!!selected}
       width="w-node"
-      borderClass={borderClass}
+      status={status}
       handleColor={strengths.trim() || improvements.trim() || direction.trim() ? 'green' : 'amber'}
     >
       <NodeHeader
@@ -58,7 +55,6 @@ function CritiqueNode({ id, data, selected }: NodeProps<CritiqueNodeType>) {
           onChange={(v) => update('strengths', v)}
           placeholder="Preserve these aspects..."
           labelClassName="text-warning"
-          focusClassName="focus:border-warning focus:ring-1 focus:ring-warning/20"
         />
         <CompactField
           label="What needs improvement"
@@ -66,7 +62,6 @@ function CritiqueNode({ id, data, selected }: NodeProps<CritiqueNodeType>) {
           onChange={(v) => update('improvements', v)}
           placeholder="Change or fix these..."
           labelClassName="text-warning"
-          focusClassName="focus:border-warning focus:ring-1 focus:ring-warning/20"
         />
         <CompactField
           label="Direction"
@@ -74,7 +69,6 @@ function CritiqueNode({ id, data, selected }: NodeProps<CritiqueNodeType>) {
           onChange={(v) => update('direction', v)}
           placeholder="Try this next..."
           labelClassName="text-warning"
-          focusClassName="focus:border-warning focus:ring-1 focus:ring-warning/20"
         />
       </div>
     </NodeShell>

@@ -1,4 +1,5 @@
-import { getAvailableProviders } from '../../services/providers/registry';
+import { useQuery } from '@tanstack/react-query';
+import { listProviders } from '../../api/client';
 
 interface ProviderSelectorProps {
   selectedId: string;
@@ -11,7 +12,11 @@ export default function ProviderSelector({
   onChange,
   label = 'Generation Provider',
 }: ProviderSelectorProps) {
-  const providers = getAvailableProviders();
+  const { data: providers = [] } = useQuery({
+    queryKey: ['providers'],
+    queryFn: listProviders,
+    staleTime: 5 * 60 * 1000,
+  });
 
   return (
     <div>
@@ -21,7 +26,7 @@ export default function ProviderSelector({
       <select
         value={selectedId}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-border bg-bg px-3 py-2 text-xs text-fg-secondary outline-none focus:border-accent"
+        className="w-full rounded-md border border-border bg-bg px-3 py-2 text-xs text-fg-secondary input-focus"
       >
         {providers.map((p) => (
           <option key={p.id} value={p.id}>

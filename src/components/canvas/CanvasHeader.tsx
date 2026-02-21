@@ -1,10 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Settings, FolderOpen, Pencil, Sun, Moon, Monitor } from 'lucide-react';
+import { Settings, FolderOpen, Pencil, Sun, Moon, Monitor, ScrollText, RotateCcw } from 'lucide-react';
 import { useSpecStore } from '../../stores/spec-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { useThemeStore, type ThemeMode } from '../../stores/theme-store';
 import SpecManager from '../shared/SpecManager';
 import SettingsModal from '../shared/SettingsModal';
+import LogViewer from './LogViewer';
 
 const THEME_CYCLE: ThemeMode[] = ['dark', 'light', 'system'];
 const THEME_ICON = {
@@ -18,6 +19,7 @@ export default function CanvasHeader() {
   const setTitle = useSpecStore((s) => s.setTitle);
   const autoLayout = useCanvasStore((s) => s.autoLayout);
   const toggleAutoLayout = useCanvasStore((s) => s.toggleAutoLayout);
+  const resetCanvas = useCanvasStore((s) => s.resetCanvas);
   const themeMode = useThemeStore((s) => s.mode);
   const setThemeMode = useThemeStore((s) => s.setMode);
 
@@ -25,6 +27,7 @@ export default function CanvasHeader() {
   const [editValue, setEditValue] = useState(title);
   const [showSpecs, setShowSpecs] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -77,7 +80,7 @@ export default function CanvasHeader() {
               onChange={(e) => setEditValue(e.target.value)}
               onBlur={handleSave}
               onKeyDown={handleKeyDown}
-              className="rounded border border-border px-2 py-0.5 text-sm text-fg-secondary outline-none focus:border-accent"
+              className="rounded border border-border px-2 py-0.5 text-sm text-fg-secondary input-focus"
             />
           ) : (
             <button
@@ -103,11 +106,30 @@ export default function CanvasHeader() {
         {/* Right: Navigation actions */}
         <div className="flex items-center gap-1">
           <button
+            onClick={() => {
+              if (window.confirm('Reset canvas to default template? This clears all nodes.')) {
+                resetCanvas();
+              }
+            }}
+            className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-fg-secondary hover:bg-surface-raised"
+            title="Reset canvas to default template"
+          >
+            <RotateCcw size={14} />
+          </button>
+          <button
             onClick={() => setShowSpecs(true)}
             className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-fg-secondary hover:bg-surface-raised"
           >
             <FolderOpen size={14} />
             Specs
+          </button>
+          <button
+            onClick={() => setShowLogs(true)}
+            className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-fg-secondary hover:bg-surface-raised"
+            title="LLM Call Log"
+          >
+            <ScrollText size={14} />
+            Logs
           </button>
           <button
             onClick={cycleTheme}
@@ -127,6 +149,7 @@ export default function CanvasHeader() {
 
       <SpecManager open={showSpecs} onClose={() => setShowSpecs(false)} />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
+      <LogViewer open={showLogs} onClose={() => setShowLogs(false)} />
     </>
   );
 }

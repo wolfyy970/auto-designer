@@ -226,7 +226,7 @@ export default function PromptEditor() {
           value={currentValue}
           onChange={(e) => handleChange(e.target.value)}
           spellCheck={false}
-          className="min-h-0 flex-1 resize-none rounded-md border border-border px-3 py-2 font-mono text-xs leading-relaxed text-fg-secondary outline-none focus:border-accent"
+          className="min-h-0 flex-1 resize-none rounded-md border border-border px-3 py-2 font-mono text-xs leading-relaxed text-fg-secondary input-focus"
         />
 
         {/* Diagnostics */}
