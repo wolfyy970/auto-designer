@@ -1,6 +1,6 @@
 # Product — What Exists Today
 
-**Status:** Canvas interface complete. Agentic generation engine operational. Vision support implemented.
+**Status:** Canvas interface complete. Single-shot generation operational. Vision support implemented.
 
 ## Canvas Interface (`/canvas` — default route)
 
@@ -43,25 +43,19 @@ Variants can connect back to Existing Design (or to a Critique node, then to Inc
 3. Re-incubate with the new context
 4. Generate improved variants
 
-## Agentic Generation Engine
+## Generation Engine
 
-Generation is not a single LLM call. It runs as a two-phase agentic loop:
+Generation is a single LLM call per hypothesis-model pair.
 
-**Phase 1 — Planning.** A dedicated planner LLM call reads the compiled hypothesis and returns a structured JSON build plan: intent, color palette, typography choices, layout strategy, and a precise file list with responsibilities. No code is written in this phase.
+The server receives the compiled variant prompt (hypothesis + spec context), applies the `genSystemHtml` system prompt, and calls the LLM once. The response is expected to be a complete, self-contained HTML document. Code is extracted and streamed back to the client via SSE.
 
-**Phase 2 — Build loop.** The builder receives the plan as context and executes it file by file, writing each file to an in-memory VirtualWorkspace via XML tool calls (`<write_file>`, `<edit_file>`, `<finish_build>`). Each response writes one file; the loop continues until the builder calls `finish_build` or reaches the max loop limit.
+**Single-shot design.** The `genSystemHtml` system prompt instructs the model to produce a fully working HTML file — inline CSS, inline JS, no external dependencies. This is the most reliable approach across different model providers.
 
-After the loop completes, the VirtualWorkspace bundles all files into a single self-contained HTML document for iframe rendering.
-
-This two-phase approach overcomes LLM output token limits — the total output is unbounded because each API call handles a focused, bounded task.
-
-**Cross-model compatibility.** The tool-call parser has three strategies: strict XML tag parsing, a permissive Markdown fenced-block fallback (for models like Gemini that respond with code blocks instead of XML), and plan-aware file path inference. This makes the engine model-agnostic.
-
-**Fuzzy patching.** `edit_file` uses multi-strategy string matching (exact, line-trimmed, indentation-flexible, block-anchored, Levenshtein distance) to handle whitespace drift between what the LLM remembers and what's actually in the workspace.
-
-**Real-time progress.** During generation, the variant node shows a live activity log, progress bar, and elapsed time. The file counter shows which file is currently being built (e.g., "2/3" means working on file 2 of 3). Driven by the orchestrator's `onProgress` and `onActivity` callbacks via SSE.
+**Real-time progress.** During generation, the variant node shows a pulsing progress indicator and elapsed time. When generation completes, the variant renders immediately.
 
 **Parallel generation.** Multiple hypotheses generate simultaneously when triggered. Within a single hypothesis, multiple connected Model nodes also generate in parallel. Progress and completion update independently per variant.
+
+**Agentic engine (preserved).** A multi-file agentic build loop (`server/services/agent/orchestrator.ts`) is preserved as an inactive stub for future use. It implements a two-phase planner + builder loop with VirtualWorkspace, fuzzy patching, and Markdown fallback parsing — but is not used for generation currently.
 
 ## Prompt Editor
 
@@ -71,12 +65,13 @@ All LLM prompts are exposed to the user and editable at runtime via the Prompt E
 |--------|---------|
 | Incubator — System | Role, output format, and guidelines for dimension map production |
 | Incubator — User | Template for spec data (variables: `{{SPEC_TITLE}}`, etc.) |
-| Agent Designer — Planner | Single-shot planning prompt — produces JSON build plan |
-| Agent Designer — Builder | Build loop system prompt — instructs tool usage |
-| Designer — User | User prompt template for variant generation |
+| Designer — System | System prompt for single-shot HTML generation |
+| Designer — User | User prompt template for variant generation (variables: `{{STRATEGY_NAME}}`, `{{DESIGN_BRIEF}}`, etc.) |
 | Design System — Extract | Prompt for vision-based token extraction from screenshots |
+| Agentic Planner (inactive) | Reserved for future multi-file generation |
+| Agentic Builder (inactive) | Reserved for future multi-file generation |
 
-Overrides persist in localStorage. Validation warns if required patterns are missing (e.g., JSON instruction for Planner, `<write_file>` instruction for Builder).
+Overrides persist in localStorage.
 
 ## Providers
 

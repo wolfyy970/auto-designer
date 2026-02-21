@@ -68,7 +68,7 @@ Add a **Design System** node from the toolbar (Processing group). It auto-connec
 
 ### 6. Generate Variants
 
-Each hypothesis has built-in generation controls. Connect a Model node to the hypothesis, then click **Create**. The agentic engine runs a planning pass then builds the variant file-by-file across multiple LLM calls — no single output token limit applies. Variants appear to the right. Running generation again adds new versions — use the version navigation arrows to browse previous results.
+Each hypothesis has built-in generation controls. Connect a Model node to the hypothesis, then click **Create**. The server generates a complete self-contained HTML document in a single LLM call. Variants appear to the right. Running generation again adds new versions — use the version navigation arrows to browse previous results.
 
 ### 7. Review Variants
 

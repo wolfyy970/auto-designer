@@ -20,7 +20,7 @@
 
 **Client** — React SPA with Zustand stores, `@xyflow/react` canvas, IndexedDB for generated code. Makes REST and SSE calls to `/api/*`.
 
-**Server** — Hono app deployed as a Vercel serverless function. Handles all LLM orchestration: compilation, agentic generation, model listing, design system extraction. Holds API keys server-side.
+**Server** — Hono app deployed as a Vercel serverless function. Handles all LLM orchestration: compilation, single-shot generation, model listing, design system extraction. Holds API keys server-side.
 
 **Local dev** — Two processes: Vite (SPA + HMR on 5173) and Hono (API on 3001 via `tsx watch`). Vite proxy forwards `/api/*` to Hono.
 
@@ -42,7 +42,7 @@
 │  2. API Client + Prompt Compiler            │
 │  Client: compileVariantPrompts() (local)    │
 │  Server: compileSpec() → DimensionMap       │
-│  Server: runAgenticBuild() → HTML           │
+│  Server: provider.generateChat() → HTML     │
 └──────────────────┬──────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────┐
@@ -72,9 +72,8 @@ DimensionMap (dimensions + variant strategies)
 CompiledPrompt[] (one full prompt per variant)
     │
     ▼ POST /api/generate  (SSE stream per variant)
-    │  Server: plannerLLM → BuildPlan (JSON)
-    │  Server: builderLLM loop → VirtualWorkspace → bundleToHtml()
-    │  SSE events: activity, progress, code, done
+    │  Server: provider.generateChat(messages) → raw HTML
+    │  SSE events: progress, code, done
     │  Client: code → StoragePort (IndexedDB), metadata → Zustand
     │
     ▼ iframe srcdoc attribute
@@ -89,13 +88,15 @@ Next iteration cycle
 | Endpoint | Method | Purpose | Response |
 |---|---|---|---|
 | `/api/compile` | POST | Compile spec into dimension map | JSON: `DimensionMap` |
-| `/api/generate` | POST | Run agentic build for one variant | SSE stream: activity, progress, code, done |
+| `/api/generate` | POST | Generate one variant (single-shot) | SSE stream: progress, code, done |
 | `/api/models/:provider` | GET | List available models | JSON: `ProviderModel[]` |
 | `/api/models` | GET | List available providers | JSON: `ProviderInfo[]` |
 | `/api/logs` | GET | Fetch LLM call log entries (dev-only) | JSON: `LlmLogEntry[]` |
 | `/api/logs` | DELETE | Clear log entries (dev-only) | 204 |
 | `/api/design-system/extract` | POST | Extract design tokens from screenshots | JSON: extracted tokens |
 | `/api/health` | GET | Health check | JSON: `{ ok: true }` |
+
+All POST endpoints validate request bodies with Zod `safeParse` — malformed requests return a structured `400` before any LLM call is made.
 
 ## Server Architecture (`server/`)
 
@@ -110,50 +111,38 @@ Next iteration cycle
 | `routes/models.ts` | GET /api/models/:provider |
 | `routes/logs.ts` | GET/DELETE /api/logs |
 | `routes/design-system.ts` | POST /api/design-system/extract |
-| `services/agent/orchestrator.ts` | Agentic build loop (moved from client) |
-| `services/agent/workspace.ts` | VirtualWorkspace (moved from client) |
+| `services/agent/orchestrator.ts` | Agentic build loop — inactive stub, preserved for future use |
+| `services/agent/workspace.ts` | VirtualWorkspace — inactive stub, preserved for future use |
 | `services/compiler.ts` | LLM compilation (moved from client) |
 | `services/providers/openrouter.ts` | OpenRouter provider (direct API, auth header) |
 | `services/providers/lmstudio.ts` | LM Studio provider (direct URL) |
 | `services/providers/registry.ts` | Provider registration and lookup |
 | `lib/provider-helpers.ts` | Shared fetch helpers (moved from client) |
-| `lib/prompts/*` | Prompt defaults and template builders (server-side copy) |
+| `lib/prompts/*` | Prompt defaults (imports from shared `src/lib/prompts/shared-defaults.ts`) and template builders |
 | `lib/extract-code.ts` | Code extraction from LLM responses |
 | `lib/error-utils.ts` | Error normalization |
 | `lib/utils.ts` | ID generation, interpolation |
 
-## Agentic Engine
+## Generation Engine
 
-The generation engine (`server/services/agent/`) breaks LLM output token limits via an iterative tool-calling loop. It is an independently upgradeable module.
+Generation is a single LLM call per hypothesis-model pair (`server/routes/generate.ts`).
 
-### VirtualWorkspace (`workspace.ts`)
+The route:
+1. Validates the request with Zod
+2. Resolves the `genSystemHtml` system prompt (default or client-provided override)
+3. Calls `provider.generateChat([system, user], options)`
+4. Extracts the HTML code block from the response
+5. Streams three SSE events: `progress` (start), `code` (HTML), `done`
 
-An in-memory file system. The LLM writes files into it via tool calls; the workspace assembles them into a single HTML document after the loop completes.
-
-- `writeFile(path, content)` — creates or overwrites; normalizes leading slashes
-- `readFile(path)` — returns content or undefined
-- `patchFile(path, search, replace)` — targeted string replacement with multi-strategy fuzzy matching (exact, line-trimmed, indentation-flexible, block-anchored, Levenshtein). Saves tokens on large files while tolerating LLM whitespace drift.
-- `validateWorkspace(plannedPaths)` — checks that all planned files were written and reports structural warnings
-- `bundleToHtml()` — injects CSS into `<head>` and JS before `</body>`, wraps everything in the HTML file
-
-### Build Loop (`orchestrator.ts`)
-
-`runAgenticBuild(builderSystemPrompt, userContext, provider, options)`:
-
-1. **Planning pass** (optional, enabled by passing `plannerSystemPrompt`): single LLM call returns a JSON `BuildPlan` with intent, palette, typography, layout, and a precise file list. On parse failure, falls back gracefully — build continues without a plan.
-
-2. **Build loop**: starts with `[system, user + buildPlanContext]` message array. Each iteration:
-   - Calls `provider.generateChat(messages, options)`
-   - Parses tool calls via three strategies: strict XML tags, permissive Markdown fallback, and plan-aware file path alignment. `finish_build` is always processed last.
-   - Executes tools against `VirtualWorkspace`
-   - Appends tool feedback as a user message
-   - Reports progress via SSE `progress` and `activity` events
-   - Stops when `finish_build` is called or `maxLoops` is reached
-   - Runs a validation correction pass: if planned files are missing, re-enters the loop
+The client streams the SSE response, saves the code to StoragePort (IndexedDB), and updates Zustand metadata.
 
 ### Generation Cancellation
 
-SSE is unidirectional. The client holds an `AbortController` and calls `abort()` on unmount or user cancellation. The server checks `c.req.raw.signal.aborted` to detect client disconnection and stops the build loop.
+SSE is unidirectional. The client holds an `AbortController` and calls `abort()` on unmount or user cancellation. The server checks `c.req.raw.signal.aborted` to detect client disconnection.
+
+### Agentic Engine (Inactive Stub)
+
+`server/services/agent/orchestrator.ts` and `workspace.ts` preserve a multi-file agentic build loop for future use. It implements a two-phase planner + builder loop with VirtualWorkspace, fuzzy patching, and Markdown fallback parsing. Currently inactive — not called from any active route. Fully tested via `src/services/__tests__/orchestrator.test.ts`.
 
 ## Canvas Architecture
 
@@ -220,7 +209,7 @@ Multiple hypotheses generate simultaneously via `Promise.all`. Within a single h
 | `generation-store` | localStorage + StoragePort | `GenerationResult[]` metadata in localStorage, code in IndexedDB via StoragePort |
 | `canvas-store` | localStorage | Nodes, edges, viewport, auto-layout preferences |
 | `prompt-store` | localStorage | Prompt template overrides (sent as per-request overrides to server) |
-| `theme-store` | localStorage | Theme preference (light/dark/system) |
+| `theme-store` | — | Theme mode (always `dark`; static store) |
 
 ### Hooks (`src/hooks/`)
 
@@ -234,9 +223,11 @@ Multiple hypotheses generate simultaneously via `Promise.all`. Within a single h
 
 ## Key Design Decisions
 
-**Why a Hono server on Vercel.** All LLM orchestration runs server-side. API keys never reach the browser. The agentic build loop — with its multi-turn conversation, tool parsing, and workspace management — runs in a serverless function with SSE streaming. Vercel supports 300s timeout (Hobby) or 800s (Pro) for streaming functions.
+**Why a Hono server on Vercel.** All LLM orchestration runs server-side. API keys never reach the browser. LLM calls and SSE streaming run in a serverless function. Vercel supports 300s timeout (Hobby) or 800s (Pro) for streaming functions — sufficient for single-shot generation.
 
 **Why prompts are sent per-request.** The prompt store lives in the browser (localStorage). The server is stateless — it carries defaults and applies client-provided overrides. No shared state between server and client beyond the request payload.
+
+**Why `src/lib/prompts/shared-defaults.ts`.** Prompt text is the same on client and server. A single shared module (`shared-defaults.ts`) is the one source of truth. Both `src/lib/prompts/defaults.ts` (client) and `server/lib/prompts/defaults.ts` (server) import from it. `tsconfig.server.json` explicitly includes the file.
 
 **Why SSE for generation.** Each variant is a separate SSE stream. Events: `activity` (thinking, file writes), `progress` (phase labels), `code` (final HTML), `error`, `done`. The client manages sequencing across variants.
 

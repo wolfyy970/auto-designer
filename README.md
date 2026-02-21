@@ -1,8 +1,8 @@
 # Lattice
 
-A specification workspace that helps designers define design problem boundaries before AI generation. Specifications compile into hypothesis strategies that systematically explore the solution space. An agentic build engine then generates each variant across multiple LLM calls — breaking through single-response token limits.
+A specification workspace that helps designers define design problem boundaries before AI generation. Specifications compile into hypothesis strategies that systematically explore the solution space. A single-shot LLM call then generates each hypothesis as a complete, self-contained HTML document.
 
-Designers write structured inputs. The compiler reasons about the exploration space. The agentic engine builds variants file-by-file. Everything connects on a visual node-graph canvas.
+Designers write structured inputs. The compiler reasons about the exploration space. The generator produces renderable variants in parallel. Everything connects on a visual node-graph canvas.
 
 ## Quick Start
 
@@ -32,7 +32,7 @@ The primary interface is a visual node-graph canvas (`/canvas`, the default rout
 1. **Input nodes** (left) — Design Brief, Existing Design, Research Context, Objectives & Metrics, Design Constraints
 2. **Model node** — Connect to the Incubator or Hypotheses to configure which provider and model they use
 3. **Incubator** — Connect input nodes and a Model node, then click Generate to produce hypothesis strategies
-4. **Hypotheses** — Editable strategy cards. Connect a Model node and click Create to generate variants via the agentic engine
+4. **Hypotheses** — Editable strategy cards. Connect a Model node and click Create to generate a variant
 5. **Design System** (optional) — Connect to hypotheses to inject design tokens into generation
 6. **Variants** — Rendered design previews with zoom, version navigation, and full-screen. Results accumulate across runs
 
@@ -52,9 +52,9 @@ Nodes connect left-to-right. Auto-layout arranges everything based on connection
 
 | Document | Purpose |
 |----------|---------|
-| [PRODUCT.md](PRODUCT.md) | What exists today — features, agentic engine, canvas nodes, providers |
+| [PRODUCT.md](PRODUCT.md) | What exists today — features, generation, canvas nodes, providers |
 | [USER_GUIDE.md](USER_GUIDE.md) | How to use the canvas workflow |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, agentic engine internals, module boundaries |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, generation engine, module boundaries |
 | [DOCUMENTATION.md](DOCUMENTATION.md) | Documentation philosophy and rules |
 
 ## Tech Stack
