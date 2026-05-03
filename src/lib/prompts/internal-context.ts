@@ -10,8 +10,8 @@
  * the user's intent and corrupted specifics — see plan in
  * `~/.claude/plans/i-want-you-to-curried-eich.md`.
  */
-import type { DesignSpec } from '../types/spec';
-import { imageFingerprint } from './document-fingerprint';
+import type { DesignSpec } from '../../types/spec';
+import { imageFingerprint } from '../document-fingerprint';
 
 type SourceSectionId =
   | 'design-brief'

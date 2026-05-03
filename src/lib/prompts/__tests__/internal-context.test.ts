@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildInternalContext } from '../internal-context';
-import type { DesignSpec, SpecSection } from '../../types/spec';
+import type { DesignSpec, SpecSection } from '../../../types/spec';
 
 type Img = { id: string; filename: string; dataUrl: string; description: string; createdAt: string; extractedContext?: string };
 

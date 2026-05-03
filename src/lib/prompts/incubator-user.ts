@@ -1,7 +1,7 @@
 import type { DesignSpec } from '../../types/spec';
 import type { HypothesisStrategy } from '../../types/incubator';
 import { interpolate } from '../utils';
-import { buildInternalContext } from '../internal-context';
+import { buildInternalContext } from './internal-context';
 
 /** Optional appendix after the main incubate instruction; empty when no reference designs. */
 export function formatReferenceDesignsBlock(
