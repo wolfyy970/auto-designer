@@ -49,8 +49,11 @@ const MARGIN: Record<CompletionPurpose, number> = {
   default:    _budget.margins.default,
 };
 
+/** Default OpenRouter context window when the provider model registry has no entry. */
+export const FALLBACK_OPENROUTER_CONTEXT_WINDOW = 131_072;
+
 function contextFallback(providerId: string): number {
-  return providerId === 'lmstudio' ? env.LM_STUDIO_CONTEXT_WINDOW : 131_072;
+  return providerId === 'lmstudio' ? env.LM_STUDIO_CONTEXT_WINDOW : FALLBACK_OPENROUTER_CONTEXT_WINDOW;
 }
 
 /**

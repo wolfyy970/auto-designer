@@ -11,6 +11,7 @@ import {
   DefaultResourceLoader,
   PACKAGE_PROMPTS_DIR,
   PACKAGE_SKILLS_DIR,
+  SANDBOX_PROJECT_ROOT,
   computeDesignFilesBeyondSeed,
   createDesignSession,
   createDesignSystemSession,
@@ -30,11 +31,10 @@ import type { RunTraceEvent } from '../../src/types/provider.ts';
 import { env } from '../env.ts';
 import { normalizeError } from '../../src/lib/error-utils.ts';
 import { normalizeProviderError } from '../lib/provider-error-normalize.ts';
+import { FALLBACK_OPENROUTER_CONTEXT_WINDOW } from '../lib/completion-budget.ts';
 import { getProviderModelContextWindow } from './provider-model-context.ts';
 import { wrapPiStreamWithLogging, PI_LLM_LOG_PHASE, mapSessionTypeToLlmLogSource } from './pi-llm-log.ts';
 import { subscribePiSessionBridge } from './pi-session-event-bridge.ts';
-
-const FALLBACK_CONTEXT_WINDOW_DEFAULT = 131_072;
 
 function createTraceEvent(
   kind: RunTraceEvent['kind'],
@@ -99,7 +99,7 @@ export async function runPiAgentSession(
 
   const registryCw = await getProviderModelContextWindow(params.providerId, params.modelId);
   const fallbackCw =
-    params.providerId === 'lmstudio' ? env.LM_STUDIO_CONTEXT_WINDOW : FALLBACK_CONTEXT_WINDOW_DEFAULT;
+    params.providerId === 'lmstudio' ? env.LM_STUDIO_CONTEXT_WINDOW : FALLBACK_OPENROUTER_CONTEXT_WINDOW;
   const contextWindow = registryCw ?? fallbackCw;
 
   await onEvent({
@@ -159,7 +159,7 @@ export async function runPiAgentSession(
         sessionType,
         extensionFactories,
         systemPrompt: systemPromptBody,
-        cwd: '/home/user/project',
+        cwd: SANDBOX_PROJECT_ROOT,
       }),
   };
   // Route by session type so the SessionScopedResourceLoader picks the right
