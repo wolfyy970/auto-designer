@@ -26,7 +26,7 @@ export function useHypothesisGeneration({
   const { fitView } = useReactFlow();
   const { data: appConfig } = useAppConfig();
   const lockdown = appConfig?.lockdown === true;
-  const { supportsVision } = useConnectedModel(nodeId);
+  const { supportsVision } = useConnectedModel(nodeId, 'design');
 
   const spec = useSpecStore((s) => s.spec);
   const strategy = useIncubatorStore(

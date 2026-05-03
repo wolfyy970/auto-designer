@@ -18,10 +18,8 @@ import { processingOrFilled } from '../../../lib/node-status';
 import { GENERATION_STATUS } from '../../../constants/generation';
 import { abortGenerationForStrategy } from '../../../lib/generation-abort-registry';
 import { NODE_STATUS, NODE_TYPES, RF_INTERACTIVE } from '../../../constants/canvas';
-import {
-  countIncomingModelsWithModelSelected,
-  countOutgoingNodesOfType,
-} from '../../../workspace/graph-queries';
+import { countOutgoingNodesOfType } from '../../../workspace/graph-queries';
+import { useConnectedModel } from '../../../hooks/useConnectedModel';
 import {
   buildHypothesisDebugMarkdown,
   downloadTextFile,
@@ -80,9 +78,7 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
   const handleRemove = useNodeRemoval(nodeId);
   const { requestPermanentDelete } = useRequestPermanentDelete();
 
-  const connectedModelCount = useCanvasStore((s) =>
-    countIncomingModelsWithModelSelected(nodeId, { nodes: s.nodes, edges: s.edges }),
-  );
+  const { isConnected: hasResolvedModel } = useConnectedModel(nodeId, 'design');
 
   const isGenerating = useGenerationStore((s) =>
     s.results.some((r) => r.strategyId === strategyId && r.status === GENERATION_STATUS.GENERATING),
@@ -200,12 +196,12 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
 
   const status = processingOrFilled(isGenerating);
 
-  const hasModel = connectedModelCount > 0;
+  const hasModel = hasResolvedModel;
   const canGenerate = !!strategy.name.trim() && !!strategy.hypothesis.trim() && hasModel;
 
   const hint = !isGenerating
     ? !hasModel
-      ? 'Connect a Model node'
+      ? 'Pick a model in Settings'
       : !strategy.name.trim() || !strategy.hypothesis.trim()
         ? 'Add a name and hypothesis'
         : serverAtCapacity

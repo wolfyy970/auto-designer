@@ -66,7 +66,7 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
   const nodes = useCanvasStore((s) => s.nodes);
   const domainWiring = useWorkspaceDomainStore((s) => s.incubatorWirings[id]);
 
-  const { providerId, modelId, supportsVision } = useConnectedModel(id);
+  const { providerId, modelId, supportsVision } = useConnectedModel(id, 'incubate');
 
   const hypothesisCount = (data.hypothesisCount as number | undefined) ?? DEFAULT_COUNT;
   const [taskStreamState, setTaskStreamState] = useState<TaskStreamState>(() =>

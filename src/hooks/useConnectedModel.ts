@@ -7,15 +7,16 @@ import { useProviderModels } from './useProviderModels';
 import { DEFAULT_INCUBATOR_PROVIDER } from '../lib/constants';
 import { getModelNodeData } from '../lib/canvas-node-data';
 import { findFirstUpstreamModelNodeId } from '../workspace/graph-queries';
+import { useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
+import type { ThinkingTask } from '../lib/thinking-defaults';
 
 /**
- * Reads provider/model config from a connected Model node.
+ * Resolves provider/model for a node.
  *
- * Prefers domain bindings (incubator / hypothesis); falls back to graph edges.
- *
- * Uses primitive Zustand selectors to avoid useSyncExternalStore infinite loops.
+ * Priority: domain binding (incubator/hypothesis) → upstream graph edge →
+ * per-task Settings store. Lockdown clamps the final result.
  */
-export function useConnectedModel(nodeId: string) {
+export function useConnectedModel(nodeId: string, task: ThinkingTask) {
   const { data: appConfig } = useAppConfig();
   const lockdown = appConfig?.lockdown === true;
 
@@ -31,36 +32,35 @@ export function useConnectedModel(nodeId: string) {
 
   const modelNodeId = domainModelNodeId ?? graphModelNodeId;
 
-  // Read primitive values from Model node data (stable selectors).
-  // Fall back to DEFAULT_INCUBATOR_PROVIDER when the Model node exists
-  // but hasn't had its provider explicitly set yet — matches the
-  // fallback in useNodeProviderModel used by ModelNode itself.
-  const providerId = useCanvasStore(
-    (s) => {
-      if (!modelNodeId) return null;
-      const data = getModelNodeData(s.nodes.find((n) => n.id === modelNodeId));
-      return data?.providerId || DEFAULT_INCUBATOR_PROVIDER;
-    },
+  const canvasProviderId = useCanvasStore((s) => {
+    if (!modelNodeId) return null;
+    const data = getModelNodeData(s.nodes.find((n) => n.id === modelNodeId));
+    return data?.providerId || DEFAULT_INCUBATOR_PROVIDER;
+  });
+
+  const canvasModelId = useCanvasStore((s) => {
+    if (!modelNodeId) return null;
+    const data = getModelNodeData(s.nodes.find((n) => n.id === modelNodeId));
+    return data?.modelId || null;
+  });
+
+  const settingsProviderId = useThinkingDefaultsStore(
+    (s) => s.getEffective(task).providerId,
+  );
+  const settingsModelId = useThinkingDefaultsStore(
+    (s) => s.getEffective(task).modelId,
   );
 
-  const modelId = useCanvasStore(
-    (s) => {
-      if (!modelNodeId) return null;
-      const data = getModelNodeData(s.nodes.find((n) => n.id === modelNodeId));
-      return data?.modelId || null;
-    },
-  );
+  const fromCanvas = Boolean(modelNodeId && canvasModelId);
+  const baseProviderId = fromCanvas ? canvasProviderId : settingsProviderId;
+  const baseModelId = fromCanvas ? canvasModelId : settingsModelId;
 
-  const resolvedProviderId =
-    lockdown && modelNodeId
-      ? LOCKDOWN_PROVIDER_ID
-      : providerId;
-  const resolvedModelId =
-    lockdown && modelNodeId ? LOCKDOWN_MODEL_ID : modelId;
+  const resolvedProviderId = lockdown
+    ? LOCKDOWN_PROVIDER_ID
+    : baseProviderId;
+  const resolvedModelId = lockdown ? LOCKDOWN_MODEL_ID : baseModelId;
 
-  const { data: models } = useProviderModels(
-    lockdown && modelNodeId ? LOCKDOWN_PROVIDER_ID : (providerId ?? ''),
-  );
+  const { data: models } = useProviderModels(resolvedProviderId ?? '');
 
   const supportsVision = useMemo(
     () => models?.find((m) => m.id === resolvedModelId)?.supportsVision ?? false,
@@ -77,6 +77,6 @@ export function useConnectedModel(nodeId: string) {
     modelId: resolvedModelId,
     supportsVision,
     supportsReasoning,
-    isConnected: modelNodeId !== null,
+    isConnected: Boolean(resolvedModelId),
   };
 }

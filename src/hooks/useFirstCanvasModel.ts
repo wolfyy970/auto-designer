@@ -8,14 +8,16 @@ import {
   LOCKDOWN_PROVIDER_ID,
 } from '../lib/lockdown-model';
 import { useAppConfig } from './useAppConfig';
+import { useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
+import type { ThinkingTask } from '../lib/thinking-defaults';
 
-const PACK = '\u001e';
+const PACK = '';
 
 /**
- * First Model node on the canvas (document order). Section nodes are not edge-connected to models;
- * this matches the fallback used in canvas auto-connect.
+ * Resolves a model for the given task: the first canvas Model node wins,
+ * otherwise the per-task Settings store. Lockdown clamps both.
  */
-export function useFirstCanvasModel() {
+export function useFirstCanvasModel(task: ThinkingTask) {
   const { data: appConfig } = useAppConfig();
   const lockdown = appConfig?.lockdown === true;
 
@@ -29,24 +31,14 @@ export function useFirstCanvasModel() {
     return `${pid}${PACK}${mid}`;
   });
 
+  const settingsProviderId = useThinkingDefaultsStore(
+    (s) => s.getEffective(task).providerId,
+  );
+  const settingsModelId = useThinkingDefaultsStore(
+    (s) => s.getEffective(task).modelId,
+  );
+
   return useMemo(() => {
-    if (!packed) {
-      return {
-        providerId: null as string | null,
-        modelId: null as string | null,
-        hasModel: false,
-      };
-    }
-    const i = packed.indexOf(PACK);
-    if (i < 0) {
-      return {
-        providerId: null as string | null,
-        modelId: null as string | null,
-        hasModel: false,
-      };
-    }
-    const rawProvider = packed.slice(0, i);
-    const rawModel = packed.slice(i + PACK.length);
     if (lockdown) {
       return {
         providerId: LOCKDOWN_PROVIDER_ID,
@@ -54,10 +46,27 @@ export function useFirstCanvasModel() {
         hasModel: true,
       };
     }
+    if (packed) {
+      const i = packed.indexOf(PACK);
+      if (i >= 0) {
+        return {
+          providerId: packed.slice(0, i),
+          modelId: packed.slice(i + PACK.length),
+          hasModel: true,
+        };
+      }
+    }
+    if (settingsProviderId && settingsModelId) {
+      return {
+        providerId: settingsProviderId,
+        modelId: settingsModelId,
+        hasModel: true,
+      };
+    }
     return {
-      providerId: rawProvider,
-      modelId: rawModel,
-      hasModel: true,
+      providerId: null as string | null,
+      modelId: null as string | null,
+      hasModel: false,
     };
-  }, [packed, lockdown]);
+  }, [packed, lockdown, settingsProviderId, settingsModelId]);
 }

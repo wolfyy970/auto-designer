@@ -52,7 +52,7 @@ function InputNode({ id, type, selected }: NodeProps<InputNodeFlowType>) {
   const generateApiId = GENERATE_INPUT_API_ID[type as CanvasNodeType];
   const designBriefContent =
     useSpecStore((s) => s.spec.sections['design-brief']?.content ?? '');
-  const { providerId, modelId, hasModel } = useFirstCanvasModel();
+  const { providerId, modelId, hasModel } = useFirstCanvasModel('inputs');
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [taskStreamState, setTaskStreamState] = useState<TaskStreamState>(() =>

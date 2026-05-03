@@ -37,7 +37,7 @@ export function useHypothesisAutoGenerate({
   const incubatorId = useWorkspaceDomainStore(
     (s) => s.hypotheses[nodeId]?.incubatorId ?? null,
   );
-  const { providerId, modelId, supportsVision } = useConnectedModel(nodeId);
+  const { providerId, modelId, supportsVision } = useConnectedModel(nodeId, 'design');
   const hasModel = Boolean(providerId && modelId);
   const canRun = Boolean(
     strategyId && incubatorId && hasModel,

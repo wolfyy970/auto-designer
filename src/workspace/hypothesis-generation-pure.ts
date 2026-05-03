@@ -195,6 +195,8 @@ export function buildHypothesisGenerationContextFromInputs(input: {
   modelProfiles: Record<string, DomainModelProfile>;
   designSystems: Record<string, DomainDesignSystemContent>;
   defaultIncubatorProvider: string;
+  /** Settings-store fallback used when neither domain nor graph yields a credential. */
+  settingsCredential?: ModelCredential;
 }): HypothesisGenerationContext | null {
   const { hypothesisNodeId, hypothesisStrategy, spec, snapshot, domainHypothesis } = input;
 
@@ -209,6 +211,9 @@ export function buildHypothesisGenerationContextFromInputs(input: {
       snapshot,
       input.defaultIncubatorProvider,
     );
+  }
+  if (modelCredentials.length === 0 && input.settingsCredential) {
+    modelCredentials = [input.settingsCredential];
   }
   if (modelCredentials.length === 0) return null;
 
