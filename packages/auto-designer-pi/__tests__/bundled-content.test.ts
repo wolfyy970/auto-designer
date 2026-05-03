@@ -27,7 +27,6 @@ const EXPECTED_PROMPTS = [
   'eval-strategy-fidelity.md',
   'gen-constraints.md',
   'gen-hypotheses.md',
-  'gen-internal-context.md',
   'gen-objectives.md',
   'gen-research.md',
   'revise.md',

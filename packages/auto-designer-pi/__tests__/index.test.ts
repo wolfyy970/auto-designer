@@ -9,7 +9,6 @@ describe('@auto-designer/pi public API', () => {
     expect(typeof pi.createIncubationSession).toBe('function');
     expect(typeof pi.createInputsGenSession).toBe('function');
     expect(typeof pi.createDesignSystemSession).toBe('function');
-    expect(typeof pi.createInternalContextSession).toBe('function');
   });
 
   it('exports the VFS surface', () => {

@@ -1,12 +1,17 @@
-import { stripLegacyExistingDesignSection } from '../lib/spec-legacy';
+import { normaliseImportedSpec } from '../lib/spec-legacy';
 import type { DesignSpec } from '../types/spec';
 import type { WorkspaceEdge, WorkspaceNode } from '../types/workspace-graph';
 import { snapshotClone } from './canvas-snapshot-serialization';
 
 const LEGACY_EXISTING_DESIGN_NODE_TYPE = 'existingDesign';
 
+/**
+ * Snapshot-side spec normaliser. Round-trips the snapshot through
+ * `normaliseImportedSpec` so any retired field on the persisted spec is
+ * stripped before the spec lands in the active store.
+ */
 export function stripLegacyExistingDesignSpec(spec: DesignSpec): DesignSpec {
-  return stripLegacyExistingDesignSection(snapshotClone(spec));
+  return normaliseImportedSpec(snapshotClone(spec));
 }
 
 export function stripLegacyExistingDesignGraph(

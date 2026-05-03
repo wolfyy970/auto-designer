@@ -208,6 +208,12 @@ export const SavedCanvasSnapshotSchema = z
   .object({
     schemaVersion: z.literal(SAVED_CANVAS_SNAPSHOT_VERSION),
     savedAt: z.string(),
+    /**
+     * `DesignSpecSchema` is unstrict by design. Older snapshots may carry the
+     * retired `internalContextDocument` top-level field; Zod silently drops
+     * it on parse. The active store further normalises via
+     * `normaliseImportedSpec` on load.
+     */
     spec: DesignSpecSchema,
     canvas: z
       .object({

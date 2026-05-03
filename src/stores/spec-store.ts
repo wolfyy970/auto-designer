@@ -7,7 +7,7 @@ import type {
   SpecSectionId,
 } from '../types/spec';
 import { createEmptySections } from '../lib/constants';
-import { stripLegacyExistingDesignSection } from '../lib/spec-legacy';
+import { normaliseImportedSpec } from '../lib/spec-legacy';
 import { STORAGE_KEYS } from '../lib/storage-keys';
 import { generateId, now } from '../lib/utils';
 
@@ -157,7 +157,7 @@ export const useSpecStore = create<SpecStore>()(
         }),
 
       loadCanvas: (spec) => {
-        const activeSpec = stripLegacyExistingDesignSection(spec);
+        const activeSpec = normaliseImportedSpec(spec);
         // Ensure all required sections exist when loading a spec
         const normalizedSections: Record<SpecSectionId, SpecSection> = {
           ...createEmptySections(),
@@ -176,15 +176,13 @@ export const useSpecStore = create<SpecStore>()(
       version: 2,
       partialize: (state) => ({ spec: state.spec }),
       migrate: (persisted: unknown) => {
-        const state = persisted as { spec?: DesignSpec & { internalContextDocument?: unknown } };
-        if (state?.spec) {
-          // v1 → v2: drop the retired internalContextDocument field.
-          delete (state.spec as { internalContextDocument?: unknown }).internalContextDocument;
-        }
+        const state = persisted as { spec?: DesignSpec };
         if (state?.spec?.sections) {
-          // Ensure active section keys exist; retired legacy sections are dropped on load.
+          // Ensure active section keys exist; legacy sections + retired
+          // top-level fields (e.g. internalContextDocument) are dropped via
+          // `normaliseImportedSpec`.
           const emptySections = createEmptySections();
-          state.spec = stripLegacyExistingDesignSection({
+          state.spec = normaliseImportedSpec({
             ...state.spec,
             sections: { ...emptySections, ...state.spec.sections },
           });
