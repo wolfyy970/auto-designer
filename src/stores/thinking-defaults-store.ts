@@ -1,27 +1,49 @@
 /**
- * Per-task thinking (reasoning) overrides. Missing fields on a task fall back
- * to `THINKING_CONFIG_DEFAULTS`; the resolver applies the capability gate and
- * budget clamps at call-time — this store just persists user intent.
+ * Per-task thinking (effort) overrides. The user picks an Effort name on a
+ * five-position segmented control; the resolver maps it to provider-native
+ * level + budget at call time. This store just persists user intent.
+ *
+ * The store name + STORAGE_KEYS.THINKING_DEFAULTS slot are unchanged so
+ * earlier versions (v1, v2) hydrate cleanly through the migrate function.
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { STORAGE_KEYS } from '../lib/storage-keys';
 import {
+  EFFORTS,
+  EFFORT_TO_LEVEL,
+  LEVEL_TO_EFFORT,
+  THINKING_BUDGET_BY_LEVEL,
+  THINKING_LEVELS,
   THINKING_TASKS,
+  type Effort,
   type ThinkingLevel,
-  type ThinkingOverride,
   type ThinkingTask,
 } from '../lib/thinking-defaults';
 
+export type ThinkingOverride = { effort?: Effort };
 export type ThinkingOverridesByTask = Record<ThinkingTask, ThinkingOverride>;
+
+/**
+ * Project the user's effort override into the legacy wire shape that route
+ * request schemas accept (`{ level, budgetTokens }`). The server resolver
+ * always re-runs `resolveThinkingConfig` with the per-model capability gate,
+ * so the budget here is a hint — the canonical budget table lives in
+ * `config/thinking-defaults.json`.
+ */
+export function thinkingOverrideForWire(
+  override: ThinkingOverride,
+): { level?: ThinkingLevel; budgetTokens?: number } | undefined {
+  if (!override?.effort) return undefined;
+  const level = EFFORT_TO_LEVEL[override.effort];
+  return { level, budgetTokens: THINKING_BUDGET_BY_LEVEL[level] };
+}
 
 export interface ThinkingDefaultsStore {
   overrides: ThinkingOverridesByTask;
-  /** Merge a level override (undefined clears). */
-  setLevel: (task: ThinkingTask, level: ThinkingLevel | undefined) => void;
-  /** Merge a budget override (undefined clears). */
-  setBudgetTokens: (task: ThinkingTask, budgetTokens: number | undefined) => void;
-  /** Reset a single task to its default (clears both level and budget overrides). */
+  /** Set the user's effort preference for a task (`undefined` clears the override). */
+  setEffort: (task: ThinkingTask, effort: Effort | undefined) => void;
+  /** Reset one task to defaults. */
   resetTask: (task: ThinkingTask) => void;
   /** Reset every task. */
   resetAll: () => void;
@@ -38,10 +60,29 @@ function updateTask(
 ): ThinkingOverridesByTask {
   const current = state[task] ?? {};
   const next: ThinkingOverride = { ...current, ...patch };
-  // Clean keys explicitly set to undefined so we don't persist them.
-  if (patch.level === undefined && 'level' in patch) delete next.level;
-  if (patch.budgetTokens === undefined && 'budgetTokens' in patch) delete next.budgetTokens;
+  if (patch.effort === undefined && 'effort' in patch) delete next.effort;
   return { ...state, [task]: next };
+}
+
+const EFFORT_SET = new Set<Effort>(EFFORTS);
+const LEGACY_LEVEL_SET = new Set<string>(THINKING_LEVELS);
+
+/**
+ * Take a possibly-legacy override blob (`{ level?, budgetTokens?, effort? }`)
+ * and project it onto the current `{ effort? }` shape. Unknown keys are dropped.
+ */
+function normalizeOverride(raw: unknown): ThinkingOverride {
+  if (raw == null || typeof raw !== 'object') return {};
+  const obj = raw as Record<string, unknown>;
+  // Prefer the new shape when present.
+  if (typeof obj.effort === 'string' && EFFORT_SET.has(obj.effort as Effort)) {
+    return { effort: obj.effort as Effort };
+  }
+  // Fall back to the legacy `level` field.
+  if (typeof obj.level === 'string' && LEGACY_LEVEL_SET.has(obj.level)) {
+    return { effort: LEVEL_TO_EFFORT[obj.level as keyof typeof LEVEL_TO_EFFORT] };
+  }
+  return {};
 }
 
 export const useThinkingDefaultsStore = create<ThinkingDefaultsStore>()(
@@ -49,34 +90,26 @@ export const useThinkingDefaultsStore = create<ThinkingDefaultsStore>()(
     (set) => ({
       overrides: EMPTY_OVERRIDES,
 
-      setLevel: (task, level) =>
-        set((s) => ({ overrides: updateTask(s.overrides, task, { level }) })),
+      setEffort: (task, effort) =>
+        set((s) => ({ overrides: updateTask(s.overrides, task, { effort }) })),
 
-      setBudgetTokens: (task, budgetTokens) =>
-        set((s) => ({ overrides: updateTask(s.overrides, task, { budgetTokens }) })),
-
-      resetTask: (task) =>
-        set((s) => ({ overrides: { ...s.overrides, [task]: {} } })),
+      resetTask: (task) => set((s) => ({ overrides: { ...s.overrides, [task]: {} } })),
 
       resetAll: () => set({ overrides: EMPTY_OVERRIDES }),
     }),
     {
       name: STORAGE_KEYS.THINKING_DEFAULTS,
-      version: 2,
+      version: 3,
       partialize: (s) => ({ overrides: s.overrides }),
       migrate: (persisted, fromVersion) => {
-        const p = persisted as Partial<ThinkingDefaultsStore>;
-        const existingRaw =
-          (p.overrides ?? ({} as Partial<Record<string, ThinkingOverride>>)) as Partial<
-            Record<string, ThinkingOverride>
-          >;
+        const p = persisted as { overrides?: Partial<Record<string, unknown>> };
+        const existingRaw = { ...(p.overrides ?? {}) } as Record<string, unknown>;
 
-        // v1 → v2: split the single `inputs` slot into research / objectives /
-        // constraints. Copy the user's old `inputs` override into all three so
-        // their previous tuning carries forward; the user can diverge later.
+        // v1 → v2: split the single `inputs` slot into three per-section slots.
+        // Phase 7 collapses them back, but we still honour an old user's tuning.
         if (fromVersion < 2) {
           const oldInputs = existingRaw.inputs;
-          if (oldInputs && Object.keys(oldInputs).length > 0) {
+          if (oldInputs && typeof oldInputs === 'object' && Object.keys(oldInputs).length > 0) {
             existingRaw['inputs-research'] = existingRaw['inputs-research'] ?? oldInputs;
             existingRaw['inputs-objectives'] = existingRaw['inputs-objectives'] ?? oldInputs;
             existingRaw['inputs-constraints'] = existingRaw['inputs-constraints'] ?? oldInputs;
@@ -84,12 +117,14 @@ export const useThinkingDefaultsStore = create<ThinkingDefaultsStore>()(
           delete existingRaw.inputs;
         }
 
-        // Ensure every current task has an entry (forward-compat when we add tasks).
+        // v2 → v3: drop the `level` + `budgetTokens` shape; keep only `effort`.
+        // Convert any legacy level into the matching effort. budgetTokens are
+        // dropped — budgets now come from the operator-tuned table.
         const merged = { ...EMPTY_OVERRIDES } as ThinkingOverridesByTask;
         for (const t of THINKING_TASKS) {
-          merged[t] = existingRaw[t] ?? {};
+          merged[t] = normalizeOverride(existingRaw[t]);
         }
-        return { ...p, overrides: merged } as ThinkingDefaultsStore;
+        return { overrides: merged } as ThinkingDefaultsStore;
       },
     },
   ),

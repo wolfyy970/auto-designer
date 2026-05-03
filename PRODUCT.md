@@ -2,11 +2,11 @@
 
 ## North Star
 
-Designer exists to **assist the UX designer**. Think of it as an auto-designer, like a pair programmer.
+Designer exists to **assist the UX designer**. Think of it as similar to a pair programmer.
 
-Given a problem statement and appropriate research, a good designer synthesizes everything — user needs, competitive landscape, behavioral patterns, business constraints — and produces hypotheses that break conventions with something genuinely better. Then they execute those hypotheses into designs where every affordance is clear, every interaction is intuitive, time on task drops, and users never have to think. *Don't Make Me Think*, Nielsen Norman heuristics, information architecture, visual hierarchy — the entire discipline, applied at an expert level.
+Given a problem statement and appropriate research, a good designer synthesizes everything — user needs, behavioral patterns, constraints — and produces design hypotheses that explore a solution landscape - maxima and minima. Then they execute those hypotheses into designs where every affordance is clear, every interaction is intuitive, time on task drops, and users never have to think. *Don't Make Me Think*, Nielsen Norman heuristics, information architecture, visual hierarchy — the entire discipline, applied at an expert level.
 
-That is what this application must do autonomously. The ambition is not parity with the current UI; it is to **surpass** it. Every feature, every prompt, every evaluation rubric, and every architectural decision exists to deliver against that standard. If a capability does not move the system closer to producing work a brilliant designer would be proud of, it does not belong here.
+That is what this application must do autonomously. The ambition is not parity with the current design; it is to **surpass** it. Every feature, every prompt, every evaluation rubric, and every architectural decision exists to deliver against that standard. If a capability does not move the system closer to producing work a brilliant designer would be proud of, it does not belong here.
 
 **Concretely, the pipeline has two jobs:**
 

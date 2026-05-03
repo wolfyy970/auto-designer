@@ -18,7 +18,7 @@ import { useCanvasStore } from '../stores/canvas-store';
 import { useGenerationStore } from '../stores/generation-store';
 import { useIncubatorStore } from '../stores/incubator-store';
 import { useSpecStore } from '../stores/spec-store';
-import { useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
+import { thinkingOverrideForWire, useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
 import { useWorkspaceDomainStore } from '../stores/workspace-domain-store';
 import type { WorkspaceEdge, WorkspaceNode } from '../types/workspace-graph';
 
@@ -127,7 +127,9 @@ export function useIncubatorRun({
         onPatch: (patch) => setTaskStreamState((prev) => ({ ...prev, ...patch })),
       });
       session = taskSession;
-      const thinkingOverride = useThinkingDefaultsStore.getState().overrides.incubate;
+      const thinkingOverride = thinkingOverrideForWire(
+        useThinkingDefaultsStore.getState().overrides.incubate,
+      );
       const map = await incubateStream(
         {
           spec: runInputs.spec,

@@ -23,7 +23,10 @@ import TaskStreamMonitor from './TaskStreamMonitor';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';
 import { NodeErrorBlock } from './shared/NodeErrorBlock';
-import { useThinkingDefaultsStore } from '../../../stores/thinking-defaults-store';
+import {
+  thinkingOverrideForWire,
+  useThinkingDefaultsStore,
+} from '../../../stores/thinking-defaults-store';
 
 const GENERATE_INPUT_API_ID: Partial<
   Record<CanvasNodeType, InputsGenerateTargetApiId>
@@ -96,8 +99,9 @@ function InputNode({ id, type, selected }: NodeProps<InputNodeFlowType>) {
         onPatch: (patch) => setTaskStreamState((prev) => ({ ...prev, ...patch })),
       });
       session = taskSession;
-      const thinkingOverride =
-        useThinkingDefaultsStore.getState().overrides[INPUT_THINKING_TASK[apiId]];
+      const thinkingOverride = thinkingOverrideForWire(
+        useThinkingDefaultsStore.getState().overrides[INPUT_THINKING_TASK[apiId]],
+      );
       const response = await generateInputContent(
         {
           inputId: apiId,

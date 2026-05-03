@@ -8,7 +8,7 @@ import {
 import { createTaskStreamSession } from './task-stream-session';
 import { useCanvasStore } from '../stores/canvas-store';
 import { useSpecStore } from '../stores/spec-store';
-import { useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
+import { thinkingOverrideForWire, useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
 import { useWorkspaceDomainStore } from '../stores/workspace-domain-store';
 import type { DesignSystemNodeData } from '../types/canvas-data';
 import type { WorkspaceNode } from '../types/workspace-graph';
@@ -72,7 +72,9 @@ export function useIncubatorDocumentPreparation({
         onPatch: (patch) => setTaskStreamState((prev) => ({ ...prev, ...patch })),
       });
       session = taskSession;
-      const thinkingOverride = useThinkingDefaultsStore.getState().overrides['internal-context'];
+      const thinkingOverride = thinkingOverrideForWire(
+        useThinkingDefaultsStore.getState().overrides['internal-context'],
+      );
       const response = await generateInternalContext(
         {
           spec: currentSpec,
@@ -134,7 +136,9 @@ export function useIncubatorDocumentPreparation({
         onPatch: (patch) => setTaskStreamState((prev) => ({ ...prev, ...patch })),
       });
       session = taskSession;
-      const thinkingOverride = useThinkingDefaultsStore.getState().overrides['design-system'];
+      const thinkingOverride = thinkingOverrideForWire(
+        useThinkingDefaultsStore.getState().overrides['design-system'],
+      );
       const response = await extractDesignSystem(
         {
           title: source.title,

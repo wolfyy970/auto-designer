@@ -14,53 +14,40 @@ describe('useThinkingDefaultsStore', () => {
     }
   });
 
-  it('persists a level override without affecting budget', () => {
-    useThinkingDefaultsStore.getState().setLevel('design', 'xhigh');
-    expect(useThinkingDefaultsStore.getState().overrides.design).toEqual({ level: 'xhigh' });
+  it('persists an effort override on a single task', () => {
+    useThinkingDefaultsStore.getState().setEffort('design', 'maximum');
+    expect(useThinkingDefaultsStore.getState().overrides.design).toEqual({ effort: 'maximum' });
   });
 
-  it('persists a budget override without affecting level', () => {
-    useThinkingDefaultsStore.getState().setBudgetTokens('inputs-constraints', 10_000);
-    expect(useThinkingDefaultsStore.getState().overrides['inputs-constraints']).toEqual({
-      budgetTokens: 10_000,
-    });
-  });
-
-  it('both overrides coexist on the same task', () => {
+  it('overwrites an effort override when set again', () => {
     const s = useThinkingDefaultsStore.getState();
-    s.setLevel('incubate', 'high');
-    s.setBudgetTokens('incubate', 4096);
-    expect(useThinkingDefaultsStore.getState().overrides.incubate).toEqual({
-      level: 'high',
-      budgetTokens: 4096,
-    });
+    s.setEffort('incubate', 'thorough');
+    s.setEffort('incubate', 'quick');
+    expect(useThinkingDefaultsStore.getState().overrides.incubate).toEqual({ effort: 'quick' });
   });
 
-  it('setting a field to undefined clears it', () => {
+  it('passing undefined clears the override', () => {
     const s = useThinkingDefaultsStore.getState();
-    s.setLevel('evaluator', 'medium');
-    s.setBudgetTokens('evaluator', 2048);
-    s.setLevel('evaluator', undefined);
-    expect(useThinkingDefaultsStore.getState().overrides.evaluator).toEqual({
-      budgetTokens: 2048,
-    });
+    s.setEffort('evaluator', 'balanced');
+    s.setEffort('evaluator', undefined);
+    expect(useThinkingDefaultsStore.getState().overrides.evaluator).toEqual({});
   });
 
   it('resetTask clears a single task without disturbing siblings', () => {
     const s = useThinkingDefaultsStore.getState();
-    s.setLevel('design', 'high');
-    s.setLevel('inputs-research', 'low');
+    s.setEffort('design', 'thorough');
+    s.setEffort('inputs-research', 'quick');
     s.resetTask('design');
     expect(useThinkingDefaultsStore.getState().overrides.design).toEqual({});
     expect(useThinkingDefaultsStore.getState().overrides['inputs-research']).toEqual({
-      level: 'low',
+      effort: 'quick',
     });
   });
 
   it('resetAll clears every task', () => {
     const s = useThinkingDefaultsStore.getState();
-    s.setLevel('design', 'high');
-    s.setBudgetTokens('inputs-objectives', 1024);
+    s.setEffort('design', 'maximum');
+    s.setEffort('inputs-objectives', 'off');
     s.resetAll();
     for (const t of THINKING_TASKS) {
       expect(useThinkingDefaultsStore.getState().overrides[t]).toEqual({});

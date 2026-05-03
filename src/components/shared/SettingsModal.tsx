@@ -15,13 +15,12 @@ import {
 } from '../../types/evaluator-settings';
 import { EVALUATOR_RUBRIC_IDS, type EvaluatorRubricId } from '../../types/evaluation';
 import {
-  THINKING_BUDGET_BY_LEVEL,
-  THINKING_BUDGET_MAX_TOKENS,
-  THINKING_BUDGET_MIN_TOKENS,
+  EFFORTS,
+  EFFORT_DESCRIPTIONS,
+  LEVEL_TO_EFFORT,
   THINKING_CONFIG_DEFAULTS,
-  THINKING_LEVELS,
   THINKING_TASKS,
-  type ThinkingLevel,
+  type Effort,
   type ThinkingTask,
 } from '../../lib/thinking-defaults';
 
@@ -310,20 +309,95 @@ function SettingsTabButton({
   );
 }
 
+const EFFORT_LABELS: Record<Effort, string> = {
+  off: 'Off',
+  quick: 'Quick',
+  balanced: 'Balanced',
+  thorough: 'Thorough',
+  maximum: 'Maximum',
+};
+
+function EffortSegmentedControl({
+  value,
+  defaultValue,
+  onChange,
+  ariaLabel,
+}: {
+  value: Effort;
+  defaultValue: Effort;
+  onChange: (next: Effort | undefined) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={ariaLabel}
+      className="inline-flex items-center rounded-md border border-border bg-bg p-0.5 text-nano text-fg-secondary"
+    >
+      {EFFORTS.map((eff) => {
+        const active = eff === value;
+        return (
+          <button
+            key={eff}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(eff === defaultValue ? undefined : eff)}
+            className={`rounded px-2 py-0.5 transition-colors input-focus ${
+              active
+                ? 'bg-surface-raised text-fg shadow-sm'
+                : 'text-fg-muted hover:bg-surface/70 hover:text-fg-secondary'
+            }`}
+          >
+            {EFFORT_LABELS[eff]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function EffortGuide() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-nano text-fg-muted underline-offset-2 hover:text-fg-secondary hover:underline input-focus"
+        aria-expanded={open}
+      >
+        {open ? 'Hide effort guide' : 'What does effort mean?'}
+      </button>
+      {open ? (
+        <dl className="mt-2 space-y-1 rounded-md border border-border-subtle bg-surface/40 px-2.5 py-2 text-nano">
+          {EFFORTS.map((eff) => (
+            <div key={eff} className="grid grid-cols-[5.5rem_1fr] gap-2">
+              <dt className="font-medium text-fg-secondary">{EFFORT_LABELS[eff]}</dt>
+              <dd className="text-fg-muted">{EFFORT_DESCRIPTIONS[eff]}</dd>
+            </div>
+          ))}
+          <p className="pt-1 text-micro text-fg-faint">
+            Models that don&rsquo;t support extended thinking ignore this setting and run as if it were Off.
+          </p>
+        </dl>
+      ) : null}
+    </div>
+  );
+}
+
 function ReasoningSection({ showEvaluatorTask }: { showEvaluatorTask: boolean }) {
   const overrides = useThinkingDefaultsStore((s) => s.overrides);
-  const setLevel = useThinkingDefaultsStore((s) => s.setLevel);
-  const setBudgetTokens = useThinkingDefaultsStore((s) => s.setBudgetTokens);
+  const setEffort = useThinkingDefaultsStore((s) => s.setEffort);
   const resetTask = useThinkingDefaultsStore((s) => s.resetTask);
   const resetAll = useThinkingDefaultsStore((s) => s.resetAll);
   const visibleTasks = useMemo(
     () => THINKING_TASKS.filter((task) => showEvaluatorTask || task !== 'evaluator'),
     [showEvaluatorTask],
   );
-  const hasAnyCustomizations = visibleTasks.some((task) => {
-    const override = overrides[task] ?? {};
-    return override.level !== undefined || override.budgetTokens !== undefined;
-  });
+  const hasAnyCustomizations = visibleTasks.some(
+    (task) => (overrides[task] ?? {}).effort !== undefined,
+  );
 
   return (
     <div className="rounded-md border border-border-subtle bg-surface/60 px-3 py-2.5">
@@ -342,20 +416,21 @@ function ReasoningSection({ showEvaluatorTask }: { showEvaluatorTask: boolean })
         </button>
       </div>
       <p className="mt-1 text-xs text-fg-secondary">
-        Per-task reasoning effort + token budget for models that support extended thinking.
-        Ignored on models without reasoning support (chip shows the ↓ arrow instead of the Brain icon).
+        How hard the model thinks before responding, per task. Pick the named effort that matches the
+        depth you need.
       </p>
-      <div className="mt-3 space-y-1.5">
+      <EffortGuide />
+      <div className="mt-3 space-y-2">
         {visibleTasks.map((task) => {
           const defaults = THINKING_CONFIG_DEFAULTS[task];
+          const defaultEffort = LEVEL_TO_EFFORT[defaults.level];
           const override = overrides[task] ?? {};
-          const effectiveLevel = override.level ?? defaults.level;
-          const budgetPlaceholder = THINKING_BUDGET_BY_LEVEL[effectiveLevel];
-          const isCustomized = override.level !== undefined || override.budgetTokens !== undefined;
+          const effectiveEffort: Effort = override.effort ?? defaultEffort;
+          const isCustomized = override.effort !== undefined;
           return (
             <div
               key={task}
-              className="grid grid-cols-[minmax(14rem,1fr)_9rem_10rem_2rem_4rem] items-start gap-2 py-1"
+              className="grid grid-cols-[minmax(14rem,1fr)_auto_2rem] items-start gap-3 py-1"
             >
               <div className="min-w-0">
                 <span className="block text-nano font-medium text-fg-secondary">
@@ -365,44 +440,19 @@ function ReasoningSection({ showEvaluatorTask }: { showEvaluatorTask: boolean })
                   {THINKING_TASK_DESCRIPTIONS[task]}
                 </span>
               </div>
-              <select
-                value={override.level ?? defaults.level}
-                onChange={(e) => {
-                  const v = e.target.value as ThinkingLevel;
-                  setLevel(task, v === defaults.level ? undefined : v);
-                }}
-                className="rounded-md border border-border bg-bg px-2 py-1 text-nano text-fg-secondary input-focus"
-                aria-label={`${THINKING_TASK_LABELS[task]} level`}
-              >
-                {THINKING_LEVELS.map((lvl) => (
-                  <option key={lvl} value={lvl}>
-                    {lvl}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="number"
-                min={THINKING_BUDGET_MIN_TOKENS}
-                max={THINKING_BUDGET_MAX_TOKENS}
-                step={256}
-                value={override.budgetTokens ?? ''}
-                placeholder={String(budgetPlaceholder)}
-                onChange={(e) => {
-                  const raw = e.target.value.trim();
-                  if (raw === '') setBudgetTokens(task, undefined);
-                  else setBudgetTokens(task, Number(raw));
-                }}
-                className="w-24 rounded-md border border-border bg-bg px-2 py-1 text-nano tabular-nums text-fg-secondary input-focus"
-                aria-label={`${THINKING_TASK_LABELS[task]} budget in tokens`}
+              <EffortSegmentedControl
+                value={effectiveEffort}
+                defaultValue={defaultEffort}
+                onChange={(next) => setEffort(task, next)}
+                ariaLabel={`${THINKING_TASK_LABELS[task]} effort`}
               />
-              <span className="text-nano text-fg-faint">tok</span>
               <button
                 type="button"
                 onClick={() => resetTask(task)}
                 disabled={!isCustomized}
                 className="inline-flex size-7 items-center justify-center justify-self-end rounded-full border border-border-subtle text-fg-faint transition-colors input-focus hover:border-border hover:bg-surface-raised hover:text-fg-secondary disabled:cursor-default disabled:opacity-35 disabled:hover:border-border-subtle disabled:hover:bg-transparent disabled:hover:text-fg-faint"
-                title={`Reset ${THINKING_TASK_LABELS[task]} reasoning defaults`}
-                aria-label={`Reset ${THINKING_TASK_LABELS[task]} reasoning defaults`}
+                title={`Reset ${THINKING_TASK_LABELS[task]} effort`}
+                aria-label={`Reset ${THINKING_TASK_LABELS[task]} effort`}
               >
                 <RotateCcw size={12} aria-hidden />
               </button>
