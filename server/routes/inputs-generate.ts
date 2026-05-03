@@ -24,6 +24,12 @@ const INPUT_PROMPT_KEYS: Record<string, PromptKey> = {
   'design-constraints': 'inputs-gen-design-constraints',
 };
 
+const INPUT_THINKING_TASKS: Record<string, 'inputs-research' | 'inputs-objectives' | 'inputs-constraints'> = {
+  'research-context': 'inputs-research',
+  'objectives-metrics': 'inputs-objectives',
+  'design-constraints': 'inputs-constraints',
+};
+
 inputsGenerate.post('/generate', async (c) => {
   const parsed = await parseRequestJson(c, InputsGenerateRequestSchema);
   if (!parsed.ok) return parsed.response;
@@ -50,12 +56,13 @@ The output should be ready to paste into a textarea — no JSON wrapping, no mar
 
 ${guidance ? `${guidance}\n\n` : ''}${contextMessage}`;
 
+  const thinkingTask = INPUT_THINKING_TASKS[body.inputId] ?? 'inputs-research';
   return runTaskAgentRoute(c, {
     routeLabel: 'inputs-generate',
     body,
     userPrompt: agentUserPrompt,
     sessionType: 'inputs-gen',
-    thinkingTask: 'inputs',
+    thinkingTask,
     resultFile: 'result.txt',
     resultFileFallback: 'firstNonEmptyFile',
     initialProgressMessage: `Generating ${label}…`,

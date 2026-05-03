@@ -4,6 +4,13 @@ vi.mock('../../services/task-agent-execution.ts', () => ({
   executeTaskAgentStream: vi.fn(async () => ({ result: '  generated text  ', resultFile: 'result.txt', files: {} })),
 }));
 
+// Lockdown clamps the request model to `minimax/minimax-m2.5`, which fails
+// the reasoning-capability gate, masking the per-task thinking-slot wiring.
+// Stub the gate to true so the resolver actually returns the slot's level.
+vi.mock('../../../src/lib/model-capabilities.ts', () => ({
+  supportsReasoningModel: () => true,
+}));
+
 import app from '../../app.ts';
 import { executeTaskAgentStream } from '../../services/task-agent-execution.ts';
 
@@ -78,6 +85,30 @@ describe('POST /api/inputs/generate', () => {
     expect(taskOptions?.userPrompt).toContain('<input_generator_guidance>');
     expect(taskOptions?.userPrompt).not.toContain('use the `use_skill` tool');
   });
+
+  // Per-inputId thinking-task wiring. The route maps inputId → ThinkingTask,
+  // resolveThinkingConfig turns the task into a level/budget. Constraints uses
+  // a higher default (high / 20k) than research+objectives (medium / 5k), so
+  // the resolved level is a faithful proxy for the slot the route picked.
+  // Using a reasoning-capable model (`openai/o1`) so the capability gate
+  // doesn't short-circuit to `off`.
+  it.each([
+    ['research-context', 'medium'],
+    ['objectives-metrics', 'medium'],
+    ['design-constraints', 'high'],
+  ] as const)(
+    'routes inputId %s to its own thinking slot (resolved level: %s)',
+    async (inputId, expectedLevel) => {
+      vi.mocked(executeTaskAgentStream).mockClear();
+      await app.request('http://localhost/api/inputs/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...baseBody, inputId, modelId: 'openai/o1' }),
+      });
+      const taskOptions = vi.mocked(executeTaskAgentStream).mock.calls.at(-1)?.[1];
+      expect(taskOptions?.thinking?.level).toBe(expectedLevel);
+    },
+  );
 
   it('surfaces task execution errors on the SSE stream', async () => {
     vi.mocked(executeTaskAgentStream).mockRejectedValueOnce(new Error('task failed'));

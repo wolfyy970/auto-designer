@@ -33,6 +33,15 @@ const GENERATE_INPUT_API_ID: Partial<
   designConstraints: 'design-constraints',
 };
 
+const INPUT_THINKING_TASK: Record<
+  InputsGenerateTargetApiId,
+  'inputs-research' | 'inputs-objectives' | 'inputs-constraints'
+> = {
+  'research-context': 'inputs-research',
+  'objectives-metrics': 'inputs-objectives',
+  'design-constraints': 'inputs-constraints',
+};
+
 type InputNodeFlowType = Node<InputNodeData, CanvasNodeType>;
 
 function InputNode({ id, type, selected }: NodeProps<InputNodeFlowType>) {
@@ -87,7 +96,8 @@ function InputNode({ id, type, selected }: NodeProps<InputNodeFlowType>) {
         onPatch: (patch) => setTaskStreamState((prev) => ({ ...prev, ...patch })),
       });
       session = taskSession;
-      const thinkingOverride = useThinkingDefaultsStore.getState().overrides.inputs;
+      const thinkingOverride =
+        useThinkingDefaultsStore.getState().overrides[INPUT_THINKING_TASK[apiId]];
       const response = await generateInputContent(
         {
           inputId: apiId,

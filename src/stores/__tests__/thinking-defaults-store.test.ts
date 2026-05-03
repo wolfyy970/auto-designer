@@ -20,13 +20,13 @@ describe('useThinkingDefaultsStore', () => {
   });
 
   it('persists a budget override without affecting level', () => {
-    useThinkingDefaultsStore.getState().setBudgetTokens('hypothesis', 10_000);
-    expect(useThinkingDefaultsStore.getState().overrides.hypothesis).toEqual({
+    useThinkingDefaultsStore.getState().setBudgetTokens('inputs-constraints', 10_000);
+    expect(useThinkingDefaultsStore.getState().overrides['inputs-constraints']).toEqual({
       budgetTokens: 10_000,
     });
   });
 
-  it('both overrides coexist', () => {
+  it('both overrides coexist on the same task', () => {
     const s = useThinkingDefaultsStore.getState();
     s.setLevel('incubate', 'high');
     s.setBudgetTokens('incubate', 4096);
@@ -41,22 +41,26 @@ describe('useThinkingDefaultsStore', () => {
     s.setLevel('evaluator', 'medium');
     s.setBudgetTokens('evaluator', 2048);
     s.setLevel('evaluator', undefined);
-    expect(useThinkingDefaultsStore.getState().overrides.evaluator).toEqual({ budgetTokens: 2048 });
+    expect(useThinkingDefaultsStore.getState().overrides.evaluator).toEqual({
+      budgetTokens: 2048,
+    });
   });
 
   it('resetTask clears a single task without disturbing siblings', () => {
     const s = useThinkingDefaultsStore.getState();
     s.setLevel('design', 'high');
-    s.setLevel('inputs', 'low');
+    s.setLevel('inputs-research', 'low');
     s.resetTask('design');
     expect(useThinkingDefaultsStore.getState().overrides.design).toEqual({});
-    expect(useThinkingDefaultsStore.getState().overrides.inputs).toEqual({ level: 'low' });
+    expect(useThinkingDefaultsStore.getState().overrides['inputs-research']).toEqual({
+      level: 'low',
+    });
   });
 
   it('resetAll clears every task', () => {
     const s = useThinkingDefaultsStore.getState();
     s.setLevel('design', 'high');
-    s.setBudgetTokens('inputs', 1024);
+    s.setBudgetTokens('inputs-objectives', 1024);
     s.resetAll();
     for (const t of THINKING_TASKS) {
       expect(useThinkingDefaultsStore.getState().overrides[t]).toEqual({});

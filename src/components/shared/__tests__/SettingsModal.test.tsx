@@ -37,4 +37,14 @@ describe('SettingsModal', () => {
     expect(screen.queryByRole('tab', { name: /Evaluator defaults/i })).not.toBeNull();
     expect(screen.queryByText('Evaluator')).not.toBeNull();
   });
+
+  it('lists each input-section auto-fill as its own thinking row', () => {
+    render(<SettingsModal open onClose={() => {}} initialTab="general" />);
+
+    expect(screen.queryByText('Inputs — Research & Context')).not.toBeNull();
+    expect(screen.queryByText('Inputs — Objectives & Metrics')).not.toBeNull();
+    expect(screen.queryByText('Inputs — Design Constraints')).not.toBeNull();
+    expect(screen.queryByText('Hypothesis design')).not.toBeNull();
+    expect(screen.queryByText('Internal context document')).not.toBeNull();
+  });
 });

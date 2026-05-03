@@ -34,15 +34,18 @@ export const THINKING_LEVELS = [
 
 /**
  * Which task the LLM call is serving — drives defaults.
- * `hypothesis` auto-generate shares the `incubate` pathway on the server, so
- * they share a single task slot here. `design` covers the agentic build
- * (hypothesis design + any future single-hypothesis design agent).
+ * `design` covers the hypothesis-design build (initial + revision rounds).
+ * `incubate` covers the incubator's hypothesis-strategy generation.
+ * The three `inputs-*` slots cover the per-section auto-fill so users can
+ * tune each section's thinking independently.
  */
 export type ThinkingTask =
   | 'design'
   | 'incubate'
   | 'internal-context'
-  | 'inputs'
+  | 'inputs-research'
+  | 'inputs-objectives'
+  | 'inputs-constraints'
   | 'design-system'
   | 'evaluator';
 
@@ -50,7 +53,9 @@ export const THINKING_TASKS = [
   'design',
   'incubate',
   'internal-context',
-  'inputs',
+  'inputs-research',
+  'inputs-objectives',
+  'inputs-constraints',
   'design-system',
   'evaluator',
 ] as const satisfies readonly ThinkingTask[];

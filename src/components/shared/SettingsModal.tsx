@@ -26,12 +26,31 @@ import {
 } from '../../lib/thinking-defaults';
 
 const THINKING_TASK_LABELS: Record<ThinkingTask, string> = {
-  design: 'Designer node',
-  incubate: 'Incubator + hypothesis nodes',
-  'internal-context': 'Design specification',
-  inputs: 'Input nodes',
+  design: 'Hypothesis design',
+  incubate: 'Incubator',
+  'internal-context': 'Internal context document',
+  'inputs-research': 'Inputs — Research & Context',
+  'inputs-objectives': 'Inputs — Objectives & Metrics',
+  'inputs-constraints': 'Inputs — Design Constraints',
   'design-system': 'Design system',
   evaluator: 'Evaluator',
+};
+
+/**
+ * One-line plain-English description of what each thinking knob actually
+ * controls. Shown directly under the label in Settings so the user does
+ * not have to know what an "agentic Pi session" or a "task slot" is.
+ */
+const THINKING_TASK_DESCRIPTIONS: Record<ThinkingTask, string> = {
+  design: 'Building the actual design from a hypothesis (initial pass and revision rounds).',
+  incubate: 'Generating hypothesis strategies from a design brief.',
+  'internal-context':
+    'Synthesising a single internal context document from your design brief and inputs.',
+  'inputs-research': 'Auto-fill for the Research & Context input.',
+  'inputs-objectives': 'Auto-fill for the Objectives & Metrics input.',
+  'inputs-constraints': 'Auto-fill for the Design Constraints input.',
+  'design-system': 'Extracting a Google DESIGN.md from a design system source.',
+  evaluator: 'Scoring designs against the rubric (server-side).',
 };
 
 const RUBRIC_LABELS: Record<EvaluatorRubricId, string> = {
@@ -336,11 +355,16 @@ function ReasoningSection({ showEvaluatorTask }: { showEvaluatorTask: boolean })
           return (
             <div
               key={task}
-              className="grid grid-cols-[minmax(12rem,1fr)_9rem_10rem_2rem_4rem] items-center gap-2"
+              className="grid grid-cols-[minmax(14rem,1fr)_9rem_10rem_2rem_4rem] items-start gap-2 py-1"
             >
-              <span className="min-w-0 text-nano text-fg-secondary">
-                {THINKING_TASK_LABELS[task]}
-              </span>
+              <div className="min-w-0">
+                <span className="block text-nano font-medium text-fg-secondary">
+                  {THINKING_TASK_LABELS[task]}
+                </span>
+                <span className="mt-0.5 block text-micro text-fg-faint">
+                  {THINKING_TASK_DESCRIPTIONS[task]}
+                </span>
+              </div>
               <select
                 value={override.level ?? defaults.level}
                 onChange={(e) => {

@@ -62,15 +62,32 @@ export const useThinkingDefaultsStore = create<ThinkingDefaultsStore>()(
     }),
     {
       name: STORAGE_KEYS.THINKING_DEFAULTS,
-      version: 1,
+      version: 2,
       partialize: (s) => ({ overrides: s.overrides }),
-      migrate: (persisted) => {
+      migrate: (persisted, fromVersion) => {
         const p = persisted as Partial<ThinkingDefaultsStore>;
-        // Ensure every task has an entry (forward-compat when we add tasks).
-        const existing = p.overrides ?? ({} as Partial<ThinkingOverridesByTask>);
+        const existingRaw =
+          (p.overrides ?? ({} as Partial<Record<string, ThinkingOverride>>)) as Partial<
+            Record<string, ThinkingOverride>
+          >;
+
+        // v1 → v2: split the single `inputs` slot into research / objectives /
+        // constraints. Copy the user's old `inputs` override into all three so
+        // their previous tuning carries forward; the user can diverge later.
+        if (fromVersion < 2) {
+          const oldInputs = existingRaw.inputs;
+          if (oldInputs && Object.keys(oldInputs).length > 0) {
+            existingRaw['inputs-research'] = existingRaw['inputs-research'] ?? oldInputs;
+            existingRaw['inputs-objectives'] = existingRaw['inputs-objectives'] ?? oldInputs;
+            existingRaw['inputs-constraints'] = existingRaw['inputs-constraints'] ?? oldInputs;
+          }
+          delete existingRaw.inputs;
+        }
+
+        // Ensure every current task has an entry (forward-compat when we add tasks).
         const merged = { ...EMPTY_OVERRIDES } as ThinkingOverridesByTask;
         for (const t of THINKING_TASKS) {
-          merged[t] = existing[t] ?? {};
+          merged[t] = existingRaw[t] ?? {};
         }
         return { ...p, overrides: merged } as ThinkingDefaultsStore;
       },
