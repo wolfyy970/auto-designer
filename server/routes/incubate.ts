@@ -82,7 +82,7 @@ const LLMResponseSchema = z
 incubate.post('/', async (c) => {
   const parsed = await parseRequestJson(c, IncubateRequestSchema);
   if (!parsed.ok) return parsed.response;
-  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId);
+  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId, 'incubate');
   const body = { ...parsed.data, providerId: pinned.providerId, modelId: pinned.modelId };
 
   const userPromptTemplate = await getPromptBody('incubator-user-inputs');

@@ -3,11 +3,6 @@
  */
 import type { HypothesisPromptBundleResponse, HypothesisWorkspaceApiPayload, ModelsResponse, ProviderInfo } from './types';
 import type { RunTraceEvent } from '../types/provider';
-import {
-  LOCKDOWN_MODEL_ID,
-  LOCKDOWN_MODEL_LABEL,
-  LOCKDOWN_PROVIDER_ID,
-} from '../lib/lockdown-model';
 import { FEATURE_LOCKDOWN, FEATURE_AUTO_IMPROVE } from '../lib/feature-flags';
 import { DEFAULT_EVALUATOR_SETTINGS } from '../types/evaluator-settings';
 import { DEFAULT_RUBRIC_WEIGHTS } from '../types/evaluation';
@@ -24,20 +19,13 @@ import { API_BASE, getParsedList, INVALID_SERVER_RESPONSE, postParsed } from './
 
 /** Default client assumption until GET /api/config succeeds — mirrors feature-flags.json defaults. */
 export function getPlaceholderAppConfig(): AppConfigResponse {
-  const base = {
+  return {
+    lockdown: FEATURE_LOCKDOWN,
     agenticMaxRevisionRounds: DEFAULT_EVALUATOR_SETTINGS.maxRevisionRounds,
     agenticMinOverallScore: DEFAULT_EVALUATOR_SETTINGS.minOverallScore,
     defaultRubricWeights: { ...DEFAULT_RUBRIC_WEIGHTS },
     maxConcurrentRuns: 5,
     autoImprove: FEATURE_AUTO_IMPROVE,
-  };
-  if (!FEATURE_LOCKDOWN) return { lockdown: false, ...base };
-  return {
-    lockdown: true,
-    lockdownProviderId: LOCKDOWN_PROVIDER_ID,
-    lockdownModelId: LOCKDOWN_MODEL_ID,
-    lockdownModelLabel: LOCKDOWN_MODEL_LABEL,
-    ...base,
   };
 }
 

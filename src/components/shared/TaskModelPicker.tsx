@@ -1,10 +1,13 @@
 /**
- * Compact provider+model picker for a single Settings row. Renders both
- * controls inline and shows a Brain / ↓ chip indicating whether the
- * selected model supports extended thinking. When `disabled` (lockdown),
- * both controls become read-only and a tooltip explains why.
+ * Compact provider+model picker for a single Settings row. Models are
+ * grouped into Reasoning vs Other via `<optgroup>`. When the row's
+ * effort is non-off (`requireReasoning`) only the reasoning group is
+ * rendered; if the currently selected model is non-reasoning when that
+ * gate flips on, the picker auto-swaps to the first reasoning model in
+ * the provider's list. When `disabled` (lockdown), both controls are
+ * read-only.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Brain, ChevronDown } from 'lucide-react';
 import { listProviders } from '../../api/client';
@@ -18,6 +21,8 @@ export interface TaskModelPickerProps {
   defaultModelId: string;
   onChange: (next: { providerId: string; modelId: string } | undefined) => void;
   disabled?: boolean;
+  /** When true, hide non-reasoning models and auto-swap if the current pick can't think. */
+  requireReasoning?: boolean;
   ariaLabelPrefix: string;
 }
 
@@ -28,6 +33,7 @@ export function TaskModelPicker({
   defaultModelId,
   onChange,
   disabled = false,
+  requireReasoning = false,
   ariaLabelPrefix,
 }: TaskModelPickerProps) {
   const { data: providers = [] } = useQuery({
@@ -38,6 +44,16 @@ export function TaskModelPicker({
   const { data: models = [], isLoading } = useProviderModels(providerId);
 
   const reasoningSupported = useMemo(() => supportsReasoningModel(modelId), [modelId]);
+
+  const { reasoningModels, otherModels } = useMemo(() => {
+    const reasoning: typeof models = [];
+    const other: typeof models = [];
+    for (const m of models) {
+      if (supportsReasoningModel(m.id)) reasoning.push(m);
+      else other.push(m);
+    }
+    return { reasoningModels: reasoning, otherModels: other };
+  }, [models]);
 
   const handleProviderChange = (nextProvider: string) => {
     if (nextProvider === defaultProviderId && modelId === defaultModelId) {
@@ -57,11 +73,40 @@ export function TaskModelPicker({
     onChange({ providerId, modelId: nextModel });
   };
 
+  // Auto-swap to the first reasoning model when the effort gate flips on
+  // (or the loaded list confirms the current pick is non-reasoning). Guarded
+  // by a ref so it fires once per (provider, requireReasoning) transition.
+  const autoSwapTokenRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (disabled || !requireReasoning || isLoading) return;
+    if (reasoningSupported) return;
+    if (reasoningModels.length === 0) return;
+    const token = `${providerId}|${modelId}`;
+    if (autoSwapTokenRef.current === token) return;
+    autoSwapTokenRef.current = token;
+    onChange({ providerId, modelId: reasoningModels[0]!.id });
+  }, [
+    disabled,
+    requireReasoning,
+    isLoading,
+    reasoningSupported,
+    reasoningModels,
+    providerId,
+    modelId,
+    onChange,
+  ]);
+
   const tooltip = disabled
     ? 'Model is locked by deployment.'
     : reasoningSupported
       ? 'Model supports extended thinking.'
-      : 'Model does not support extended thinking — Effort is ignored for this row.';
+      : requireReasoning
+        ? 'Model does not support extended thinking. Pick one from "Reasoning models".'
+        : 'Model does not support extended thinking — Effort is ignored for this row.';
+
+  const showOtherGroup = !requireReasoning && otherModels.length > 0;
+  const showReasoningGroup = reasoningModels.length > 0;
+  const currentInList = models.some((m) => m.id === modelId);
 
   return (
     <div className="inline-flex items-center gap-1.5">
@@ -86,12 +131,31 @@ export function TaskModelPicker({
         aria-label={`${ariaLabelPrefix} model`}
         title={modelId}
       >
-        {models.length === 0 ? <option value="">{isLoading ? 'Loading…' : modelId || '—'}</option> : null}
-        {models.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.name ?? m.id}
-          </option>
-        ))}
+        {models.length === 0 ? (
+          <option value="">{isLoading ? 'Loading…' : modelId || '—'}</option>
+        ) : null}
+        {/* Show the current selection as a synthetic option when it's been hidden by the filter — the user still sees what's set. */}
+        {models.length > 0 && !currentInList && modelId ? (
+          <option value={modelId}>{modelId} (unavailable)</option>
+        ) : null}
+        {showReasoningGroup ? (
+          <optgroup label="Reasoning models">
+            {reasoningModels.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name ?? m.id}
+              </option>
+            ))}
+          </optgroup>
+        ) : null}
+        {showOtherGroup ? (
+          <optgroup label="Other models">
+            {otherModels.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name ?? m.id}
+              </option>
+            ))}
+          </optgroup>
+        ) : null}
       </select>
       <span
         className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-raised text-fg-faint"

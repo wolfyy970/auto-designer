@@ -1,20 +1,28 @@
 /**
- * Fixed model when server LOCKDOWN is enabled (OpenRouter + MiniMax M2.5).
- * Shared by client UI and server enforcement — no env reads here.
+ * Lockdown pinning, per task. Read from `config/task-defaults.json` so
+ * "what production runs as" is one config edit away. Shared by client UI
+ * and server enforcement — no env reads here.
  */
-export const LOCKDOWN_PROVIDER_ID = 'openrouter' as const;
-export const LOCKDOWN_MODEL_ID = 'minimax/minimax-m2.5' as const;
-export const LOCKDOWN_MODEL_LABEL = 'MiniMax M2.5';
+import type { ThinkingTask } from './thinking-defaults';
+import { getTaskModelDefault } from './task-defaults';
 
-/** Force OpenRouter + MiniMax M2.5 on every credential lane when server lockdown is active. */
-export function pinModelCredentialsIfLockdown<T extends { providerId: string; modelId: string }>(
-  creds: readonly T[],
-  lockdown: boolean,
-): T[] {
+/** Returns the lockdown-pinned `(providerId, modelId)` for a task. */
+export function getLockdownModelForTask(task: ThinkingTask): {
+  providerId: string;
+  modelId: string;
+} {
+  return getTaskModelDefault(task);
+}
+
+/** Clamp every credential lane to the task's lockdown pin when active. */
+export function pinModelCredentialsIfLockdown<
+  T extends { providerId: string; modelId: string },
+>(creds: readonly T[], lockdown: boolean, task: ThinkingTask): T[] {
   if (!lockdown) return creds.map((c) => ({ ...c }));
+  const pin = getLockdownModelForTask(task);
   return creds.map((c) => ({
     ...c,
-    providerId: LOCKDOWN_PROVIDER_ID,
-    modelId: LOCKDOWN_MODEL_ID,
+    providerId: pin.providerId,
+    modelId: pin.modelId,
   }));
 }

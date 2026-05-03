@@ -21,7 +21,6 @@ import {
 import { EVALUATOR_RUBRIC_IDS, type EvaluatorRubricId } from '../../types/evaluation';
 import {
   EFFORTS,
-  EFFORT_DESCRIPTIONS,
   LEVEL_TO_EFFORT,
   THINKING_CONFIG_DEFAULTS,
   THINKING_TASKS,
@@ -145,7 +144,7 @@ export default function SettingsModal({
       open={open}
       onClose={onClose}
       title="Settings"
-      size="md"
+      size="md+"
     >
       {evaluatorEnabled ? (
         <div className="-mx-5 -mt-4 mb-4 border-b border-border px-5 py-3">
@@ -311,15 +310,16 @@ function SettingsTabButton({
   );
 }
 
+/** Labels mirror the SDK-native ThinkingLevel taxonomy. */
 const EFFORT_LABELS: Record<Effort, string> = {
   off: 'Off',
-  quick: 'Quick',
-  balanced: 'Balanced',
-  thorough: 'Thorough',
-  maximum: 'Maximum',
+  quick: 'Low',
+  balanced: 'Medium',
+  thorough: 'High',
+  maximum: 'Extra High',
 };
 
-function EffortSegmentedControl({
+function EffortSelect({
   value,
   defaultValue,
   onChange,
@@ -331,60 +331,21 @@ function EffortSegmentedControl({
   ariaLabel: string;
 }) {
   return (
-    <div
-      role="radiogroup"
+    <select
+      value={value}
+      onChange={(e) => {
+        const next = e.target.value as Effort;
+        onChange(next === defaultValue ? undefined : next);
+      }}
+      className="rounded-md border border-border bg-bg px-2 py-1 text-nano text-fg-secondary input-focus"
       aria-label={ariaLabel}
-      className="inline-flex items-center rounded-md border border-border bg-bg p-0.5 text-nano text-fg-secondary"
     >
-      {EFFORTS.map((eff) => {
-        const active = eff === value;
-        return (
-          <button
-            key={eff}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            onClick={() => onChange(eff === defaultValue ? undefined : eff)}
-            className={`rounded px-2 py-0.5 transition-colors input-focus ${
-              active
-                ? 'bg-surface-raised text-fg shadow-sm'
-                : 'text-fg-muted hover:bg-surface/70 hover:text-fg-secondary'
-            }`}
-          >
-            {EFFORT_LABELS[eff]}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function EffortGuide() {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="mt-2">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="text-nano text-fg-muted underline-offset-2 hover:text-fg-secondary hover:underline input-focus"
-        aria-expanded={open}
-      >
-        {open ? 'Hide effort guide' : 'What does effort mean?'}
-      </button>
-      {open ? (
-        <dl className="mt-2 space-y-1 rounded-md border border-border-subtle bg-surface/40 px-2.5 py-2 text-nano">
-          {EFFORTS.map((eff) => (
-            <div key={eff} className="grid grid-cols-[5.5rem_1fr] gap-2">
-              <dt className="font-medium text-fg-secondary">{EFFORT_LABELS[eff]}</dt>
-              <dd className="text-fg-muted">{EFFORT_DESCRIPTIONS[eff]}</dd>
-            </div>
-          ))}
-          <p className="pt-1 text-micro text-fg-faint">
-            Models that don&rsquo;t support extended thinking ignore this setting and run as if it were Off.
-          </p>
-        </dl>
-      ) : null}
-    </div>
+      {EFFORTS.map((eff) => (
+        <option key={eff} value={eff}>
+          {EFFORT_LABELS[eff]}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -420,11 +381,6 @@ function ReasoningSection({ showEvaluatorTask }: { showEvaluatorTask: boolean })
           Reset all
         </button>
       </div>
-      <p className="mt-1 text-xs text-fg-secondary">
-        Pick a model and how hard it should think, per task. Settings is the single control panel —
-        the canvas no longer needs Model nodes.
-      </p>
-      <EffortGuide />
       <div className="mt-3 space-y-3">
         {visibleTasks.map((task) => {
           const defaults = THINKING_CONFIG_DEFAULTS[task];
@@ -460,20 +416,21 @@ function ReasoningSection({ showEvaluatorTask }: { showEvaluatorTask: boolean })
                   <RotateCcw size={12} aria-hidden />
                 </button>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-2">
                 <TaskModelPicker
                   providerId={effectiveProviderId}
                   modelId={effectiveModelId}
                   defaultProviderId={taskModelDefault.providerId}
                   defaultModelId={taskModelDefault.modelId}
                   disabled={FEATURE_LOCKDOWN}
+                  requireReasoning={effectiveEffort !== 'off'}
                   onChange={(next) => {
                     if (next === undefined) clearModel(task);
                     else setModel(task, next.providerId, next.modelId);
                   }}
                   ariaLabelPrefix={THINKING_TASK_LABELS[task]}
                 />
-                <EffortSegmentedControl
+                <EffortSelect
                   value={effectiveEffort}
                   defaultValue={defaultEffort}
                   onChange={(next) => setEffort(task, next)}

@@ -19,7 +19,7 @@ function escapePromptAttribute(value: string): string {
 designSystem.post('/extract', async (c) => {
   const parsed = await parseRequestJson(c, DesignSystemExtractRequestSchema);
   if (!parsed.ok) return parsed.response;
-  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId);
+  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId, 'design-system');
   const body = { ...parsed.data, providerId: pinned.providerId, modelId: pinned.modelId };
 
   const imageDescriptions = (body.images ?? [])

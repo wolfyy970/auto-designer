@@ -12,7 +12,6 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { z } from 'zod';
 import { STORAGE_KEYS } from '../lib/storage-keys';
 import {
   EFFORTS,
@@ -25,25 +24,9 @@ import {
   type ThinkingLevel,
   type ThinkingTask,
 } from '../lib/thinking-defaults';
-import rawTaskDefaults from '../../config/task-defaults.json';
+import { getTaskModelDefault } from '../lib/task-defaults';
 
-// ── Defaults ────────────────────────────────────────────────────────────────
-
-const TaskDefaultsSchema = z.object({
-  perTaskDefaults: z.record(
-    z.string(),
-    z.object({ providerId: z.string().min(1), modelId: z.string().min(1) }),
-  ),
-});
-
-const TASK_DEFAULTS = TaskDefaultsSchema.parse(rawTaskDefaults).perTaskDefaults as Record<
-  ThinkingTask,
-  { providerId: string; modelId: string }
->;
-
-export function getTaskModelDefault(task: ThinkingTask): { providerId: string; modelId: string } {
-  return TASK_DEFAULTS[task];
-}
+export { getTaskModelDefault };
 
 // ── Override shape ──────────────────────────────────────────────────────────
 
@@ -151,7 +134,7 @@ export const useTaskConfigStore = create<TaskConfigStore>()(
 
       getEffective: (task) => {
         const override = get().overrides[task] ?? {};
-        const taskDefault = TASK_DEFAULTS[task];
+        const taskDefault = getTaskModelDefault(task);
         return {
           providerId: override.providerId ?? taskDefault.providerId,
           modelId: override.modelId ?? taskDefault.modelId,

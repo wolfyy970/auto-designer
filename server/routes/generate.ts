@@ -13,7 +13,7 @@ generate.post('/', async (c) => {
     devWarnLabel: '[generate]',
   });
   if (!parsed.ok) return parsed.response;
-  const m = clampProviderModel(parsed.data.providerId, parsed.data.modelId);
+  const m = clampProviderModel(parsed.data.providerId, parsed.data.modelId, 'design');
   const ev = clampEvaluatorOptional(parsed.data.evaluatorProviderId, parsed.data.evaluatorModelId);
   const body = { ...parsed.data, ...ev, providerId: m.providerId, modelId: m.modelId };
   const correlationId =

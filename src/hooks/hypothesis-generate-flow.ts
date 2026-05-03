@@ -138,7 +138,7 @@ export async function runHypothesisGenerateFlow({
   }
   const genCtx = {
     ...genCtxRaw,
-    modelCredentials: pinModelCredentialsIfLockdown(genCtxRaw.modelCredentials, lockdown),
+    modelCredentials: pinModelCredentialsIfLockdown(genCtxRaw.modelCredentials, lockdown, 'design'),
   };
 
   setEdgeStatusBySource(nodeId, EDGE_STATUS.PROCESSING);

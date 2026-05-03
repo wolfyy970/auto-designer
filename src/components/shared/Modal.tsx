@@ -7,7 +7,7 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
-  size?: 'md' | 'lg' | 'xl' | '2xl';
+  size?: 'md' | 'md+' | 'lg' | 'xl' | '2xl';
   /** Overlay + panel stacking (e.g. z-[60] above another modal). */
   zIndexClass?: string;
   /** Panel max height; inner area scrolls. */
@@ -16,6 +16,7 @@ interface ModalProps {
 
 const SIZE_CLASSES = {
   md: 'max-w-lg',
+  'md+': 'max-w-2xl',
   lg: 'max-w-3xl',
   xl: 'max-w-5xl',
   '2xl': 'max-w-6xl',

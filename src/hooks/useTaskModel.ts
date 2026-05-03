@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { LOCKDOWN_MODEL_ID, LOCKDOWN_PROVIDER_ID } from '../lib/lockdown-model';
+import { getLockdownModelForTask } from '../lib/lockdown-model';
 import { useAppConfig } from './useAppConfig';
 import { useProviderModels } from './useProviderModels';
 import { useTaskConfigStore } from '../stores/task-config-store';
@@ -15,9 +15,10 @@ export interface TaskModel {
 
 /**
  * Resolves provider/model + capabilities for a task from the per-task
- * Settings store. Lockdown clamps the result. Replaces the legacy
- * `useFirstCanvasModel` and `useConnectedModel` hooks; the canvas
- * Model node was removed in Phase 7 D.
+ * Settings store. Lockdown clamps the result to the task's pin from
+ * `config/task-defaults.json`. Replaces the legacy `useFirstCanvasModel`
+ * and `useConnectedModel` hooks; the canvas Model node was removed in
+ * Phase 7 D.
  */
 export function useTaskModel(task: ThinkingTask): TaskModel {
   const { data: appConfig } = useAppConfig();
@@ -30,8 +31,9 @@ export function useTaskModel(task: ThinkingTask): TaskModel {
     (s) => s.getEffective(task).modelId,
   );
 
-  const providerId = lockdown ? LOCKDOWN_PROVIDER_ID : settingsProviderId;
-  const modelId = lockdown ? LOCKDOWN_MODEL_ID : settingsModelId;
+  const lockdownPin = lockdown ? getLockdownModelForTask(task) : null;
+  const providerId = lockdownPin?.providerId ?? settingsProviderId;
+  const modelId = lockdownPin?.modelId ?? settingsModelId;
 
   const { data: models } = useProviderModels(providerId ?? '');
 

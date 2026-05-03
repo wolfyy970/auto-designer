@@ -27,7 +27,7 @@ const INPUT_PROMPT_KEYS: Record<string, PromptKey> = {
 inputsGenerate.post('/generate', async (c) => {
   const parsed = await parseRequestJson(c, InputsGenerateRequestSchema);
   if (!parsed.ok) return parsed.response;
-  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId);
+  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId, 'inputs');
   const body = { ...parsed.data, providerId: pinned.providerId, modelId: pinned.modelId };
 
   const contextMessage = buildInputsGenerateUserMessage({

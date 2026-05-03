@@ -12,7 +12,7 @@ const internalContext = new Hono();
 internalContext.post('/generate', async (c) => {
   const parsed = await parseRequestJson(c, InternalContextGenerateRequestSchema);
   if (!parsed.ok) return parsed.response;
-  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId);
+  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId, 'internal-context');
   const body = { ...parsed.data, providerId: pinned.providerId, modelId: pinned.modelId };
 
   const contextMessage = buildInternalContextUserMessage(body.spec);

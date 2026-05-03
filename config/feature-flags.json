@@ -1,4 +1,4 @@
 {
-  "lockdown":    1,
+  "lockdown":    "auto",
   "autoImprove": 0
 }

@@ -1,20 +1,28 @@
 import { FEATURE_LOCKDOWN } from '../../src/lib/feature-flags.ts';
-import { LOCKDOWN_MODEL_ID, LOCKDOWN_PROVIDER_ID } from '../../src/lib/lockdown-model.ts';
+import {
+  getLockdownModelForTask,
+} from '../../src/lib/lockdown-model.ts';
+import type { ThinkingTask } from '../../src/lib/thinking-defaults.ts';
 import type { HypothesisGenerationContext } from '../../src/workspace/hypothesis-generation-pure.ts';
 
 export function isLockdownEnabled(): boolean {
   return FEATURE_LOCKDOWN;
 }
 
+/**
+ * Defensive server-side pin. Returns the per-task lockdown model when
+ * lockdown is on; otherwise returns the caller's values unchanged.
+ */
 export function clampProviderModel(
   providerId: string,
   modelId: string,
+  task: ThinkingTask,
 ): { providerId: string; modelId: string } {
   if (!isLockdownEnabled()) return { providerId, modelId };
-  return { providerId: LOCKDOWN_PROVIDER_ID, modelId: LOCKDOWN_MODEL_ID };
+  return getLockdownModelForTask(task);
 }
 
-/** When lockdown, LLM evaluators use the same pinned model; otherwise preserve optional overrides. */
+/** When lockdown, evaluator overrides clamp to the evaluator task's pin. */
 export function clampEvaluatorOptional(
   evaluatorProviderId: string | undefined,
   evaluatorModelId: string | undefined,
@@ -22,21 +30,25 @@ export function clampEvaluatorOptional(
   if (!isLockdownEnabled()) {
     return { evaluatorProviderId, evaluatorModelId };
   }
+  const pin = getLockdownModelForTask('evaluator');
   return {
-    evaluatorProviderId: LOCKDOWN_PROVIDER_ID,
-    evaluatorModelId: LOCKDOWN_MODEL_ID,
+    evaluatorProviderId: pin.providerId,
+    evaluatorModelId: pin.modelId,
   };
 }
 
+/** Hypothesis design lockdown clamp — applied at the route boundary. */
 export function applyLockdownToHypothesisContext(
   ctx: HypothesisGenerationContext,
 ): HypothesisGenerationContext {
   if (!isLockdownEnabled()) return ctx;
+  const pin = getLockdownModelForTask('design');
   return {
     ...ctx,
-    modelCredentials: ctx.modelCredentials.map((c) => {
-      const pin = clampProviderModel(c.providerId, c.modelId);
-      return { ...c, providerId: pin.providerId, modelId: pin.modelId };
-    }),
+    modelCredentials: ctx.modelCredentials.map((c) => ({
+      ...c,
+      providerId: pin.providerId,
+      modelId: pin.modelId,
+    })),
   };
 }
