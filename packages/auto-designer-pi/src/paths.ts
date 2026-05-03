@@ -6,7 +6,9 @@
  *
  * `loadDesignerSystemPrompt` reads `prompts/_designer-system.md` (frontmatter
  * stripped) since the system prompt is addressed by name, not by Pi's
- * auto-discovery. Compaction uses Pi's built-in defaults — no host body.
+ * auto-discovery. `loadPackagePromptBody(filename)` reads any other bundled
+ * prompt template body (also frontmatter stripped) so host routes can inline
+ * task-specific guidance into agent user prompts.
  */
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
