@@ -106,17 +106,17 @@ The canvas starts with a **Design Brief**, a **Design System**, a **Model**, and
 
 Write in prose, not bullets. Precision is the product.
 
-**Optional inputs:** The default template focuses on Design Brief + Design System + Model + Incubator. Other sections may show as **ghost** prompts on the canvas until you add them from the ghost card (or load a saved canvas whose spec already fills that section—see **Managing Canvases**). Ghost cards are persistent affordances and reappear if you remove the optional input node; when you activate one, the viewport tracks the newly created node after it moves into the input group.
+**Optional inputs:** The default template focuses on Design Brief + Design System + Incubator. Other sections may show as **ghost** prompts on the canvas until you add them from the ghost card (or load a saved canvas whose spec already fills that section—see **Managing Canvases**). Ghost cards are persistent affordances and reappear if you remove the optional input node; when you activate one, the viewport tracks the newly created node after it moves into the input group.
 
-**Auto-generate (Research / Objectives / Constraints):** On those three input nodes, an **auto-generate** action (when shown) drafts or refines the spec facet body from your **Design Brief** and any other spec sections you have already filled in. It uses the **first Model node** on the canvas (document order—the same fallback as auto-connect). **Lockdown** still pins provider/model server-side. The server resolves copy from the `**inputs-gen-research-context`**, `**inputs-gen-objectives-metrics`**, and `**inputs-gen-design-constraints**` skill packages under `**skills/**` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
+**Auto-generate (Research / Objectives / Constraints):** On those three input nodes, an **auto-generate** action (when shown) drafts or refines the spec facet body from your **Design Brief** and any other spec sections you have already filled in. The provider + model + effort come from **Settings → Reasoning → Inputs**. **Lockdown** still pins provider/model server-side.
 
-### 2. Connect a Model Node
+### 2. Pick model + effort in Settings
 
-Use the **Model** node connected to the Incubator. Select your provider and model in the Model node — **unless lockdown is enabled** in `config/feature-flags.json`: then every run uses **OpenRouter + MiniMax M2.5**, pickers are disabled, and the canvas reconciles to that pin. With lockdown off, you can use different Model nodes for **incubation** vs **generation** (e.g. a reasoning model on the Incubator and a faster one on hypotheses).
+Open **Settings → Reasoning** to choose, per task, the **provider + model** and the **effort** you want (a five-position slider: Off / Quick / Balanced / Thorough / Maximum). Each task — Hypothesis design, Incubator, Internal context document, Inputs, Design system, Evaluator — keeps its own choice. When **lockdown** is enabled in `config/feature-flags.json`, every run uses **OpenRouter + MiniMax M2.5** and the pickers are disabled (the slider stays editable but is honestly a no-op for non-reasoning models — a chip beside the picker tells you).
 
 ### 3. Incubate
 
-Connect input nodes to the **Incubator** (edges auto-connect on add). With a **Model** connected and at least a minimal **Design Brief** written, click **Generate** and choose how many new hypotheses to create. The Incubator sends your connected inputs to the LLM and produces that many hypothesis strategy cards. **blank hypothesis** does the same readiness check (brief + model) but adds a single empty strategy card without calling the LLM, for hand-editing.
+Connect input nodes to the **Incubator** (edges auto-connect on add). With at least a minimal **Design Brief** written, click **Generate** and choose how many new hypotheses to create. The Incubator uses **Settings → Reasoning → Incubator** for the model + effort. The Incubator sends your connected inputs to the LLM and produces that many hypothesis strategy cards. **blank hypothesis** does the same readiness check (brief + model) but adds a single empty strategy card without calling the LLM, for hand-editing.
 
 The Incubator shows generated-document readiness before it runs. **Design specification** moves from **missing** to **ready to generate** once the Design Brief has content, then to **needs update** if connected input content changes after a document exists. **DESIGN.md** follows the active Design System style: Wireframe is already ready, Custom only participates when custom source material exists, and None is ignored.
 
@@ -132,7 +132,7 @@ Edit these before generation. Remove strategies not worth exploring.
 
 ### 5. Design System
 
-The **Design System** node is a required source input. It starts in **Wireframe** mode, using Designer's built-in low-fidelity `DESIGN.md` source so early runs stay draft-like. It behaves like the other source inputs: connect it to the Incubator and/or hypotheses when you want that source included. It does not connect directly to Model nodes; model choice is implicit through the Incubator or Hypothesis doing the generation.
+The **Design System** node is a required source input. It starts in **Wireframe** mode, using Designer's built-in low-fidelity `DESIGN.md` source so early runs stay draft-like. It behaves like the other source inputs: connect it to the Incubator and/or hypotheses when you want that source included. Its model + effort (used when generating the linted DESIGN.md document from custom source material) come from **Settings → Reasoning → Design system**.
 
 - Switch to **Custom** to type or paste DESIGN.md, tokens, style-guide prose, or brand notes
 - Drag-and-drop screenshots, reference images, or DESIGN.md files when custom source material matters
@@ -141,7 +141,7 @@ The **Design System** node is a required source input. It starts in **Wireframe*
 
 ### 6. Generate Designs
 
-Each hypothesis has built-in generation controls at the bottom. Connect a Model node, set **thinking** on the Model (None / Light / Deep) when supported, then click **Design**. Every run uses the **agentic** engine: the agent plans files, writes/edits/validates them, and streams progress to the preview.
+Each hypothesis has built-in generation controls at the bottom. Click **Design** to run the **agentic** engine: the agent plans files, writes/edits/validates them, and streams progress to the preview. The provider + model + effort for the design run come from **Settings → Reasoning → Hypothesis design**; the slider's five positions (Off / Quick / Balanced / Thorough / Maximum) replace the older None/Light/Deep knob.
 
 **Auto-improve** (on the hypothesis card): when **off** (default for fast runs), the run stops after that **single** agent build—**no** evaluator, no scorecard. When **on**, the server runs **evaluation** (LLM rubrics plus browser QA) and can apply **revision passes** from that feedback, up to the max rounds and optional target score (overridable per node; **Settings → Evaluator defaults** sets the baseline) — see **[PRODUCT.md](PRODUCT.md)** for the full pipeline.
 

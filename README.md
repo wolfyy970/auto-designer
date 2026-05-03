@@ -40,15 +40,14 @@ Product flags such as lockdown and Auto-improve now live in [config/feature-flag
 
 The primary working interface is a visual node-graph canvas (`/canvas`):
 
-1. **Input/source nodes** (left) — Design Brief, Research Context, Objectives & Metrics, Design Constraints, and Design System. On a fresh canvas, optional spec inputs may appear as **ghost placeholders**; opening **Canvas Manager** → **Load** restores a full canvas snapshot and materializes real **input nodes** when a legacy saved spec already has text or images for those **facets**. **Research Context**, **Objectives & Metrics**, and **Design Constraints** offer an optional **auto-generate** control (from the Design Brief and other filled facets) using the **first Model node** on the canvas and `POST /api/inputs/generate` — details in [USER_GUIDE.md](USER_GUIDE.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
-2. **Model node** — Connect to the Incubator or to Hypotheses. Each **Hypothesis** accepts **one** active model connection at a time (a new connection replaces the previous one). The **Incubator** may still have multiple models for different workflows.
-3. **Incubator** — Connect input nodes and a Model node, then click Generate to produce hypothesis strategies
-4. **Hypotheses** — Editable strategy cards. Connect a Model node and use **Design** to run the **agentic** Pi build (**Auto-improve** off = one build with no evaluator; **on** = evaluation + optional revision rounds)
+1. **Input/source nodes** (left) — Design Brief, Research Context, Objectives & Metrics, Design Constraints, and Design System. On a fresh canvas, optional spec inputs may appear as **ghost placeholders**; opening **Canvas Manager** → **Load** restores a full canvas snapshot and materializes real **input nodes** when a legacy saved spec already has text or images for those **facets**. **Research Context**, **Objectives & Metrics**, and **Design Constraints** offer an optional **auto-generate** control (from the Design Brief and other filled facets) using `POST /api/inputs/generate` — details in [USER_GUIDE.md](USER_GUIDE.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
+2. **Incubator** — Connect input nodes, then click Generate to produce hypothesis strategies. Model + effort come from **Settings → Reasoning → Incubator**.
+3. **Hypotheses** — Editable strategy cards. Use **Design** to run the **agentic** Pi build (**Auto-improve** off = one build with no evaluator; **on** = evaluation + optional revision rounds). Model + effort come from **Settings → Reasoning → Hypothesis design**.
 5. **Previews** — Rendered design previews with zoom, version navigation, full-screen (hypothesis-scoped design stepping when domain preview slots exist), and optional **mark as best** vs evaluator ranking. Agentic results include a file explorer, zip download, **run workspace** overlay (timeline, tasks, tabs) with multi-round eval preview when applicable, and (when the run finishes) an evaluation scorecard plus optional headless-browser thumbnail.
 
 Nodes connect left-to-right. Auto-layout arranges everything based on connections. Previews can connect back to the Incubator as reference designs for iterative feedback loops.
 
-The header also opens **Settings** (General preferences). In **development**, a **design tokens kitchen sink** modal is on the General tab. Token semantics live in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
+The header also opens **Settings**, where every task gets its own **model picker** and a five-position **effort** slider (Off / Quick / Balanced / Thorough / Maximum). The picker is disabled and clamps to OpenRouter + MiniMax M2.5 when **lockdown** is on. In **development**, a **design tokens kitchen sink** modal is on the General tab. Token semantics live in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
 
 ## Scripts
 

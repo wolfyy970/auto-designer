@@ -164,7 +164,7 @@ flowchart TB
 
 **Canonical client model** — `src/stores/workspace-domain-store.ts` (persisted) holds workflow semantics without requiring a graph: incubator input wiring (input / preview node ids), model assignments per incubator and per hypothesis, design-system attachments, hypothesis ↔ incubator ↔ hypothesis-strategy links, preview slots (active result / pins), and mirrors for model/design-system payloads synced from the canvas. `src/types/workspace-domain.ts` defines the shapes.
 
-**Hypothesis ↔ model (single active wiring)** — A hypothesis may have **only one** Model node connected at a time: connecting a new model replaces the previous edge, and domain `modelNodeIds` holds at most one id. Persisted state migrates with canvas **v25** (dedupe model→hypothesis edges, first edge wins) and workspace domain **v9** (truncate legacy multi-id lists). When an incubator has several models, auto-wiring new hypotheses inherits only the **first** model edge from the incubator.
+**Model + effort live in Settings.** Phase 7 D removed the canvas Model node entirely. Each task — `design`, `incubate`, `internal-context`, `inputs`, `design-system`, `evaluator` — has its own `(providerId, modelId, effort)` slot in `src/stores/thinking-defaults-store.ts`, persisted alongside other Settings state. Generate paths read the effective values via `useThinkingDefaultsStore.getState().getEffective(task)` (with lockdown clamping the result). The legacy `modelNodeIds` / `incubatorModelNodeIds` slots in workspace-domain are inert dead weight kept for shape stability across persist versions; canvas-migration **v32** strips Model nodes from saved snapshots after the one-shot `migrateModelNodeToSettings()` boot step has copied each Model node's `(providerId, modelId)` into Settings.
 
 **Canvas as projection** — `src/stores/canvas-store.ts` still persists React Flow–backed **nodes and edges** for layout and interaction. Graph edits call `src/workspace/domain-commands.ts` so domain relations stay the source of truth for incubate/generate. Pure graph helpers live in `src/workspace/graph-queries.ts`; mutation planning lives in `src/workspace/canvas-mutation-planner.ts`, and `src/stores/canvas/canvas-graph-transaction.ts` applies planned graph/domain/spec/layout effects so Zustand slices stay thin.
 
@@ -377,10 +377,8 @@ When a result has files (agentic output), the preview UI (`VariantNode` / canvas
 Centralized rules for what connects to what when nodes are added or generated:
 
 - `**buildAutoConnectEdges`** — Structural connections only: input nodes→incubator, design system→hypothesis.
-- `**buildModelEdgeForNode`** — When a node is added from the palette, connects it to the first available Model node on the canvas.
-- `**buildModelEdgesFromParent**` — When hypotheses are generated from an Incubator, they inherit that Incubator's connected Model — not every Model on the canvas.
 
-Model connections are column-scoped: a Model node connects only to adjacent-column nodes.
+Model wiring is no longer a canvas concern. Each task reads `(providerId, modelId, effort)` from `thinkingDefaultsStore.getEffective(task)`; the canvas is a graph of intent, not a graph of plumbing.
 
 ### Lineage & incubate topology (`canvas-graph.ts`)
 
