@@ -207,6 +207,9 @@ export function buildValidConnectionMap(): Record<NodeType, Set<NodeType>> {
 }
 
 export function findMissingPrerequisiteFromContracts(): string | null {
+  // Phase 7 D removed the canvas Model node; no remaining node type has
+  // a prerequisite. Kept as an exported function so legacy call sites
+  // continue to compile.
   return null;
 }
 
@@ -255,10 +258,3 @@ export function buildStructuralAutoConnectEdges(
   return edges;
 }
 
-export function buildPaletteModelEdgesForNode(): AutoEdge[] {
-  return [];
-}
-
-export function buildScopedModelEdgesFromParent(): AutoEdge[] {
-  return [];
-}

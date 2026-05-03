@@ -10,7 +10,6 @@ import {
 } from '../lib/canvas-layout';
 import {
   buildAutoConnectEdges,
-  buildModelEdgeForNode,
   findMissingPrerequisite,
 } from '../lib/canvas-connections';
 import { PREREQUISITE_DEFAULTS } from '../lib/constants';
@@ -147,6 +146,7 @@ export interface AddNodePlan {
   nodesBeforeNew: WorkspaceNode[];
   nextNodes: WorkspaceNode[];
   structuralEdges: WorkspaceEdge[];
+  /** Always empty since Phase 7 D removed the canvas Model node. */
   modelEdges: WorkspaceEdge[];
   nextEdges: WorkspaceEdge[];
   hypothesisBinding?: {
@@ -199,9 +199,9 @@ export function planAddNodeMutation(input: {
   }
 
   const structuralEdges = buildAutoConnectEdges(nodeId, input.type, nodesBeforeNew);
-  const modelEdges = buildModelEdgeForNode(nodeId, input.type, nodesBeforeNew);
+  const modelEdges: WorkspaceEdge[] = [];
   const nodesWithNew = [...nodesBeforeNew, newNode];
-  const nextEdges = [...input.edges, ...structuralEdges, ...modelEdges];
+  const nextEdges = [...input.edges, ...structuralEdges];
 
   return {
     nodeId,

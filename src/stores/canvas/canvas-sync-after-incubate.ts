@@ -1,7 +1,6 @@
 import { columnX, snap } from '../../lib/canvas-layout';
 import {
   buildAutoConnectEdges,
-  buildModelEdgesFromParent,
   dedupeEdgesById,
 } from '../../lib/canvas-connections';
 import { EDGE_STATUS } from '../../constants/canvas';
@@ -92,19 +91,6 @@ export function applySyncAfterIncubate(
   });
 
   if (placed === 0) return;
-
-  const newHypothesisIds = strategyLinkPairs.map((p) => p.hypothesisNodeId);
-
-  const modelEdges = buildModelEdgesFromParent(
-    incubatorNodeId,
-    newHypothesisIds,
-    addedNodes,
-    addedEdges,
-  );
-  for (const me of modelEdges) {
-    if (addedEdges.some((e) => e.id === me.id)) continue;
-    addedEdges.push(me);
-  }
 
   const nextEdges = dedupeEdgesById(addedEdges);
   set({ nodes: addedNodes, edges: nextEdges });

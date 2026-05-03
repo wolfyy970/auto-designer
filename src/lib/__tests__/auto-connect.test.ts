@@ -1,17 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildAutoConnectEdges,
-  buildModelEdgeForNode,
-  buildModelEdgesFromParent,
   findMissingPrerequisite,
 } from '../canvas-connections';
 
 function makeNode(id: string, type: string) {
   return { id, type };
-}
-
-function makeEdge(source: string, target: string) {
-  return { source, target };
 }
 
 // ── buildAutoConnectEdges (structural only, no model wiring) ────────
@@ -99,25 +93,6 @@ describe('buildAutoConnectEdges', () => {
     const existing = [makeNode('c1', 'incubator')];
     const edges = buildAutoConnectEdges('s1', 'designBrief', existing);
     expect(edges[0].data).toEqual({ status: 'idle' });
-  });
-});
-
-// ── Model wiring is no longer canvas-driven (Settings is the source) ─
-
-describe('buildModelEdgeForNode (deprecated, returns nothing)', () => {
-  it('returns empty for every node type', () => {
-    const existing = [makeNode('m1', 'model')];
-    expect(buildModelEdgeForNode('c1', 'incubator', existing)).toHaveLength(0);
-    expect(buildModelEdgeForNode('h1', 'hypothesis', existing)).toHaveLength(0);
-    expect(buildModelEdgeForNode('ds1', 'designSystem', existing)).toHaveLength(0);
-  });
-});
-
-describe('buildModelEdgesFromParent (deprecated, returns nothing)', () => {
-  it('returns empty regardless of canvas state', () => {
-    const nodes = [makeNode('m1', 'model'), makeNode('c1', 'incubator')];
-    const edges = [makeEdge('m1', 'c1')];
-    expect(buildModelEdgesFromParent('c1', ['h1', 'h2'], nodes, edges)).toHaveLength(0);
   });
 });
 

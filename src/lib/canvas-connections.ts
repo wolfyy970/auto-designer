@@ -1,13 +1,13 @@
 import {
-  buildPaletteModelEdgesForNode,
-  buildScopedModelEdgesFromParent,
   buildStructuralAutoConnectEdges,
   buildValidConnectionMap,
   findMissingPrerequisiteFromContracts,
   type AutoEdge,
 } from '../workspace/canvas-edge-contracts';
 
-// Local mirror of CanvasNodeType (avoids circular import with canvas-store)
+// Local mirror of CanvasNodeType (avoids circular import with canvas-store).
+// `'model'` is retained in the union for legacy snapshots that still
+// surface the type before canvas-migration v32 strips it.
 type NodeType =
   | 'designBrief' | 'researchContext'
   | 'objectivesMetrics' | 'designConstraints' | 'designSystem'
@@ -35,7 +35,6 @@ export function findMissingPrerequisite(
 // ── Edge helpers ────────────────────────────────────────────────────
 
 interface MinimalNode { id: string; type?: string }
-interface MinimalEdge { source: string; target: string }
 
 /** Deduplicate edges by `id` (first wins). Prevents React Flow duplicate-key warnings when state merges overlap. */
 export function dedupeEdgesById<T extends { id: string }>(edges: T[]): T[] {
@@ -52,10 +51,8 @@ export function dedupeEdgesById<T extends { id: string }>(edges: T[]): T[] {
 // ── Auto-connect (palette / manual add) ─────────────────────────────
 
 /**
- * Compute structural edges when a node is added from the palette.
- * Model connections are handled separately via buildModelEdgeForNode
- * or buildModelEdgesFromParent — this only wires inputs↔incubator
- * and designSystem↔hypothesis.
+ * Compute structural edges when a node is added from the palette
+ * (inputs↔incubator and designSystem↔hypothesis).
  */
 export function buildAutoConnectEdges(
   newNodeId: string,
@@ -65,34 +62,3 @@ export function buildAutoConnectEdges(
   return buildStructuralAutoConnectEdges(newNodeId, type, existingNodes);
 }
 
-// ── Scoped model connection ─────────────────────────────────────────
-
-/**
- * Find model node(s) connected as inputs to a specific node.
- */
-/**
- * Build model→child edges scoped to a specific parent.
- * Uses the **first** model wired to the parent only — a hypothesis
- * may only have one model edge; incubators may still have multiple models upstream.
- * Falls back to the first model on the canvas if the parent has none.
- */
-export function buildModelEdgesFromParent(
-  _parentId: string,
-  _childIds: string[],
-  _nodes: MinimalNode[],
-  _edges: MinimalEdge[],
-): AutoEdge[] {
-  return buildScopedModelEdgesFromParent();
-}
-
-/**
- * Build a model edge for a single node added from the palette.
- * Connects the first available model (no parent context).
- */
-export function buildModelEdgeForNode(
-  _nodeId: string,
-  _nodeType: string,
-  _existingNodes: MinimalNode[],
-): AutoEdge[] {
-  return buildPaletteModelEdgesForNode();
-}
