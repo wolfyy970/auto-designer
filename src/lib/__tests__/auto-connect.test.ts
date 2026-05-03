@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  buildAutoConnectEdges,
-  findMissingPrerequisite,
-} from '../canvas-connections';
+import { buildAutoConnectEdges } from '../canvas-connections';
 
 function makeNode(id: string, type: string) {
   return { id, type };
@@ -96,18 +93,3 @@ describe('buildAutoConnectEdges', () => {
   });
 });
 
-// ── findMissingPrerequisite ─────────────────────────────────────────
-
-describe('findMissingPrerequisite', () => {
-  it('never requires a Model node prerequisite (Settings holds the model)', () => {
-    expect(findMissingPrerequisite('incubator', [])).toBeNull();
-    expect(findMissingPrerequisite('hypothesis', [])).toBeNull();
-    expect(findMissingPrerequisite('designSystem', [])).toBeNull();
-  });
-
-  it('returns null for types with no prerequisite', () => {
-    expect(findMissingPrerequisite('designBrief', [])).toBeNull();
-    expect(findMissingPrerequisite('preview', [])).toBeNull();
-    expect(findMissingPrerequisite('model', [])).toBeNull();
-  });
-});

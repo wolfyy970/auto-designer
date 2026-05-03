@@ -57,7 +57,6 @@ interface CanvasEdgeContract extends EdgeDomainRule {
   readonly targetTypes: readonly NodeType[];
   readonly manual: boolean;
   readonly structuralAutoConnect?: readonly AutoConnectMode[];
-  readonly paletteModelTarget?: boolean;
 }
 
 function makeEdge(source: string, target: string): AutoEdge {
@@ -204,13 +203,6 @@ export function buildValidConnectionMap(): Record<NodeType, Set<NodeType>> {
     }
   }
   return map;
-}
-
-export function findMissingPrerequisiteFromContracts(): string | null {
-  // Phase 7 D removed the canvas Model node; no remaining node type has
-  // a prerequisite. Kept as an exported function so legacy call sites
-  // continue to compile.
-  return null;
 }
 
 export function buildStructuralAutoConnectEdges(

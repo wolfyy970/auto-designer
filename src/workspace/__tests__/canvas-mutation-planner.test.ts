@@ -43,13 +43,12 @@ describe('canvas mutation planner', () => {
     expect(plan?.nextEdges.map((candidate) => [candidate.source, candidate.target])).toEqual([
       ['inc-1', 'hypothesis-hypothesis-id'],
     ]);
-    expect(plan?.modelEdges).toHaveLength(0);
     expect(plan?.hypothesisBinding).toMatchObject({
       nodeId: 'hypothesis-hypothesis-id',
     });
   });
 
-  it('adds design system without inserting a model prerequisite', () => {
+  it('adds design system without inserting a prerequisite', () => {
     const ids = ['design-system-id'];
     const plan = planAddNodeMutation({
       type: NODE_TYPES.DESIGN_SYSTEM,
@@ -60,7 +59,6 @@ describe('canvas mutation planner', () => {
     });
 
     expect(plan?.nodeId).toBe('designSystem-design-system-id');
-    expect(plan?.prerequisiteNode).toBeUndefined();
     expect(plan?.nextNodes.map((candidate) => candidate.id)).toEqual(
       expect.arrayContaining(['designSystem-design-system-id']),
     );

@@ -1,7 +1,6 @@
 import {
   buildStructuralAutoConnectEdges,
   buildValidConnectionMap,
-  findMissingPrerequisiteFromContracts,
   type AutoEdge,
 } from '../workspace/canvas-edge-contracts';
 
@@ -21,15 +20,6 @@ export const VALID_CONNECTIONS: Record<NodeType, Set<NodeType>> = buildValidConn
 
 export function isValidConnection(sourceType: string, targetType: string): boolean {
   return (VALID_CONNECTIONS as Record<string, Set<string>>)[sourceType]?.has(targetType) ?? false;
-}
-
-// ── Prerequisite rules ──────────────────────────────────────────────
-
-export function findMissingPrerequisite(
-  _newNodeType: string,
-  _existingNodes: MinimalNode[],
-): string | null {
-  return findMissingPrerequisiteFromContracts();
 }
 
 // ── Edge helpers ────────────────────────────────────────────────────

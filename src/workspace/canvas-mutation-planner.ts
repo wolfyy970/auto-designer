@@ -2,16 +2,12 @@ import { EDGE_STATUS, EDGE_TYPES, INPUT_GHOST_NODE_TYPE, NODE_TYPES, buildEdgeId
 import { INPUT_NODE_TYPES } from '../constants/canvas';
 import {
   columnX,
-  computeAdjacentPosition,
   computeDefaultPosition,
   isEphemeralInputGhostId,
   reconcileEphemeralGhostNodes,
   snap,
 } from '../lib/canvas-layout';
-import {
-  buildAutoConnectEdges,
-  findMissingPrerequisite,
-} from '../lib/canvas-connections';
+import { buildAutoConnectEdges } from '../lib/canvas-connections';
 import { PREREQUISITE_DEFAULTS } from '../lib/constants';
 import { optionalInputSlotsWithSpecMaterial } from '../lib/spec-materialize-sections';
 import type { DesignSpec } from '../types/spec';
@@ -142,12 +138,9 @@ export function planRemoveNodeMutation(input: {
 export interface AddNodePlan {
   nodeId: string;
   newNode: WorkspaceNode;
-  prerequisiteNode?: WorkspaceNode;
   nodesBeforeNew: WorkspaceNode[];
   nextNodes: WorkspaceNode[];
   structuralEdges: WorkspaceEdge[];
-  /** Always empty since Phase 7 D removed the canvas Model node. */
-  modelEdges: WorkspaceEdge[];
   nextEdges: WorkspaceEdge[];
   hypothesisBinding?: {
     nodeId: string;
@@ -176,8 +169,8 @@ export function planAddNodeMutation(input: {
 
   const nodeId = `${input.type}-${input.generateId()}`;
   const col = columnX(input.colGap);
-  const existingNodes = [...input.nodes];
-  const targetPos = snap(input.position ?? computeDefaultPosition(input.type, existingNodes, col));
+  const nodesBeforeNew = [...input.nodes];
+  const targetPos = snap(input.position ?? computeDefaultPosition(input.type, nodesBeforeNew, col));
   const newNode: WorkspaceNode = {
     id: nodeId,
     type: input.type,
@@ -185,32 +178,16 @@ export function planAddNodeMutation(input: {
     data: { ...PREREQUISITE_DEFAULTS[input.type] },
   };
 
-  let nodesBeforeNew = existingNodes;
-  let prerequisiteNode: WorkspaceNode | undefined;
-  const prereqType = findMissingPrerequisite(input.type, existingNodes);
-  if (prereqType) {
-    prerequisiteNode = {
-      id: `${prereqType}-${input.generateId()}`,
-      type: prereqType as CanvasNodeType,
-      position: computeAdjacentPosition(targetPos, input.colGap),
-      data: PREREQUISITE_DEFAULTS[prereqType] ?? {},
-    };
-    nodesBeforeNew = [...nodesBeforeNew, prerequisiteNode];
-  }
-
   const structuralEdges = buildAutoConnectEdges(nodeId, input.type, nodesBeforeNew);
-  const modelEdges: WorkspaceEdge[] = [];
   const nodesWithNew = [...nodesBeforeNew, newNode];
   const nextEdges = [...input.edges, ...structuralEdges];
 
   return {
     nodeId,
     newNode,
-    prerequisiteNode,
     nodesBeforeNew,
     nextNodes: reconcileEphemeralGhostNodes(nodesWithNew),
     structuralEdges,
-    modelEdges,
     nextEdges,
     hypothesisBinding:
       input.type === NODE_TYPES.HYPOTHESIS
