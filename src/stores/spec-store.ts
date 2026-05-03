@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type {
   DesignSpec,
-  InternalContextDocument,
   ReferenceImage,
   SpecSection,
   SpecSectionId,
@@ -20,7 +19,6 @@ interface SpecStore {
   createNewCanvas: (title?: string) => void;
   setTitle: (title: string) => void;
   updateSection: (sectionId: SpecSectionId, content: string) => void;
-  setInternalContextDocument: (doc: InternalContextDocument | undefined) => void;
   /** Clears body and images for one section; other sections unchanged. */
   resetSectionContent: (sectionId: SpecSectionId) => void;
   addImage: (sectionId: SpecSectionId, image: ReferenceImage) => void;
@@ -73,15 +71,6 @@ export const useSpecStore = create<SpecStore>()(
             },
           };
         }),
-
-      setInternalContextDocument: (doc) =>
-        set((state) => ({
-          spec: {
-            ...state.spec,
-            internalContextDocument: doc,
-            lastModified: now(),
-          },
-        })),
 
       resetSectionContent: (sectionId) =>
         set((state) => {
@@ -184,10 +173,14 @@ export const useSpecStore = create<SpecStore>()(
     }),
     {
       name: STORAGE_KEYS.ACTIVE_CANVAS,
-      version: 1,
+      version: 2,
       partialize: (state) => ({ spec: state.spec }),
       migrate: (persisted: unknown) => {
-        const state = persisted as { spec?: DesignSpec };
+        const state = persisted as { spec?: DesignSpec & { internalContextDocument?: unknown } };
+        if (state?.spec) {
+          // v1 → v2: drop the retired internalContextDocument field.
+          delete (state.spec as { internalContextDocument?: unknown }).internalContextDocument;
+        }
         if (state?.spec?.sections) {
           // Ensure active section keys exist; retired legacy sections are dropped on load.
           const emptySections = createEmptySections();
