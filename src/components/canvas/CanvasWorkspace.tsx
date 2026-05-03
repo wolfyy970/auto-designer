@@ -239,7 +239,6 @@ function CanvasInner() {
     switch (t) {
       case 'incubator':
       case 'designSystem':
-      case 'model':
         return 'var(--color-accent)'; // processing
       case 'hypothesis':
       case 'preview':

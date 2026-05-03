@@ -51,7 +51,6 @@ export const DEFAULT_MODEL_ID = MODEL_ID_FROM_CONFIG;
  * Keyed by node type — extend this map when adding new prerequisite rules.
  */
 export const PREREQUISITE_DEFAULTS: Record<string, Record<string, unknown>> = {
-  model: { providerId: DEFAULT_INCUBATOR_PROVIDER, modelId: DEFAULT_MODEL_ID, thinkingLevel: 'minimal' },
   hypothesis: {},
 };
 

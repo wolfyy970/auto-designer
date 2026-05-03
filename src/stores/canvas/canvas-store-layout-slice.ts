@@ -3,7 +3,6 @@ import type { CanvasNodeType } from '../../types/workspace-graph';
 import { generateId } from '../../lib/utils';
 import { columnX, computeAutoLayout, reconcileEphemeralGhostNodes, snap } from '../../lib/canvas-layout';
 import { buildEdgeId, EDGE_TYPES, EDGE_STATUS, NODE_TYPES } from '../../constants/canvas';
-import { PREREQUISITE_DEFAULTS } from '../../lib/constants';
 import { DEFAULT_DESIGN_SYSTEM_SOURCE_MODE } from '../../types/design-system-mode';
 import { hydrateDomainFromCanvasGraph } from '../../workspace/hydrate-domain-from-canvas-graph';
 import type { CanvasStore } from './canvas-store-types';
@@ -66,7 +65,6 @@ export const createLayoutSlice: StateCreator<
 
     const col = columnX(state.colGap);
     const briefId = `designBrief-${generateId()}`;
-    const modelId = `model-${generateId()}`;
     const designSystemId = `designSystem-${generateId()}`;
     const incubatorId = `incubator-${generateId()}`;
 
@@ -76,12 +74,6 @@ export const createLayoutSlice: StateCreator<
         type: 'designBrief' as const,
         position: snap({ x: col.inputs, y: 300 }),
         data: {},
-      },
-      {
-        id: modelId,
-        type: 'model' as const,
-        position: snap({ x: col.incubator, y: 100 }),
-        data: { ...PREREQUISITE_DEFAULTS['model'] },
       },
       {
         id: designSystemId,
@@ -102,13 +94,6 @@ export const createLayoutSlice: StateCreator<
         {
           id: buildEdgeId(briefId, incubatorId),
           source: briefId,
-          target: incubatorId,
-          type: EDGE_TYPES.DATA_FLOW,
-          data: { status: EDGE_STATUS.IDLE },
-        },
-        {
-          id: buildEdgeId(modelId, incubatorId),
-          source: modelId,
           target: incubatorId,
           type: EDGE_TYPES.DATA_FLOW,
           data: { status: EDGE_STATUS.IDLE },
