@@ -403,7 +403,17 @@
   cursor: grabbing !important;
 }
 
-.react-flow__node :where(button, [role="button"], [role="tab"], summary, label, select, input[type="checkbox"], input[type="radio"], input[type="range"]) {
+.react-flow__node :where(button, [role="button"], [role="tab"], summary, select, input[type="checkbox"], input[type="radio"], input[type="range"]) {
+  cursor: pointer !important;
+}
+
+/*
+ * Labels wrapping a clickable form control (checkbox / radio) act as the
+ * click target. Bare caption-style `<label>` elements (without a wrapped
+ * input) are passive text and inherit the canvas grab cursor — otherwise
+ * every node caption flips the cursor to a pointer.
+ */
+.react-flow__node label:has(input[type="checkbox"], input[type="radio"]) {
   cursor: pointer !important;
 }
 
