@@ -7,12 +7,12 @@ async function importStoreFresh(): Promise<typeof import('../task-config-store')
   return import('../task-config-store');
 }
 
-describe('thinking-defaults-store migrations', () => {
+describe('task-config-store persist migrations', () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
-  it('v1 → v4: legacy `inputs` carries through to the collapsed `inputs` slot, level → effort', async () => {
+  it('v1 → v5: legacy `inputs` carries through; level survives', async () => {
     const v1 = {
       state: {
         overrides: {
@@ -32,9 +32,9 @@ describe('thinking-defaults-store migrations', () => {
     await Promise.resolve();
     const overrides = useTaskConfigStore.getState().overrides;
 
-    expect(overrides.design).toEqual({ effort: 'maximum' });
-    expect(overrides.inputs).toEqual({ effort: 'thorough' });
-    // The split per-section keys never exist on the final shape.
+    expect(overrides.design).toEqual({ level: 'xhigh' });
+    expect(overrides.inputs).toEqual({ level: 'high' });
+    // The split per-section keys never survive on the final shape.
     const raw = overrides as unknown as Record<string, unknown>;
     expect(raw['inputs-research']).toBeUndefined();
     expect(raw['inputs-objectives']).toBeUndefined();
@@ -46,7 +46,7 @@ describe('thinking-defaults-store migrations', () => {
     }
   });
 
-  it('v3 → v4: collapses three customised input slots into one (constraints wins)', async () => {
+  it('v3 → v5: collapses three customised input slots into one (constraints wins)', async () => {
     const v3 = {
       state: {
         overrides: {
@@ -64,10 +64,11 @@ describe('thinking-defaults-store migrations', () => {
     await Promise.resolve();
     const overrides = useTaskConfigStore.getState().overrides;
 
-    expect(overrides.inputs).toEqual({ effort: 'maximum' });
+    // 'maximum' (effort) → 'xhigh' (UiLevel) via the v5 effort-to-level rename.
+    expect(overrides.inputs).toEqual({ level: 'xhigh' });
   });
 
-  it('v2 → v4: legacy `level` overrides become `effort`; budgets are dropped', async () => {
+  it('v2 → v5: legacy `level` survives with `minimal` collapsed into `low`; budgets dropped', async () => {
     const v2 = {
       state: {
         overrides: {
@@ -85,9 +86,33 @@ describe('thinking-defaults-store migrations', () => {
     await Promise.resolve();
     const overrides = useTaskConfigStore.getState().overrides;
 
-    expect(overrides.design).toEqual({ effort: 'quick' });
-    expect(overrides.incubate).toEqual({ effort: 'balanced' });
+    expect(overrides.design).toEqual({ level: 'low' });
+    expect(overrides.incubate).toEqual({ level: 'medium' });
     expect(overrides.evaluator).toEqual({});
-    expect(overrides['design-system']).toEqual({ effort: 'quick' });
+    expect(overrides['design-system']).toEqual({ level: 'low' });
+  });
+
+  it('v4 → v5: effort vocabulary renames to level vocabulary', async () => {
+    const v4 = {
+      state: {
+        overrides: {
+          design: { effort: 'thorough' },
+          incubate: { effort: 'maximum' },
+          inputs: { effort: 'balanced' },
+          evaluator: { effort: 'off' },
+        },
+      },
+      version: 4,
+    };
+    localStorage.setItem(STORAGE_KEYS.THINKING_DEFAULTS, JSON.stringify(v4));
+
+    const { useTaskConfigStore } = await importStoreFresh();
+    await Promise.resolve();
+    const overrides = useTaskConfigStore.getState().overrides;
+
+    expect(overrides.design).toEqual({ level: 'high' });
+    expect(overrides.incubate).toEqual({ level: 'xhigh' });
+    expect(overrides.inputs).toEqual({ level: 'medium' });
+    expect(overrides.evaluator).toEqual({ level: 'off' });
   });
 });

@@ -10,7 +10,6 @@ import type { ProvenanceContext } from '../types/provenance-context';
 import type { DesignSpec } from '../types/spec';
 import { useWorkspaceDomainStore } from '../stores/workspace-domain-store';
 import { useTaskConfigStore } from '../stores/task-config-store';
-import { EFFORT_TO_LEVEL } from '../lib/thinking-defaults';
 import {
   buildHypothesisGenerationContextFromInputs,
   evaluationPayloadFromHypothesisContext as evaluationPayloadPure,
@@ -35,7 +34,7 @@ export function buildHypothesisGenerationContext(input: {
   const settingsCredential: ModelCredential = {
     providerId: settings.providerId,
     modelId: settings.modelId,
-    thinkingLevel: EFFORT_TO_LEVEL[settings.effort],
+    thinkingLevel: settings.level,
   };
   return buildHypothesisGenerationContextFromInputs({
     hypothesisNodeId: input.hypothesisNodeId,

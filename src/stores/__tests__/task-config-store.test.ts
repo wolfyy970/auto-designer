@@ -14,40 +14,38 @@ describe('useTaskConfigStore', () => {
     }
   });
 
-  it('persists an effort override on a single task', () => {
-    useTaskConfigStore.getState().setEffort('design', 'maximum');
-    expect(useTaskConfigStore.getState().overrides.design).toEqual({ effort: 'maximum' });
+  it('persists a level override on a single task', () => {
+    useTaskConfigStore.getState().setLevel('design', 'xhigh');
+    expect(useTaskConfigStore.getState().overrides.design).toEqual({ level: 'xhigh' });
   });
 
-  it('overwrites an effort override when set again', () => {
+  it('overwrites a level override when set again', () => {
     const s = useTaskConfigStore.getState();
-    s.setEffort('incubate', 'thorough');
-    s.setEffort('incubate', 'quick');
-    expect(useTaskConfigStore.getState().overrides.incubate).toEqual({ effort: 'quick' });
+    s.setLevel('incubate', 'high');
+    s.setLevel('incubate', 'low');
+    expect(useTaskConfigStore.getState().overrides.incubate).toEqual({ level: 'low' });
   });
 
   it('passing undefined clears the override', () => {
     const s = useTaskConfigStore.getState();
-    s.setEffort('evaluator', 'balanced');
-    s.setEffort('evaluator', undefined);
+    s.setLevel('evaluator', 'medium');
+    s.setLevel('evaluator', undefined);
     expect(useTaskConfigStore.getState().overrides.evaluator).toEqual({});
   });
 
   it('resetTask clears a single task without disturbing siblings', () => {
     const s = useTaskConfigStore.getState();
-    s.setEffort('design', 'thorough');
-    s.setEffort('inputs-research', 'quick');
+    s.setLevel('design', 'high');
+    s.setLevel('inputs', 'low');
     s.resetTask('design');
     expect(useTaskConfigStore.getState().overrides.design).toEqual({});
-    expect(useTaskConfigStore.getState().overrides['inputs-research']).toEqual({
-      effort: 'quick',
-    });
+    expect(useTaskConfigStore.getState().overrides.inputs).toEqual({ level: 'low' });
   });
 
   it('resetAll clears every task', () => {
     const s = useTaskConfigStore.getState();
-    s.setEffort('design', 'maximum');
-    s.setEffort('inputs-objectives', 'off');
+    s.setLevel('design', 'xhigh');
+    s.setLevel('inputs', 'off');
     s.resetAll();
     for (const t of THINKING_TASKS) {
       expect(useTaskConfigStore.getState().overrides[t]).toEqual({});

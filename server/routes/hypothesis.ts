@@ -14,7 +14,11 @@ import {
 import { SSE_EVENT_NAMES } from '../../src/constants/sse-events.ts';
 import { apiJsonError } from '../lib/api-json-error.ts';
 import { parseRequestJson } from '../lib/parse-request.ts';
-import { resolveThinkingConfig, type ThinkingLevel } from '../../src/lib/thinking-defaults.ts';
+import {
+  resolveThinkingConfig,
+  THINKING_BUDGET_BY_LEVEL,
+  type ThinkingLevel,
+} from '../../src/lib/thinking-defaults.ts';
 import { env } from '../env.ts';
 
 const hypothesis = new Hono();
@@ -101,7 +105,10 @@ hypothesis.post('/generate', async (c) => {
       laneIndex: number,
       cred: { providerId: string; modelId: string; thinkingLevel: ThinkingLevel },
     ) => {
-      const laneThinking = resolveThinkingConfig('design', cred.modelId, { level: cred.thinkingLevel });
+      const laneThinking = resolveThinkingConfig('design', cred.modelId, {
+        level: cred.thinkingLevel,
+        budgetTokens: THINKING_BUDGET_BY_LEVEL[cred.thinkingLevel],
+      });
       const streamBody = GenerateStreamBodySchema.parse({
         ...base,
         thinkingLevel: laneThinking.level,

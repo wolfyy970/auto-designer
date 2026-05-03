@@ -10,7 +10,6 @@ import { scheduleCanvasFitViewToNodes } from '../lib/canvas-fit-view';
 import { warnIfWorkspaceSnapshotInvalid } from '../lib/workspace-snapshot-warn';
 import { normalizeError } from '../lib/error-utils';
 import { pinModelCredentialsIfLockdown } from '../lib/lockdown-model';
-import { EFFORT_TO_LEVEL } from '../lib/thinking-defaults';
 import {
   buildHypothesisGenerationContextFromInputs,
   workspaceSnapshotWireToGraph,
@@ -103,7 +102,7 @@ export async function runHypothesisGenerateFlow({
   const settingsCredential: ModelCredential = {
     providerId: settings.providerId,
     modelId: settings.modelId,
-    thinkingLevel: EFFORT_TO_LEVEL[settings.effort],
+    thinkingLevel: settings.level,
   };
   const workspacePayload: HypothesisGenerateApiPayload = {
     hypothesisNodeId: nodeId,

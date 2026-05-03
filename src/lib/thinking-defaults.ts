@@ -33,6 +33,22 @@ export const THINKING_LEVELS = [
 ] as const satisfies readonly ThinkingLevel[];
 
 /**
+ * Subset of `ThinkingLevel` exposed in the Settings UI. `'minimal'` is
+ * intentionally hidden — the SDK still accepts it for compatibility, and the
+ * store's persist migration collapses it into `'low'`. Five positions:
+ * Off / Low / Medium / High / Extra High.
+ */
+export type UiLevel = Exclude<ThinkingLevel, 'minimal'>;
+
+export const UI_LEVELS = [
+  'off',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+] as const satisfies readonly UiLevel[];
+
+/**
  * Which task the LLM call is serving — drives defaults.
  * `design` covers the hypothesis-design build (initial + revision rounds).
  * `incubate` covers the incubator's hypothesis-strategy generation.
@@ -64,45 +80,14 @@ export type ThinkingConfig = {
   budgetTokens: number;
 };
 
-/** Partial override a client / user may supply; fields missing fall back to the task default. */
-export type ThinkingOverride = Partial<ThinkingConfig>;
-
 /**
- * User-facing effort knob — names *intent*, not mechanism. Replaces the raw
- * `ThinkingLevel` enum at the UI surface. Token budget is no longer a user
- * override; it comes from `budgetByLevel` in `config/thinking-defaults.json`.
+ * Wire override a client may supply. Both fields required when the
+ * object is present; missing fields are not allowed at the boundary
+ * (the request schema enforces strictness). The wrapping `thinking?:`
+ * field on each request body is itself optional — that is the
+ * "no override" signal.
  */
-export type Effort = 'off' | 'quick' | 'balanced' | 'thorough' | 'maximum';
-
-export const EFFORTS = ['off', 'quick', 'balanced', 'thorough', 'maximum'] as const satisfies readonly Effort[];
-
-/** Plain-English description shown under each Settings row + in the help disclosure. */
-export const EFFORT_DESCRIPTIONS: Record<Effort, string> = {
-  off: 'Skip extended thinking entirely. Fastest; no internal reasoning before output.',
-  quick: 'A small amount of thinking. Use for short, well-defined tasks.',
-  balanced: 'Moderate thinking with good output quality. Default for most tasks.',
-  thorough: 'Substantially more thinking. Use for complex creative or analytical work.',
-  maximum: 'All-out thinking budget. Slowest; reserved for the hardest tasks.',
-};
-
-/** Effort → underlying provider effort. Budget continues to come from the level → budget table. */
-export const EFFORT_TO_LEVEL: Record<Effort, ThinkingLevel> = {
-  off: 'off',
-  quick: 'low',
-  balanced: 'medium',
-  thorough: 'high',
-  maximum: 'xhigh',
-};
-
-/** Reverse map for migrating legacy `level` overrides into `effort`. `minimal` collapses into `quick`. */
-export const LEVEL_TO_EFFORT: Record<ThinkingLevel, Effort> = {
-  off: 'off',
-  minimal: 'quick',
-  low: 'quick',
-  medium: 'balanced',
-  high: 'thorough',
-  xhigh: 'maximum',
-};
+export type ThinkingOverride = ThinkingConfig;
 
 /** Always-off config. Returned when the model doesn't support reasoning. */
 export const THINKING_OFF: ThinkingConfig = { level: 'off', budgetTokens: 0 };
@@ -118,11 +103,15 @@ export const ThinkingConfigSchema = z.object({
   budgetTokens: z.number().int().min(0),
 });
 
-/** Partial override accepted from clients; missing fields fall back to task defaults. */
+/**
+ * Wire-shape thinking override. Both fields are required when the object
+ * is present; `undefined` (the wrapping field is optional on the request
+ * body) means "no override — server picks defaults for this task".
+ */
 export const ThinkingOverrideSchema = z
   .object({
-    level: ThinkingLevelSchema.optional(),
-    budgetTokens: z.number().int().min(0).optional(),
+    level: ThinkingLevelSchema,
+    budgetTokens: z.number().int().min(0),
   })
   .strict();
 
@@ -188,33 +177,21 @@ function clampBudget(n: number): number {
 /**
  * Single read-point for capability + defaults + override. Call this from every
  * LLM dispatch site; never hand-build a `ThinkingConfig`.
- *
- * Accepts both:
- *   - the new `effort` shape from the UI (preferred), and
- *   - the legacy `{ level?, budgetTokens? }` shape from older request bodies
- *     and tests during the rollout.
  */
 export function resolveThinkingConfig(
   task: ThinkingTask,
   modelId: string | undefined | null,
-  override?: ThinkingOverride & { effort?: Effort },
+  override?: ThinkingOverride,
 ): ThinkingConfig {
   if (!modelId || !supportsReasoningModel(modelId)) return THINKING_OFF;
 
   const defaults = THINKING_CONFIG_DEFAULTS[task];
-  const level: ThinkingLevel =
-    override?.effort != null
-      ? EFFORT_TO_LEVEL[override.effort]
-      : (override?.level ?? defaults.level);
+  const level: ThinkingLevel = override?.level ?? defaults.level;
 
   if (level === 'off') return THINKING_OFF;
 
-  // Budget no longer comes from the user. Effort overrides snap to the
-  // baseline budget for the mapped level. Legacy `budgetTokens` overrides
-  // still win when supplied, so request-body callers don't break.
-  const rawBudget =
-    override?.effort != null
-      ? THINKING_BUDGET_BY_LEVEL[level]
-      : (override?.budgetTokens ?? defaults.budgetTokens);
+  // Override-supplied budgets still win when present (older request bodies);
+  // otherwise snap to the baseline budget for the resolved level.
+  const rawBudget = override?.budgetTokens ?? THINKING_BUDGET_BY_LEVEL[level];
   return { level, budgetTokens: clampBudget(rawBudget) };
 }

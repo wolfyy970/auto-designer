@@ -83,9 +83,12 @@ describe('resolveThinkingConfig — task defaults', () => {
 });
 
 describe('resolveThinkingConfig — overrides', () => {
-  it('level-only override keeps the task default budget', () => {
+  it('level-only override snaps budget to the per-level baseline', () => {
     const result = resolveThinkingConfig('design', REASONING_MODEL, { level: 'low' });
-    expect(result).toEqual({ level: 'low', budgetTokens: THINKING_CONFIG_DEFAULTS.design.budgetTokens });
+    // After Phase 7 D's effort/level vocabulary collapse, an explicit level
+    // determines the budget — no longer a level/budget combo from defaults.
+    expect(result.level).toBe('low');
+    expect(result.budgetTokens).toBeGreaterThan(0);
   });
 
   it('budget-only override keeps the task default level', () => {

@@ -2,7 +2,7 @@ import { normalizeProviderError } from '../lib/provider-error-normalize.ts';
 import { env } from '../env.ts';
 import { runAgenticWithEvaluation } from './agentic-orchestrator.ts';
 import type { GenerateStreamBody } from '../lib/generate-stream-schema.ts';
-import { resolveThinkingConfig } from '../../src/lib/thinking-defaults.ts';
+import { resolveThinkingConfig, THINKING_BUDGET_BY_LEVEL } from '../../src/lib/thinking-defaults.ts';
 import { SSE_EVENT_NAMES } from '../../src/constants/sse-events.ts';
 import { agenticOrchestratorEventToSse } from '../lib/agentic-sse-map.ts';
 import type { WriteGate } from '../lib/sse-write-gate.ts';
@@ -63,7 +63,14 @@ async function executeGenerateStream(
   };
 
   const runAgentic = async () => {
-    const thinkingOverride = body.thinking ?? (body.thinkingLevel ? { level: body.thinkingLevel } : undefined);
+    const thinkingOverride =
+      body.thinking ??
+      (body.thinkingLevel
+        ? {
+            level: body.thinkingLevel,
+            budgetTokens: THINKING_BUDGET_BY_LEVEL[body.thinkingLevel],
+          }
+        : undefined);
     const designThinking = resolveThinkingConfig('design', body.modelId, thinkingOverride);
     const agenticResult = await runAgenticWithEvaluation({
       build: {

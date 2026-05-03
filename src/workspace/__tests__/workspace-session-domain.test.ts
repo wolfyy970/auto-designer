@@ -22,7 +22,7 @@ describe('buildHypothesisGenerationContext (domain)', () => {
 
   it('uses Settings credential + domain design-system when hypothesis is registered', () => {
     useTaskConfigStore.getState().setModel('design', 'openrouter', 'gpt-4');
-    useTaskConfigStore.getState().setEffort('design', 'quick');
+    useTaskConfigStore.getState().setLevel('design', 'low');
 
     useWorkspaceDomainStore.setState({
       hypotheses: {

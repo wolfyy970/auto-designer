@@ -4,12 +4,12 @@ import Modal from './Modal';
 import { DesignTokensModal } from './DesignTokensModal';
 import { PartitionSlider } from './PartitionSlider';
 import { TaskModelPicker } from './TaskModelPicker';
+import { useProviderModels } from '../../hooks/useProviderModels';
+import { supportsReasoningModel } from '../../lib/model-capabilities';
 import { floatWeightsToPercents, percentsToFloatWeights } from '../../lib/partition-slider-utils';
 import { useEvaluatorDefaultsStore } from '../../stores/evaluator-defaults-store';
-import {
-  getTaskModelDefault,
-  useTaskConfigStore,
-} from '../../stores/task-config-store';
+import { useTaskConfigStore } from '../../stores/task-config-store';
+import { getTaskModelDefault } from '../../lib/task-defaults';
 import { useAppConfig } from '../../hooks/useAppConfig';
 import { FEATURE_LOCKDOWN } from '../../lib/feature-flags';
 import {
@@ -20,12 +20,11 @@ import {
 } from '../../types/evaluator-settings';
 import { EVALUATOR_RUBRIC_IDS, type EvaluatorRubricId } from '../../types/evaluation';
 import {
-  EFFORTS,
-  LEVEL_TO_EFFORT,
   THINKING_CONFIG_DEFAULTS,
   THINKING_TASKS,
-  type Effort,
+  UI_LEVELS,
   type ThinkingTask,
+  type UiLevel,
 } from '../../lib/thinking-defaults';
 
 const THINKING_TASK_LABELS: Record<ThinkingTask, string> = {
@@ -311,38 +310,33 @@ function SettingsTabButton({
 }
 
 /** Labels mirror the SDK-native ThinkingLevel taxonomy. */
-const EFFORT_LABELS: Record<Effort, string> = {
+const LEVEL_LABELS: Record<UiLevel, string> = {
   off: 'Off',
-  quick: 'Low',
-  balanced: 'Medium',
-  thorough: 'High',
-  maximum: 'Extra High',
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  xhigh: 'Extra High',
 };
 
-function EffortSelect({
+function LevelSelect({
   value,
-  defaultValue,
   onChange,
   ariaLabel,
 }: {
-  value: Effort;
-  defaultValue: Effort;
-  onChange: (next: Effort | undefined) => void;
+  value: UiLevel;
+  onChange: (next: UiLevel) => void;
   ariaLabel: string;
 }) {
   return (
     <select
       value={value}
-      onChange={(e) => {
-        const next = e.target.value as Effort;
-        onChange(next === defaultValue ? undefined : next);
-      }}
+      onChange={(e) => onChange(e.target.value as UiLevel)}
       className="rounded-md border border-border bg-bg px-2 py-1 text-nano text-fg-secondary input-focus"
       aria-label={ariaLabel}
     >
-      {EFFORTS.map((eff) => (
-        <option key={eff} value={eff}>
-          {EFFORT_LABELS[eff]}
+      {UI_LEVELS.map((lvl) => (
+        <option key={lvl} value={lvl}>
+          {LEVEL_LABELS[lvl]}
         </option>
       ))}
     </select>
@@ -351,7 +345,7 @@ function EffortSelect({
 
 function ReasoningSection({ showEvaluatorTask }: { showEvaluatorTask: boolean }) {
   const overrides = useTaskConfigStore((s) => s.overrides);
-  const setEffort = useTaskConfigStore((s) => s.setEffort);
+  const setLevel = useTaskConfigStore((s) => s.setLevel);
   const setModel = useTaskConfigStore((s) => s.setModel);
   const clearModel = useTaskConfigStore((s) => s.clearModel);
   const resetTask = useTaskConfigStore((s) => s.resetTask);
@@ -362,7 +356,7 @@ function ReasoningSection({ showEvaluatorTask }: { showEvaluatorTask: boolean })
   );
   const hasAnyCustomizations = visibleTasks.some((task) => {
     const o = overrides[task] ?? {};
-    return o.effort !== undefined || o.providerId !== undefined || o.modelId !== undefined;
+    return o.level !== undefined || o.providerId !== undefined || o.modelId !== undefined;
   });
 
   return (
@@ -382,64 +376,110 @@ function ReasoningSection({ showEvaluatorTask }: { showEvaluatorTask: boolean })
         </button>
       </div>
       <div className="mt-3 space-y-3">
-        {visibleTasks.map((task) => {
-          const defaults = THINKING_CONFIG_DEFAULTS[task];
-          const defaultEffort = LEVEL_TO_EFFORT[defaults.level];
-          const taskModelDefault = getTaskModelDefault(task);
-          const override = overrides[task] ?? {};
-          const effectiveEffort: Effort = override.effort ?? defaultEffort;
-          const effectiveProviderId = override.providerId ?? taskModelDefault.providerId;
-          const effectiveModelId = override.modelId ?? taskModelDefault.modelId;
-          const isCustomized =
-            override.effort !== undefined ||
-            override.providerId !== undefined ||
-            override.modelId !== undefined;
-          return (
-            <div key={task} className="rounded-md border border-border-subtle bg-surface/40 px-3 py-2.5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <span className="block text-nano font-medium text-fg-secondary">
-                    {THINKING_TASK_LABELS[task]}
-                  </span>
-                  <span className="mt-0.5 block text-micro text-fg-faint">
-                    {THINKING_TASK_DESCRIPTIONS[task]}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => resetTask(task)}
-                  disabled={!isCustomized}
-                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-border-subtle text-fg-faint transition-colors input-focus hover:border-border hover:bg-surface-raised hover:text-fg-secondary disabled:cursor-default disabled:opacity-35 disabled:hover:border-border-subtle disabled:hover:bg-transparent disabled:hover:text-fg-faint"
-                  title={`Reset ${THINKING_TASK_LABELS[task]}`}
-                  aria-label={`Reset ${THINKING_TASK_LABELS[task]}`}
-                >
-                  <RotateCcw size={12} aria-hidden />
-                </button>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-2">
-                <TaskModelPicker
-                  providerId={effectiveProviderId}
-                  modelId={effectiveModelId}
-                  defaultProviderId={taskModelDefault.providerId}
-                  defaultModelId={taskModelDefault.modelId}
-                  disabled={FEATURE_LOCKDOWN}
-                  requireReasoning={effectiveEffort !== 'off'}
-                  onChange={(next) => {
-                    if (next === undefined) clearModel(task);
-                    else setModel(task, next.providerId, next.modelId);
-                  }}
-                  ariaLabelPrefix={THINKING_TASK_LABELS[task]}
-                />
-                <EffortSelect
-                  value={effectiveEffort}
-                  defaultValue={defaultEffort}
-                  onChange={(next) => setEffort(task, next)}
-                  ariaLabel={`${THINKING_TASK_LABELS[task]} effort`}
-                />
-              </div>
-            </div>
-          );
-        })}
+        {visibleTasks.map((task) => (
+          <ReasoningRow
+            key={task}
+            task={task}
+            override={overrides[task] ?? {}}
+            onResetTask={() => resetTask(task)}
+            onSetLevel={(next) => setLevel(task, next)}
+            onSetModel={(provider, model) => setModel(task, provider, model)}
+            onClearModel={() => clearModel(task)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Single Settings row. Owns the provider's model list so the level dropdown
+ * can swap to a reasoning-capable model when the user moves off "Off" with
+ * a non-reasoning model selected. */
+function ReasoningRow({
+  task,
+  override,
+  onResetTask,
+  onSetLevel,
+  onSetModel,
+  onClearModel,
+}: {
+  task: ThinkingTask;
+  override: { level?: UiLevel; providerId?: string; modelId?: string };
+  onResetTask: () => void;
+  onSetLevel: (level: UiLevel) => void;
+  onSetModel: (providerId: string, modelId: string) => void;
+  onClearModel: () => void;
+}) {
+  const defaults = THINKING_CONFIG_DEFAULTS[task];
+  const taskModelDefault = getTaskModelDefault(task);
+  const effectiveLevel: UiLevel =
+    override.level ?? (defaults.level === 'minimal' ? 'low' : defaults.level);
+  const effectiveProviderId = override.providerId ?? taskModelDefault.providerId;
+  const effectiveModelId = override.modelId ?? taskModelDefault.modelId;
+  const isCustomized =
+    override.level !== undefined ||
+    override.providerId !== undefined ||
+    override.modelId !== undefined;
+
+  // Live model list for this row's provider — the picker uses the same hook;
+  // the row re-uses it to power the level→reasoning auto-swap.
+  const { data: models = [] } = useProviderModels(effectiveProviderId);
+
+  const handleLevelChange = (next: UiLevel) => {
+    if (
+      !FEATURE_LOCKDOWN &&
+      next !== 'off' &&
+      !supportsReasoningModel(effectiveModelId)
+    ) {
+      const reasoning = models.find((m) => supportsReasoningModel(m.id));
+      if (reasoning) {
+        onSetModel(effectiveProviderId, reasoning.id);
+      }
+    }
+    onSetLevel(next);
+  };
+
+  return (
+    <div className="rounded-md border border-border-subtle bg-surface/40 px-3 py-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <span className="block text-nano font-medium text-fg-secondary">
+            {THINKING_TASK_LABELS[task]}
+          </span>
+          <span className="mt-0.5 block text-micro text-fg-faint">
+            {THINKING_TASK_DESCRIPTIONS[task]}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onResetTask}
+          disabled={!isCustomized}
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-border-subtle text-fg-faint transition-colors input-focus hover:border-border hover:bg-surface-raised hover:text-fg-secondary disabled:cursor-default disabled:opacity-35 disabled:hover:border-border-subtle disabled:hover:bg-transparent disabled:hover:text-fg-faint"
+          title={`Reset ${THINKING_TASK_LABELS[task]}`}
+          aria-label={`Reset ${THINKING_TASK_LABELS[task]}`}
+        >
+          <RotateCcw size={12} aria-hidden />
+        </button>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-2">
+        <TaskModelPicker
+          providerId={effectiveProviderId}
+          modelId={effectiveModelId}
+          defaultProviderId={taskModelDefault.providerId}
+          defaultModelId={taskModelDefault.modelId}
+          disabled={FEATURE_LOCKDOWN}
+          requireReasoning={effectiveLevel !== 'off'}
+          onChange={(next) => {
+            if (next === undefined) onClearModel();
+            else onSetModel(next.providerId, next.modelId);
+          }}
+          ariaLabelPrefix={THINKING_TASK_LABELS[task]}
+        />
+        <LevelSelect
+          value={effectiveLevel}
+          onChange={handleLevelChange}
+          ariaLabel={`${THINKING_TASK_LABELS[task]} thinking level`}
+        />
       </div>
     </div>
   );

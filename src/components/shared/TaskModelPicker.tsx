@@ -1,13 +1,13 @@
 /**
  * Compact provider+model picker for a single Settings row. Models are
  * grouped into Reasoning vs Other via `<optgroup>`. When the row's
- * effort is non-off (`requireReasoning`) only the reasoning group is
- * rendered; if the currently selected model is non-reasoning when that
- * gate flips on, the picker auto-swaps to the first reasoning model in
- * the provider's list. When `disabled` (lockdown), both controls are
- * read-only.
+ * thinking level is non-off (`requireReasoning`) only the reasoning
+ * group is rendered. The auto-swap to a reasoning-capable model when
+ * the gate flips on lives in the parent (ReasoningRow), so this
+ * component is pure render. When `disabled` (lockdown), both controls
+ * are read-only.
  */
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Brain, ChevronDown } from 'lucide-react';
 import { listProviders } from '../../api/client';
@@ -72,29 +72,6 @@ export function TaskModelPicker({
     }
     onChange({ providerId, modelId: nextModel });
   };
-
-  // Auto-swap to the first reasoning model when the effort gate flips on
-  // (or the loaded list confirms the current pick is non-reasoning). Guarded
-  // by a ref so it fires once per (provider, requireReasoning) transition.
-  const autoSwapTokenRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (disabled || !requireReasoning || isLoading) return;
-    if (reasoningSupported) return;
-    if (reasoningModels.length === 0) return;
-    const token = `${providerId}|${modelId}`;
-    if (autoSwapTokenRef.current === token) return;
-    autoSwapTokenRef.current = token;
-    onChange({ providerId, modelId: reasoningModels[0]!.id });
-  }, [
-    disabled,
-    requireReasoning,
-    isLoading,
-    reasoningSupported,
-    reasoningModels,
-    providerId,
-    modelId,
-    onChange,
-  ]);
 
   const tooltip = disabled
     ? 'Model is locked by deployment.'
