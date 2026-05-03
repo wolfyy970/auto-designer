@@ -1,9 +1,43 @@
 /**
- * Runtime narrowing for Pi SDK shapes at the session event bridge boundary.
- * Avoids unchecked `as` casts on assistant message slices, tool calls, and compaction payloads.
+ * Canonical Pi-message inspector used at every Pi SDK boundary in the host
+ * (event bridge, LLM-log formatter, stream budget). Keeps `as` casts and
+ * structural duck-typing in one file so a Pi SDK shape change fails in one
+ * place instead of drifting at three sites.
  */
 import type { AssistantMessage } from '@auto-designer/pi';
 import { extractPiToolPathFromArguments } from './pi-tool-args.ts';
+
+// ── Discriminated content-part predicates (assistant + user/tool-result) ──
+
+/** Pi assistant `TextContent`. */
+export function isTextPart(p: unknown): p is { type: 'text'; text: string } {
+  return p !== null && typeof p === 'object' && (p as { type?: unknown }).type === 'text'
+    && typeof (p as { text?: unknown }).text === 'string';
+}
+
+/** Pi assistant `ThinkingContent`. */
+export function isThinkingPart(p: unknown): p is { type: 'thinking'; thinking: string } {
+  return p !== null && typeof p === 'object' && (p as { type?: unknown }).type === 'thinking'
+    && typeof (p as { thinking?: unknown }).thinking === 'string';
+}
+
+/** Pi user/toolResult `ImageContent`. */
+export function isImagePart(p: unknown): p is { type: 'image'; data: string } {
+  return p !== null && typeof p === 'object' && (p as { type?: unknown }).type === 'image'
+    && typeof (p as { data?: unknown }).data === 'string';
+}
+
+/** Pi assistant `ToolCall` (tool name + arguments). */
+export function isToolCallPart(p: unknown): p is {
+  type: 'toolCall';
+  id?: string;
+  name: string;
+  arguments?: Record<string, unknown>;
+} {
+  if (p === null || typeof p !== 'object') return false;
+  if ((p as { type?: unknown }).type !== 'toolCall') return false;
+  return typeof (p as { name?: unknown }).name === 'string';
+}
 
 /** Pi assistant message content slice when type is `toolCall`. */
 export function parseToolCallFromAssistantSlice(slice: unknown): { toolName: string; toolPath?: string } {

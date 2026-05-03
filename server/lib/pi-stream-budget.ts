@@ -4,35 +4,46 @@
  * Lives host-side because it depends on host config (`MAX_OUTPUT_TOKENS`) and
  * the host's token-estimate helper. Replaces the previous `pi-sdk/stream-budget.ts`.
  */
-import type { Context } from '@auto-designer/pi';
+import type { Context, UserMessage, ToolResultMessage } from '@auto-designer/pi';
 import { completionBudgetFromPromptTokens } from './completion-budget.ts';
 import { env } from '../env.ts';
+import {
+  isImagePart,
+  isTextPart,
+  isThinkingPart,
+  isToolCallPart,
+} from './pi-bridge-narrowing.ts';
 import { estimateTextTokens } from '../../src/lib/token-estimate.ts';
 
-function estimateUserMessageContent(
-  content: string | Array<{ type: string; text?: string; thinking?: string; data?: string }>,
+/** Per-image prompt-token allowance — coarse but stable for budget shrinkage. */
+const IMAGE_TOKEN_ESTIMATE = 2_500;
+/** Multiplier applied to the prompt-token estimate; pads for tokenizer drift. */
+const CONTEXT_TOKEN_FUDGE = 1.04;
+/** Floor for any non-empty user/tool-result message body. */
+const MIN_USER_MESSAGE_TOKENS = 6;
+
+function estimateUserOrToolContent(
+  content: UserMessage['content'] | ToolResultMessage['content'],
 ): number {
   if (typeof content === 'string') return estimateTextTokens(content);
   let n = 0;
-  for (const p of content) {
-    if (p.type === 'text' && typeof p.text === 'string') n += estimateTextTokens(p.text);
-    else if (p.type === 'thinking' && typeof p.thinking === 'string') {
-      n += estimateTextTokens(p.thinking);
-    } else if (p.type === 'image' && typeof p.data === 'string') n += 2_500;
+  for (const part of content) {
+    if (isTextPart(part)) n += estimateTextTokens(part.text);
+    else if (isImagePart(part)) n += IMAGE_TOKEN_ESTIMATE;
   }
-  return Math.max(n, 6);
+  return Math.max(n, MIN_USER_MESSAGE_TOKENS);
 }
 
 function estimatePiContextTokens(context: Context): number {
   let n = estimateTextTokens(context.systemPrompt ?? '');
   for (const m of context.messages) {
     if (m.role === 'user' || m.role === 'toolResult') {
-      n += estimateUserMessageContent(m.content as Parameters<typeof estimateUserMessageContent>[0]);
+      n += estimateUserOrToolContent(m.content);
     } else if (m.role === 'assistant') {
       for (const c of m.content) {
-        if (c.type === 'text') n += estimateTextTokens(c.text);
-        else if (c.type === 'thinking') n += estimateTextTokens(c.thinking);
-        else if (c.type === 'toolCall') {
+        if (isTextPart(c)) n += estimateTextTokens(c.text);
+        else if (isThinkingPart(c)) n += estimateTextTokens(c.thinking);
+        else if (isToolCallPart(c)) {
           n += estimateTextTokens(JSON.stringify(c.arguments ?? {}));
           n += estimateTextTokens(c.name);
         }
@@ -44,7 +55,7 @@ function estimatePiContextTokens(context: Context): number {
       n += estimateTextTokens(`${t.name}\n${t.description}\n${JSON.stringify(t.parameters ?? {})}`);
     }
   }
-  return Math.ceil(n * 1.04);
+  return Math.ceil(n * CONTEXT_TOKEN_FUDGE);
 }
 
 /**
