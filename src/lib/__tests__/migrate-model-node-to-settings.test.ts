@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { migrateModelNodeToSettings } from '../migrate-model-node-to-settings';
 import { useCanvasStore } from '../../stores/canvas-store';
-import { useThinkingDefaultsStore } from '../../stores/thinking-defaults-store';
+import { useTaskConfigStore } from '../../stores/task-config-store';
 import { STORAGE_KEYS } from '../storage-keys';
 import { NODE_TYPES, buildEdgeId, EDGE_TYPES, EDGE_STATUS } from '../../constants/canvas';
 import type { WorkspaceNode, WorkspaceEdge } from '../../types/workspace-graph';
@@ -44,7 +44,7 @@ describe('migrateModelNodeToSettings', () => {
   beforeEach(() => {
     localStorage.clear();
     useCanvasStore.setState({ nodes: [], edges: [] });
-    useThinkingDefaultsStore.getState().resetAll();
+    useTaskConfigStore.getState().resetAll();
   });
 
   afterEach(() => {
@@ -64,7 +64,7 @@ describe('migrateModelNodeToSettings', () => {
     const wrote = migrateModelNodeToSettings();
     expect(wrote).toBe(true);
 
-    const overrides = useThinkingDefaultsStore.getState().overrides;
+    const overrides = useTaskConfigStore.getState().overrides;
     expect(overrides.design.providerId).toBe('openrouter');
     expect(overrides.design.modelId).toBe('foo/bar');
     expect(overrides.incubate.providerId).toBe('openrouter');
@@ -72,7 +72,7 @@ describe('migrateModelNodeToSettings', () => {
   });
 
   it('does not overwrite an existing user override', () => {
-    useThinkingDefaultsStore.getState().setModel('design', 'lmstudio', 'local');
+    useTaskConfigStore.getState().setModel('design', 'lmstudio', 'local');
     useCanvasStore.setState({
       nodes: [
         modelNode(MODEL_A, 'openrouter', 'foo/bar'),
@@ -83,7 +83,7 @@ describe('migrateModelNodeToSettings', () => {
 
     migrateModelNodeToSettings();
 
-    const overrides = useThinkingDefaultsStore.getState().overrides;
+    const overrides = useTaskConfigStore.getState().overrides;
     expect(overrides.design.providerId).toBe('lmstudio');
     expect(overrides.design.modelId).toBe('local');
   });
@@ -108,7 +108,7 @@ describe('migrateModelNodeToSettings', () => {
     });
 
     expect(migrateModelNodeToSettings()).toBe(false);
-    expect(useThinkingDefaultsStore.getState().overrides.incubate.providerId).toBeUndefined();
+    expect(useTaskConfigStore.getState().overrides.incubate.providerId).toBeUndefined();
   });
 
   it('sets the flag even when there are no Model nodes', () => {

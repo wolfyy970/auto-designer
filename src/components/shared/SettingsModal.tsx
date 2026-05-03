@@ -8,8 +8,8 @@ import { floatWeightsToPercents, percentsToFloatWeights } from '../../lib/partit
 import { useEvaluatorDefaultsStore } from '../../stores/evaluator-defaults-store';
 import {
   getTaskModelDefault,
-  useThinkingDefaultsStore,
-} from '../../stores/thinking-defaults-store';
+  useTaskConfigStore,
+} from '../../stores/task-config-store';
 import { useAppConfig } from '../../hooks/useAppConfig';
 import { FEATURE_LOCKDOWN } from '../../lib/feature-flags';
 import {
@@ -389,12 +389,12 @@ function EffortGuide() {
 }
 
 function ReasoningSection({ showEvaluatorTask }: { showEvaluatorTask: boolean }) {
-  const overrides = useThinkingDefaultsStore((s) => s.overrides);
-  const setEffort = useThinkingDefaultsStore((s) => s.setEffort);
-  const setModel = useThinkingDefaultsStore((s) => s.setModel);
-  const clearModel = useThinkingDefaultsStore((s) => s.clearModel);
-  const resetTask = useThinkingDefaultsStore((s) => s.resetTask);
-  const resetAll = useThinkingDefaultsStore((s) => s.resetAll);
+  const overrides = useTaskConfigStore((s) => s.overrides);
+  const setEffort = useTaskConfigStore((s) => s.setEffort);
+  const setModel = useTaskConfigStore((s) => s.setModel);
+  const clearModel = useTaskConfigStore((s) => s.clearModel);
+  const resetTask = useTaskConfigStore((s) => s.resetTask);
+  const resetAll = useTaskConfigStore((s) => s.resetAll);
   const visibleTasks = useMemo(
     () => THINKING_TASKS.filter((task) => showEvaluatorTask || task !== 'evaluator'),
     [showEvaluatorTask],

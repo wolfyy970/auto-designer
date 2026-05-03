@@ -25,8 +25,8 @@ import NodeHeader from './NodeHeader';
 import { NodeErrorBlock } from './shared/NodeErrorBlock';
 import {
   thinkingOverrideForWire,
-  useThinkingDefaultsStore,
-} from '../../../stores/thinking-defaults-store';
+  useTaskConfigStore,
+} from '../../../stores/task-config-store';
 
 const GENERATE_INPUT_API_ID: Partial<
   Record<CanvasNodeType, InputsGenerateTargetApiId>
@@ -92,7 +92,7 @@ function InputNode({ id, type, selected }: NodeProps<InputNodeFlowType>) {
       });
       session = taskSession;
       const thinkingOverride = thinkingOverrideForWire(
-        useThinkingDefaultsStore.getState().overrides.inputs,
+        useTaskConfigStore.getState().overrides.inputs,
       );
       const response = await generateInputContent(
         {

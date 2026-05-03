@@ -4,7 +4,7 @@ import type { DesignSpec } from '../types/spec';
 import type { HypothesisStrategy } from '../types/incubator';
 import { useCanvasStore } from '../stores/canvas-store';
 import { useWorkspaceDomainStore } from '../stores/workspace-domain-store';
-import { useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
+import { useTaskConfigStore } from '../stores/task-config-store';
 import { useGenerationStore, nextRunNumber } from '../stores/generation-store';
 import { scheduleCanvasFitViewToNodes } from '../lib/canvas-fit-view';
 import { warnIfWorkspaceSnapshotInvalid } from '../lib/workspace-snapshot-warn';
@@ -93,7 +93,7 @@ export async function runHypothesisGenerateFlow({
 
   const domain = useWorkspaceDomainStore.getState();
   const evalSettings = resolveEvaluatorSettings(nodeId);
-  const settings = useThinkingDefaultsStore.getState().getEffective('design');
+  const settings = useTaskConfigStore.getState().getEffective('design');
   if (!settings.providerId || !settings.modelId) {
     setGenerationError(
       'No model selected. Open Settings → Reasoning → Hypothesis design and pick a provider + model.',

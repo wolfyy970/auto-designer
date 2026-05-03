@@ -4,8 +4,11 @@
  * budget at call time. This store persists user intent only — defaults
  * come from `config/task-defaults.json` and `config/thinking-defaults.json`.
  *
- * The store name + STORAGE_KEYS.THINKING_DEFAULTS slot are unchanged so
- * earlier versions (v1, v2, v3) hydrate cleanly through the migrate function.
+ * The localStorage slot name (`STORAGE_KEYS.THINKING_DEFAULTS`) is kept as
+ * the historical literal so persisted user state from earlier app versions
+ * hydrates cleanly through the migrate function. The exported hook was
+ * renamed `useThinkingDefaultsStore → useTaskConfigStore` once the shape
+ * grew beyond effort to also hold (providerId, modelId).
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -51,7 +54,7 @@ export type ThinkingOverride = {
 };
 export type ThinkingOverridesByTask = Record<ThinkingTask, ThinkingOverride>;
 
-export interface ThinkingDefaultsStore {
+export interface TaskConfigStore {
   overrides: ThinkingOverridesByTask;
   setEffort: (task: ThinkingTask, effort: Effort | undefined) => void;
   /** Set both providerId + modelId together (they always travel as a pair). */
@@ -126,7 +129,7 @@ export function thinkingOverrideForWire(
   return { level, budgetTokens: THINKING_BUDGET_BY_LEVEL[level] };
 }
 
-export const useThinkingDefaultsStore = create<ThinkingDefaultsStore>()(
+export const useTaskConfigStore = create<TaskConfigStore>()(
   persist(
     (set, get) => ({
       overrides: EMPTY_OVERRIDES,
@@ -199,7 +202,7 @@ export const useThinkingDefaultsStore = create<ThinkingDefaultsStore>()(
         for (const t of THINKING_TASKS) {
           merged[t] = normalizeOverride(existingRaw[t]);
         }
-        return { overrides: merged } as ThinkingDefaultsStore;
+        return { overrides: merged } as TaskConfigStore;
       },
     },
   ),

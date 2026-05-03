@@ -18,7 +18,7 @@ import { useCanvasStore } from '../stores/canvas-store';
 import { useGenerationStore } from '../stores/generation-store';
 import { useIncubatorStore } from '../stores/incubator-store';
 import { useSpecStore } from '../stores/spec-store';
-import { thinkingOverrideForWire, useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
+import { thinkingOverrideForWire, useTaskConfigStore } from '../stores/task-config-store';
 import { useWorkspaceDomainStore } from '../stores/workspace-domain-store';
 import type { WorkspaceEdge, WorkspaceNode } from '../types/workspace-graph';
 
@@ -128,7 +128,7 @@ export function useIncubatorRun({
       });
       session = taskSession;
       const thinkingOverride = thinkingOverrideForWire(
-        useThinkingDefaultsStore.getState().overrides.incubate,
+        useTaskConfigStore.getState().overrides.incubate,
       );
       const map = await incubateStream(
         {

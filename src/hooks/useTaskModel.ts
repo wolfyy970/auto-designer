@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { LOCKDOWN_MODEL_ID, LOCKDOWN_PROVIDER_ID } from '../lib/lockdown-model';
 import { useAppConfig } from './useAppConfig';
 import { useProviderModels } from './useProviderModels';
-import { useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
+import { useTaskConfigStore } from '../stores/task-config-store';
 import type { ThinkingTask } from '../lib/thinking-defaults';
 
 export interface TaskModel {
@@ -23,10 +23,10 @@ export function useTaskModel(task: ThinkingTask): TaskModel {
   const { data: appConfig } = useAppConfig();
   const lockdown = appConfig?.lockdown === true;
 
-  const settingsProviderId = useThinkingDefaultsStore(
+  const settingsProviderId = useTaskConfigStore(
     (s) => s.getEffective(task).providerId,
   );
-  const settingsModelId = useThinkingDefaultsStore(
+  const settingsModelId = useTaskConfigStore(
     (s) => s.getEffective(task).modelId,
   );
 

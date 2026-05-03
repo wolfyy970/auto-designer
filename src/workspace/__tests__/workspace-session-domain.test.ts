@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useWorkspaceDomainStore } from '../../stores/workspace-domain-store';
-import { useThinkingDefaultsStore } from '../../stores/thinking-defaults-store';
+import { useTaskConfigStore } from '../../stores/task-config-store';
 import { buildHypothesisGenerationContext } from '../workspace-session';
 import type { HypothesisStrategy } from '../../types/incubator';
 import type { DesignSpec } from '../../types/spec';
@@ -17,12 +17,12 @@ const strategy: HypothesisStrategy = {
 describe('buildHypothesisGenerationContext (domain)', () => {
   beforeEach(() => {
     useWorkspaceDomainStore.getState().reset();
-    useThinkingDefaultsStore.getState().resetAll();
+    useTaskConfigStore.getState().resetAll();
   });
 
   it('uses Settings credential + domain design-system when hypothesis is registered', () => {
-    useThinkingDefaultsStore.getState().setModel('design', 'openrouter', 'gpt-4');
-    useThinkingDefaultsStore.getState().setEffort('design', 'quick');
+    useTaskConfigStore.getState().setModel('design', 'openrouter', 'gpt-4');
+    useTaskConfigStore.getState().setEffort('design', 'quick');
 
     useWorkspaceDomainStore.setState({
       hypotheses: {

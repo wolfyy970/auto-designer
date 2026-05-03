@@ -10,7 +10,7 @@
  */
 import { INPUT_NODE_TYPES, NODE_TYPES } from '../constants/canvas';
 import { STORAGE_KEYS, isStorageFlagSet, markStorageFlag } from './storage-keys';
-import { useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
+import { useTaskConfigStore } from '../stores/task-config-store';
 import { useCanvasStore } from '../stores/canvas-store';
 import { getModelNodeData } from './canvas-node-data';
 import type { ThinkingTask } from './thinking-defaults';
@@ -22,7 +22,7 @@ export function migrateModelNodeToSettings(): boolean {
   }
 
   const canvas = useCanvasStore.getState();
-  const thinking = useThinkingDefaultsStore.getState();
+  const thinking = useTaskConfigStore.getState();
   const overrides = thinking.overrides;
   const modelNodes = canvas.nodes.filter((n) => n.type === NODE_TYPES.MODEL);
   if (modelNodes.length === 0) {

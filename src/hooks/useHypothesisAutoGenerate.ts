@@ -11,7 +11,7 @@ import type { HypothesisStrategy } from '../types/incubator';
 import { useTaskModel } from './useTaskModel';
 import { createTaskStreamSession } from './task-stream-session';
 import { createInitialTaskStreamState, type TaskStreamState } from './task-stream-state';
-import { thinkingOverrideForWire, useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
+import { thinkingOverrideForWire, useTaskConfigStore } from '../stores/task-config-store';
 
 export interface UseHypothesisAutoGenerateOptions {
   nodeId: string;
@@ -84,7 +84,7 @@ export function useHypothesisAutoGenerate({
         });
         session = taskSession;
         const thinkingOverride = thinkingOverrideForWire(
-          useThinkingDefaultsStore.getState().overrides.incubate,
+          useTaskConfigStore.getState().overrides.incubate,
         );
         const map = await incubateStream(
           {

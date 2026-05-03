@@ -9,7 +9,7 @@ import type { EvaluationContextPayload } from '../types/evaluation';
 import type { ProvenanceContext } from '../types/provenance-context';
 import type { DesignSpec } from '../types/spec';
 import { useWorkspaceDomainStore } from '../stores/workspace-domain-store';
-import { useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
+import { useTaskConfigStore } from '../stores/task-config-store';
 import { EFFORT_TO_LEVEL } from '../lib/thinking-defaults';
 import {
   buildHypothesisGenerationContextFromInputs,
@@ -30,7 +30,7 @@ export function buildHypothesisGenerationContext(input: {
 }): HypothesisGenerationContext | null {
   const s = useWorkspaceDomainStore.getState();
   const domainHyp = s.hypotheses[input.hypothesisNodeId];
-  const settings = useThinkingDefaultsStore.getState().getEffective('design');
+  const settings = useTaskConfigStore.getState().getEffective('design');
   if (!settings.providerId || !settings.modelId) return null;
   const settingsCredential: ModelCredential = {
     providerId: settings.providerId,

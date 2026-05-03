@@ -2,9 +2,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { STORAGE_KEYS } from '../../lib/storage-keys';
 
-async function importStoreFresh(): Promise<typeof import('../thinking-defaults-store')> {
+async function importStoreFresh(): Promise<typeof import('../task-config-store')> {
   vi.resetModules();
-  return import('../thinking-defaults-store');
+  return import('../task-config-store');
 }
 
 describe('thinking-defaults-store migrations', () => {
@@ -28,9 +28,9 @@ describe('thinking-defaults-store migrations', () => {
     };
     localStorage.setItem(STORAGE_KEYS.THINKING_DEFAULTS, JSON.stringify(v1));
 
-    const { useThinkingDefaultsStore } = await importStoreFresh();
+    const { useTaskConfigStore } = await importStoreFresh();
     await Promise.resolve();
-    const overrides = useThinkingDefaultsStore.getState().overrides;
+    const overrides = useTaskConfigStore.getState().overrides;
 
     expect(overrides.design).toEqual({ effort: 'maximum' });
     expect(overrides.inputs).toEqual({ effort: 'thorough' });
@@ -60,9 +60,9 @@ describe('thinking-defaults-store migrations', () => {
     };
     localStorage.setItem(STORAGE_KEYS.THINKING_DEFAULTS, JSON.stringify(v3));
 
-    const { useThinkingDefaultsStore } = await importStoreFresh();
+    const { useTaskConfigStore } = await importStoreFresh();
     await Promise.resolve();
-    const overrides = useThinkingDefaultsStore.getState().overrides;
+    const overrides = useTaskConfigStore.getState().overrides;
 
     expect(overrides.inputs).toEqual({ effort: 'maximum' });
   });
@@ -81,9 +81,9 @@ describe('thinking-defaults-store migrations', () => {
     };
     localStorage.setItem(STORAGE_KEYS.THINKING_DEFAULTS, JSON.stringify(v2));
 
-    const { useThinkingDefaultsStore } = await importStoreFresh();
+    const { useTaskConfigStore } = await importStoreFresh();
     await Promise.resolve();
-    const overrides = useThinkingDefaultsStore.getState().overrides;
+    const overrides = useTaskConfigStore.getState().overrides;
 
     expect(overrides.design).toEqual({ effort: 'quick' });
     expect(overrides.incubate).toEqual({ effort: 'balanced' });
