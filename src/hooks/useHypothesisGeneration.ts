@@ -7,7 +7,7 @@ import { useCanvasStore } from '../stores/canvas-store';
 import { useAppConfig } from './useAppConfig';
 import { GENERATION_STATUS } from '../constants/generation';
 import { runHypothesisGenerateFlow, type GenerationProgress } from './hypothesis-generate-flow';
-import { useConnectedModel } from './useConnectedModel';
+import { useTaskModel } from './useTaskModel';
 
 interface HypothesisGenerationParams {
   nodeId: string;
@@ -26,7 +26,7 @@ export function useHypothesisGeneration({
   const { fitView } = useReactFlow();
   const { data: appConfig } = useAppConfig();
   const lockdown = appConfig?.lockdown === true;
-  const { supportsVision } = useConnectedModel(nodeId, 'design');
+  const { supportsVision } = useTaskModel('design');
 
   const spec = useSpecStore((s) => s.spec);
   const strategy = useIncubatorStore(

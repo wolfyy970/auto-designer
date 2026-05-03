@@ -28,7 +28,7 @@ import { useWorkspaceDomainStore } from '../../../stores/workspace-domain-store'
 import { processingOrFilled } from '../../../lib/node-status';
 import { isPlaceholderHypothesis } from '../../../lib/hypothesis-node-utils';
 import { NODE_TYPES, RF_INTERACTIVE } from '../../../constants/canvas';
-import { useConnectedModel } from '../../../hooks/useConnectedModel';
+import { useTaskModel } from '../../../hooks/useTaskModel';
 import { useElapsedTimer } from '../../../hooks/useElapsedTimer';
 import { useIncubatorRun } from '../../../hooks/useIncubatorRun';
 import NodeShell from './NodeShell';
@@ -66,7 +66,7 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
   const nodes = useCanvasStore((s) => s.nodes);
   const domainWiring = useWorkspaceDomainStore((s) => s.incubatorWirings[id]);
 
-  const { providerId, modelId, supportsVision } = useConnectedModel(id, 'incubate');
+  const { providerId, modelId, supportsVision } = useTaskModel('incubate');
 
   const hypothesisCount = (data.hypothesisCount as number | undefined) ?? DEFAULT_COUNT;
   const [taskStreamState, setTaskStreamState] = useState<TaskStreamState>(() =>

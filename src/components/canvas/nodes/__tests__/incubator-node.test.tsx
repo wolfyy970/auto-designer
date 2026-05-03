@@ -29,13 +29,13 @@ vi.mock('@xyflow/react', () => ({
   Position: { Left: 'left', Right: 'right', Top: 'top', Bottom: 'bottom' },
 }));
 
-vi.mock('../../../../hooks/useConnectedModel', () => ({
-  useConnectedModel: () => ({
+vi.mock('../../../../hooks/useTaskModel', () => ({
+  useTaskModel: () => ({
     providerId: 'openrouter',
     modelId: 'test-model',
+    hasModel: true,
     supportsVision: false,
     supportsReasoning: false,
-    isConnected: true,
   }),
 }));
 

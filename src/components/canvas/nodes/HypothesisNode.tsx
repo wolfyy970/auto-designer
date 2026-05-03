@@ -19,7 +19,7 @@ import { GENERATION_STATUS } from '../../../constants/generation';
 import { abortGenerationForStrategy } from '../../../lib/generation-abort-registry';
 import { NODE_STATUS, NODE_TYPES, RF_INTERACTIVE } from '../../../constants/canvas';
 import { countOutgoingNodesOfType } from '../../../workspace/graph-queries';
-import { useConnectedModel } from '../../../hooks/useConnectedModel';
+import { useTaskModel } from '../../../hooks/useTaskModel';
 import {
   buildHypothesisDebugMarkdown,
   downloadTextFile,
@@ -78,7 +78,7 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
   const handleRemove = useNodeRemoval(nodeId);
   const { requestPermanentDelete } = useRequestPermanentDelete();
 
-  const { isConnected: hasResolvedModel } = useConnectedModel(nodeId, 'design');
+  const { hasModel: hasResolvedModel } = useTaskModel('design');
 
   const isGenerating = useGenerationStore((s) =>
     s.results.some((r) => r.strategyId === strategyId && r.status === GENERATION_STATUS.GENERATING),

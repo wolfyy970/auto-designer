@@ -1,6 +1,6 @@
 /**
  * Returns true if a model ID matches known extended-reasoning model patterns.
- * Used by both server providers (listModels) and client hooks (useConnectedModel).
+ * Used by both server providers (listModels) and client hooks (useTaskModel).
  *
  * Pattern rationale:
  * - o1/o3/o4 — OpenAI reasoning series

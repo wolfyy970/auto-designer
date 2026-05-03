@@ -8,7 +8,7 @@ import { useIncubatorStore, findStrategy } from '../stores/incubator-store';
 import { useSpecStore } from '../stores/spec-store';
 import { useWorkspaceDomainStore } from '../stores/workspace-domain-store';
 import type { HypothesisStrategy } from '../types/incubator';
-import { useConnectedModel } from './useConnectedModel';
+import { useTaskModel } from './useTaskModel';
 import { createTaskStreamSession } from './task-stream-session';
 import { createInitialTaskStreamState, type TaskStreamState } from './task-stream-state';
 import { thinkingOverrideForWire, useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
@@ -37,7 +37,7 @@ export function useHypothesisAutoGenerate({
   const incubatorId = useWorkspaceDomainStore(
     (s) => s.hypotheses[nodeId]?.incubatorId ?? null,
   );
-  const { providerId, modelId, supportsVision } = useConnectedModel(nodeId, 'design');
+  const { providerId, modelId, supportsVision } = useTaskModel('design');
   const hasModel = Boolean(providerId && modelId);
   const canRun = Boolean(
     strategyId && incubatorId && hasModel,

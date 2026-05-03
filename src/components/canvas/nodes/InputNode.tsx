@@ -14,7 +14,7 @@ import { filledOrEmpty } from '../../../lib/node-status';
 import { useCanvasNodePermanentRemove } from '../../../hooks/useCanvasNodePermanentRemove';
 import { inputCardDeleteCopy } from '../../../lib/canvas-permanent-delete-copy';
 import { useElapsedTimer } from '../../../hooks/useElapsedTimer';
-import { useFirstCanvasModel } from '../../../hooks/useFirstCanvasModel';
+import { useTaskModel } from '../../../hooks/useTaskModel';
 import { generateInputContent } from '../../../api/client';
 import { createTaskStreamSession } from '../../../hooks/task-stream-session';
 import { createInitialTaskStreamState, type TaskStreamState } from '../../../hooks/task-stream-state';
@@ -52,7 +52,7 @@ function InputNode({ id, type, selected }: NodeProps<InputNodeFlowType>) {
   const generateApiId = GENERATE_INPUT_API_ID[type as CanvasNodeType];
   const designBriefContent =
     useSpecStore((s) => s.spec.sections['design-brief']?.content ?? '');
-  const { providerId, modelId, hasModel } = useFirstCanvasModel('inputs');
+  const { providerId, modelId, hasModel } = useTaskModel('inputs');
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [taskStreamState, setTaskStreamState] = useState<TaskStreamState>(() =>
