@@ -1,6 +1,8 @@
 /**
- * Runtime discovery of repo-backed Agent Skills (skills/<key>/SKILL.md plus optional resources).
- * Skills are **optional** catalog entries: invalid YAML or schema failures omit the skill (see dev warnings).
+ * Package-skills catalog reader for the `skills_loaded` SSE.
+ *
+ * The `@auto-designer/pi` package's bundled `skills/` directory is the only
+ * source. Invalid YAML / schema failures omit the skill (dev warning).
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -11,35 +13,11 @@ import {
   skillFrontmatterSchema,
   type LoadedSkillSummary,
   type SkillCatalogEntry,
-  type SkillResourceEntry,
-  type SkillResourceKind,
 } from './skill-schema.ts';
 
-export type { SkillCatalogEntry, SkillResourceEntry };
+export type { SkillCatalogEntry };
 
 export const SKILL_FILENAME = 'SKILL.md';
-export const SKILL_RESOURCE_READ_MAX_BYTES = 50 * 1024;
-
-const TEXT_RESOURCE_EXTENSIONS = new Set([
-  '.css',
-  '.csv',
-  '.html',
-  '.js',
-  '.json',
-  '.jsx',
-  '.md',
-  '.markdown',
-  '.mjs',
-  '.py',
-  '.sh',
-  '.svg',
-  '.ts',
-  '.tsx',
-  '.txt',
-  '.xml',
-  '.yaml',
-  '.yml',
-]);
 
 export type { SessionType } from './session-types.ts';
 import type { SessionType } from './session-types.ts';
@@ -62,11 +40,6 @@ export function resolvePackageSkillsCatalogRoot(): string {
   return path.resolve(process.cwd(), 'packages', 'auto-designer-pi', 'skills');
 }
 
-/** Split `SKILL.md` into YAML frontmatter and body. */
-export function splitSkillMarkdown(raw: string): { frontmatterYaml: string; body: string } | null {
-  return splitYamlFrontmatter(raw);
-}
-
 async function safeReadSkillDir(skillsRoot: string, name: string): Promise<SkillCatalogEntry | null> {
   if (name.startsWith('_') || name.startsWith('.')) return null;
   const dir = path.join(skillsRoot, name);
@@ -77,7 +50,7 @@ async function safeReadSkillDir(skillsRoot: string, name: string): Promise<Skill
   } catch {
     return null;
   }
-  const split = splitSkillMarkdown(raw);
+  const split = splitYamlFrontmatter(raw);
   if (!split) return null;
   let data: unknown;
   try {
@@ -91,7 +64,10 @@ async function safeReadSkillDir(skillsRoot: string, name: string): Promise<Skill
   const parsed = skillFrontmatterSchema.safeParse(data);
   if (!parsed.success) {
     if (env.isDev) {
-      console.warn(`[skill-discovery] Invalid skill frontmatter in ${skillPath}`, parsed.error.flatten());
+      console.warn(
+        `[skill-discovery] Invalid skill frontmatter in ${skillPath}`,
+        parsed.error.flatten(),
+      );
     }
     return null;
   }
@@ -101,122 +77,15 @@ async function safeReadSkillDir(skillsRoot: string, name: string): Promise<Skill
     key: name,
     dir,
     bodyMarkdown: split.body,
-    resources: await discoverSkillResources(dir),
+    resources: [],
   };
 }
 
-async function discoverSkillResources(skillDir: string): Promise<SkillResourceEntry[]> {
-  const resources: SkillResourceEntry[] = [];
-
-  async function walk(absDir: string, relDir: string): Promise<void> {
-    let entries: string[];
-    try {
-      entries = await fs.readdir(absDir);
-    } catch {
-      return;
-    }
-
-    for (const name of entries) {
-      if (shouldSkipResourceSegment(name)) continue;
-      const relPath = relDir ? `${relDir}/${name}` : name;
-      if (relPath === SKILL_FILENAME) continue;
-
-      const absPath = path.join(absDir, name);
-      let stat;
-      try {
-        stat = await fs.lstat(absPath);
-      } catch {
-        continue;
-      }
-      if (stat.isSymbolicLink()) continue;
-      if (stat.isDirectory()) {
-        await walk(absPath, relPath);
-        continue;
-      }
-      if (!stat.isFile()) continue;
-
-      const normalized = normalizeSkillResourcePath(relPath);
-      if (!normalized) continue;
-      resources.push({
-        path: normalized,
-        sizeBytes: stat.size,
-        kind: classifySkillResource(normalized),
-      });
-    }
-  }
-
-  await walk(skillDir, '');
-  return resources.sort((a, b) => a.path.localeCompare(b.path));
-}
-
-function classifySkillResource(resourcePath: string): SkillResourceKind {
-  return TEXT_RESOURCE_EXTENSIONS.has(path.posix.extname(resourcePath).toLowerCase()) ? 'text' : 'binary';
-}
-
-function shouldSkipResourceSegment(segment: string): boolean {
-  return segment === '_versions' || segment.startsWith('.');
-}
-
-export function normalizeSkillResourcePath(resourcePath: string): string | null {
-  const raw = resourcePath.trim().replace(/\\/g, '/');
-  if (!raw || raw.startsWith('/')) return null;
-
-  const normalized = path.posix.normalize(raw);
-  if (
-    !normalized ||
-    normalized === '.' ||
-    normalized === SKILL_FILENAME ||
-    normalized.startsWith('../') ||
-    normalized === '..'
-  ) {
-    return null;
-  }
-  if (normalized.split('/').some((segment) => !segment || shouldSkipResourceSegment(segment))) return null;
-  return normalized;
-}
-
-export function findSkillResource(entry: SkillCatalogEntry, resourcePath: string): SkillResourceEntry | null {
-  const normalized = normalizeSkillResourcePath(resourcePath);
-  if (!normalized) return null;
-  return entry.resources.find((resource) => resource.path === normalized) ?? null;
-}
-
-export async function readSkillResourceText(
-  entry: SkillCatalogEntry,
-  resourcePath: string,
-): Promise<
-  | { ok: true; resource: SkillResourceEntry; text: string }
-  | { ok: false; reason: 'missing' | 'binary' | 'too_large'; resource?: SkillResourceEntry }
-> {
-  const resource = findSkillResource(entry, resourcePath);
-  if (!resource) return { ok: false, reason: 'missing' };
-  if (resource.kind !== 'text') return { ok: false, reason: 'binary', resource };
-
-  const absPath = path.resolve(entry.dir, resource.path);
-  const rootWithSeparator = `${path.resolve(entry.dir)}${path.sep}`;
-  if (!absPath.startsWith(rootWithSeparator)) return { ok: false, reason: 'missing' };
-
-  let stat;
-  try {
-    stat = await fs.lstat(absPath);
-  } catch {
-    return { ok: false, reason: 'missing' };
-  }
-  if (stat.isSymbolicLink() || !stat.isFile()) return { ok: false, reason: 'missing' };
-
-  const currentResource = { ...resource, sizeBytes: stat.size };
-  if (stat.size > SKILL_RESOURCE_READ_MAX_BYTES) {
-    return { ok: false, reason: 'too_large', resource: currentResource };
-  }
-
-  return { ok: true, resource: currentResource, text: await fs.readFile(absPath, 'utf8') };
-}
-
-/**
- * Walk each subdirectory under the skills root for SKILL.md (invalid packages omitted).
- */
 /** Filter skills for a specific Pi session type by matching tags. */
-export function filterSkillsForSession(entries: SkillCatalogEntry[], sessionType: SessionType): SkillCatalogEntry[] {
+export function filterSkillsForSession(
+  entries: SkillCatalogEntry[],
+  sessionType: SessionType,
+): SkillCatalogEntry[] {
   const allowedTags = SESSION_TAGS[sessionType];
   return entries.filter((e) => {
     if (e.when === 'manual') return false;
@@ -224,6 +93,7 @@ export function filterSkillsForSession(entries: SkillCatalogEntry[], sessionType
   });
 }
 
+/** Walk each subdirectory under the skills root for SKILL.md (invalid packages omitted). */
 export async function discoverSkills(skillsRoot: string): Promise<SkillCatalogEntry[]> {
   let names: string[];
   try {
@@ -246,47 +116,3 @@ export function catalogEntriesToSummaries(entries: SkillCatalogEntry[]): LoadedS
     description: s.description,
   }));
 }
-
-type CatalogSkillXmlRow = {
-  key: string;
-  name: string;
-  description: string;
-};
-
-/**
- * Build `<available_skills>` XML (for embedding in the use_skill tool description).
- */
-export function formatSkillsCatalogXml(rows: CatalogSkillXmlRow[]): string {
-  if (rows.length === 0) return '';
-  const intro = [
-    "Load a skill's full instructions into context. Call before implementing work that matches a skill's description.",
-    'Parameter `name` is the skill key (directory name under skills/), same as the XML `key` attribute below.',
-    '',
-  ].join('\n');
-  const lines = rows.map(
-    (s) =>
-      `  <skill key="${escapeXmlAttr(s.key)}" name="${escapeXmlAttr(s.name)}">${escapeXmlAttr(s.description)}</skill>`,
-  );
-  return `\n\n<available_skills>\n${intro}${lines.join('\n')}\n</available_skills>\n`;
-}
-
-/** Full tool description string for Pi use_skill (empty catalog still registers the tool). */
-export function buildUseSkillToolDescription(rows: CatalogSkillXmlRow[]): string {
-  const catalog = formatSkillsCatalogXml(rows).trim();
-  if (!catalog) {
-    return (
-      'use_skill: No repo skills are configured for this session (or all are manual). ' +
-      'Do not call this tool until skills exist.'
-    );
-  }
-  return `use_skill: ${catalog}`;
-}
-
-function escapeXmlAttr(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
