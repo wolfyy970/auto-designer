@@ -4,12 +4,12 @@
  * runs again. Safe to call on every app boot — the flag check makes it
  * a no-op after the first run.
  *
- * Stage 5 of the canvas Model-node removal will physically strip Model
- * nodes from saved snapshots; this stage just preserves the user's
- * choices so that strip is non-destructive.
+ * Canvas-migration v32 strips Model nodes from saved snapshots after
+ * this has run; the migration here preserves the user's choices so the
+ * strip is non-destructive.
  */
-import { NODE_TYPES } from '../constants/canvas';
-import { STORAGE_KEYS } from './storage-keys';
+import { INPUT_NODE_TYPES, NODE_TYPES } from '../constants/canvas';
+import { STORAGE_KEYS, isStorageFlagSet, markStorageFlag } from './storage-keys';
 import { useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
 import { useCanvasStore } from '../stores/canvas-store';
 import { getModelNodeData } from './canvas-node-data';
@@ -17,8 +17,7 @@ import type { ThinkingTask } from './thinking-defaults';
 
 /** Returns true when the migration ran and wrote at least one task override. */
 export function migrateModelNodeToSettings(): boolean {
-  if (typeof localStorage === 'undefined') return false;
-  if (localStorage.getItem(STORAGE_KEYS.MODEL_NODE_TO_SETTINGS_MIGRATION_DONE)) {
+  if (isStorageFlagSet(STORAGE_KEYS.MODEL_NODE_TO_SETTINGS_MIGRATION_DONE)) {
     return false;
   }
 
@@ -27,7 +26,7 @@ export function migrateModelNodeToSettings(): boolean {
   const overrides = thinking.overrides;
   const modelNodes = canvas.nodes.filter((n) => n.type === NODE_TYPES.MODEL);
   if (modelNodes.length === 0) {
-    localStorage.setItem(STORAGE_KEYS.MODEL_NODE_TO_SETTINGS_MIGRATION_DONE, '1');
+    markStorageFlag(STORAGE_KEYS.MODEL_NODE_TO_SETTINGS_MIGRATION_DONE);
     return false;
   }
 
@@ -57,24 +56,15 @@ export function migrateModelNodeToSettings(): boolean {
     }
   }
 
-  localStorage.setItem(STORAGE_KEYS.MODEL_NODE_TO_SETTINGS_MIGRATION_DONE, '1');
+  markStorageFlag(STORAGE_KEYS.MODEL_NODE_TO_SETTINGS_MIGRATION_DONE);
   return wrote;
 }
 
 function nodeTypeToTask(type: string | undefined): ThinkingTask | null {
-  switch (type) {
-    case NODE_TYPES.HYPOTHESIS:
-      return 'design';
-    case NODE_TYPES.INCUBATOR:
-      return 'incubate';
-    case 'researchContext':
-    case 'objectivesMetrics':
-    case 'designConstraints':
-    case 'designBrief':
-      return 'inputs';
-    case NODE_TYPES.DESIGN_SYSTEM:
-      return 'design-system';
-    default:
-      return null;
-  }
+  if (!type) return null;
+  if (type === NODE_TYPES.HYPOTHESIS) return 'design';
+  if (type === NODE_TYPES.INCUBATOR) return 'incubate';
+  if (type === NODE_TYPES.DESIGN_SYSTEM) return 'design-system';
+  if (INPUT_NODE_TYPES.has(type)) return 'inputs';
+  return null;
 }

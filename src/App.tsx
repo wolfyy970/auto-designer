@@ -59,17 +59,10 @@ export default function App() {
   }, []);
 
   // One-shot Model-node → Settings migration. Defers a tick so persist
-  // hydration completes before we read either store.
+  // hydration completes before we read either store. The migration helper
+  // owns its own error handling (storage write failures don't bubble).
   useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        migrateModelNodeToSettings();
-      } catch (err) {
-        if (import.meta.env.DEV) {
-          console.warn('[migrate-model-node-to-settings] failed', err);
-        }
-      }
-    }, 0);
+    const timer = setTimeout(migrateModelNodeToSettings, 0);
     return () => clearTimeout(timer);
   }, []);
 

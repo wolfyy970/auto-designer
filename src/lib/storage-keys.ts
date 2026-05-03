@@ -31,6 +31,36 @@ export const STORAGE_KEYS = {
 /** Value stored under `STORAGE_KEYS.CANVAS_OPTIONAL_INPUTS_TIP_DISMISSED` when the tip is dismissed. */
 export const CANVAS_OPTIONAL_INPUTS_TIP_DISMISSED_VALUE = '1';
 
+/** Canonical "set" sentinel for boolean-style localStorage flags (one-shot migrations, dismissals, etc.). */
+export const STORAGE_FLAG_SET = '1';
+
+/**
+ * Mark a localStorage flag as set. Returns false in non-browser contexts
+ * or if the underlying setItem fails (Safari private mode, quota exceeded,
+ * etc.). Callers may treat the false return as "this run is best-effort
+ * and the flag may not have stuck" — re-running the action is expected
+ * to be idempotent.
+ */
+export function markStorageFlag(key: string): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  try {
+    localStorage.setItem(key, STORAGE_FLAG_SET);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Read a localStorage flag as a boolean. Safe in non-browser contexts (returns false). */
+export function isStorageFlagSet(key: string): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  try {
+    return localStorage.getItem(key) === STORAGE_FLAG_SET;
+  } catch {
+    return false;
+  }
+}
+
 /** Keys backed by localStorage (not IndexedDB DB names). Used by branding migration. */
 export const PERSISTED_LOCAL_STORAGE_KEY_NAMES = [
   'ACTIVE_CANVAS',
