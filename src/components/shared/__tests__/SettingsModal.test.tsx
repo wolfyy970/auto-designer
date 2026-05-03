@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SettingsModal from '../SettingsModal';
 
 const appConfigState = vi.hoisted(() => ({
@@ -13,6 +14,17 @@ vi.mock('../../../hooks/useAppConfig', () => ({
   }),
 }));
 
+// The TaskModelPicker hits useQuery for providers + models. Tests don't need
+// real network responses; an empty QueryClient is enough to mount.
+function renderModal(initialTab?: 'general' | 'evaluator') {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <SettingsModal open onClose={() => {}} initialTab={initialTab} />
+    </QueryClientProvider>,
+  );
+}
+
 describe('SettingsModal', () => {
   afterEach(() => {
     cleanup();
@@ -20,7 +32,7 @@ describe('SettingsModal', () => {
   });
 
   it('hides evaluator settings when Auto-improve is disabled', () => {
-    render(<SettingsModal open onClose={() => {}} initialTab="evaluator" />);
+    renderModal('evaluator');
 
     expect(screen.queryByRole('tab', { name: /Evaluator defaults/i })).toBeNull();
     expect(screen.queryByText('Evaluator defaults')).toBeNull();
@@ -30,8 +42,7 @@ describe('SettingsModal', () => {
 
   it('shows the section tabs when Auto-improve is enabled', () => {
     appConfigState.autoImprove = true;
-
-    render(<SettingsModal open onClose={() => {}} />);
+    renderModal();
 
     expect(screen.queryByRole('tab', { name: /General/i })).not.toBeNull();
     expect(screen.queryByRole('tab', { name: /Evaluator defaults/i })).not.toBeNull();
@@ -39,7 +50,7 @@ describe('SettingsModal', () => {
   });
 
   it('lists every Reasoning row with plain-English labels', () => {
-    render(<SettingsModal open onClose={() => {}} initialTab="general" />);
+    renderModal('general');
 
     expect(screen.queryByText('Hypothesis design')).not.toBeNull();
     expect(screen.queryByText('Incubator')).not.toBeNull();

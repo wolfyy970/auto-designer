@@ -3,10 +3,15 @@ import { RotateCcw } from 'lucide-react';
 import Modal from './Modal';
 import { DesignTokensModal } from './DesignTokensModal';
 import { PartitionSlider } from './PartitionSlider';
+import { TaskModelPicker } from './TaskModelPicker';
 import { floatWeightsToPercents, percentsToFloatWeights } from '../../lib/partition-slider-utils';
 import { useEvaluatorDefaultsStore } from '../../stores/evaluator-defaults-store';
-import { useThinkingDefaultsStore } from '../../stores/thinking-defaults-store';
+import {
+  getTaskModelDefault,
+  useThinkingDefaultsStore,
+} from '../../stores/thinking-defaults-store';
 import { useAppConfig } from '../../hooks/useAppConfig';
+import { FEATURE_LOCKDOWN } from '../../lib/feature-flags';
 import {
   EVALUATOR_MAX_REVISION_ROUNDS_MAX,
   EVALUATOR_MAX_REVISION_ROUNDS_MIN,
@@ -386,15 +391,18 @@ function EffortGuide() {
 function ReasoningSection({ showEvaluatorTask }: { showEvaluatorTask: boolean }) {
   const overrides = useThinkingDefaultsStore((s) => s.overrides);
   const setEffort = useThinkingDefaultsStore((s) => s.setEffort);
+  const setModel = useThinkingDefaultsStore((s) => s.setModel);
+  const clearModel = useThinkingDefaultsStore((s) => s.clearModel);
   const resetTask = useThinkingDefaultsStore((s) => s.resetTask);
   const resetAll = useThinkingDefaultsStore((s) => s.resetAll);
   const visibleTasks = useMemo(
     () => THINKING_TASKS.filter((task) => showEvaluatorTask || task !== 'evaluator'),
     [showEvaluatorTask],
   );
-  const hasAnyCustomizations = visibleTasks.some(
-    (task) => (overrides[task] ?? {}).effort !== undefined,
-  );
+  const hasAnyCustomizations = visibleTasks.some((task) => {
+    const o = overrides[task] ?? {};
+    return o.effort !== undefined || o.providerId !== undefined || o.modelId !== undefined;
+  });
 
   return (
     <div className="rounded-md border border-border-subtle bg-surface/60 px-3 py-2.5">
@@ -413,46 +421,65 @@ function ReasoningSection({ showEvaluatorTask }: { showEvaluatorTask: boolean })
         </button>
       </div>
       <p className="mt-1 text-xs text-fg-secondary">
-        How hard the model thinks before responding, per task. Pick the named effort that matches the
-        depth you need.
+        Pick a model and how hard it should think, per task. Settings is the single control panel —
+        the canvas no longer needs Model nodes.
       </p>
       <EffortGuide />
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 space-y-3">
         {visibleTasks.map((task) => {
           const defaults = THINKING_CONFIG_DEFAULTS[task];
           const defaultEffort = LEVEL_TO_EFFORT[defaults.level];
+          const taskModelDefault = getTaskModelDefault(task);
           const override = overrides[task] ?? {};
           const effectiveEffort: Effort = override.effort ?? defaultEffort;
-          const isCustomized = override.effort !== undefined;
+          const effectiveProviderId = override.providerId ?? taskModelDefault.providerId;
+          const effectiveModelId = override.modelId ?? taskModelDefault.modelId;
+          const isCustomized =
+            override.effort !== undefined ||
+            override.providerId !== undefined ||
+            override.modelId !== undefined;
           return (
-            <div
-              key={task}
-              className="grid grid-cols-[minmax(14rem,1fr)_auto_2rem] items-start gap-3 py-1"
-            >
-              <div className="min-w-0">
-                <span className="block text-nano font-medium text-fg-secondary">
-                  {THINKING_TASK_LABELS[task]}
-                </span>
-                <span className="mt-0.5 block text-micro text-fg-faint">
-                  {THINKING_TASK_DESCRIPTIONS[task]}
-                </span>
+            <div key={task} className="rounded-md border border-border-subtle bg-surface/40 px-3 py-2.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <span className="block text-nano font-medium text-fg-secondary">
+                    {THINKING_TASK_LABELS[task]}
+                  </span>
+                  <span className="mt-0.5 block text-micro text-fg-faint">
+                    {THINKING_TASK_DESCRIPTIONS[task]}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => resetTask(task)}
+                  disabled={!isCustomized}
+                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-border-subtle text-fg-faint transition-colors input-focus hover:border-border hover:bg-surface-raised hover:text-fg-secondary disabled:cursor-default disabled:opacity-35 disabled:hover:border-border-subtle disabled:hover:bg-transparent disabled:hover:text-fg-faint"
+                  title={`Reset ${THINKING_TASK_LABELS[task]}`}
+                  aria-label={`Reset ${THINKING_TASK_LABELS[task]}`}
+                >
+                  <RotateCcw size={12} aria-hidden />
+                </button>
               </div>
-              <EffortSegmentedControl
-                value={effectiveEffort}
-                defaultValue={defaultEffort}
-                onChange={(next) => setEffort(task, next)}
-                ariaLabel={`${THINKING_TASK_LABELS[task]} effort`}
-              />
-              <button
-                type="button"
-                onClick={() => resetTask(task)}
-                disabled={!isCustomized}
-                className="inline-flex size-7 items-center justify-center justify-self-end rounded-full border border-border-subtle text-fg-faint transition-colors input-focus hover:border-border hover:bg-surface-raised hover:text-fg-secondary disabled:cursor-default disabled:opacity-35 disabled:hover:border-border-subtle disabled:hover:bg-transparent disabled:hover:text-fg-faint"
-                title={`Reset ${THINKING_TASK_LABELS[task]} effort`}
-                aria-label={`Reset ${THINKING_TASK_LABELS[task]} effort`}
-              >
-                <RotateCcw size={12} aria-hidden />
-              </button>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <TaskModelPicker
+                  providerId={effectiveProviderId}
+                  modelId={effectiveModelId}
+                  defaultProviderId={taskModelDefault.providerId}
+                  defaultModelId={taskModelDefault.modelId}
+                  disabled={FEATURE_LOCKDOWN}
+                  onChange={(next) => {
+                    if (next === undefined) clearModel(task);
+                    else setModel(task, next.providerId, next.modelId);
+                  }}
+                  ariaLabelPrefix={THINKING_TASK_LABELS[task]}
+                />
+                <EffortSegmentedControl
+                  value={effectiveEffort}
+                  defaultValue={defaultEffort}
+                  onChange={(next) => setEffort(task, next)}
+                  ariaLabel={`${THINKING_TASK_LABELS[task]} effort`}
+                />
+              </div>
             </div>
           );
         })}
