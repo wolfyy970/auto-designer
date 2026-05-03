@@ -9,7 +9,6 @@ import type {
   DomainDesignSystemContent,
   DomainHypothesis,
   DomainIncubatorWiring,
-  DomainModelProfile,
   DomainPreviewSlot,
 } from './workspace-domain';
 
@@ -35,9 +34,7 @@ export interface SavedCanvasSnapshot {
   };
   workspaceDomain: {
     incubatorWirings: Record<string, DomainIncubatorWiring>;
-    incubatorModelNodeIds: Record<string, string[]>;
     hypotheses: Record<string, DomainHypothesis>;
-    modelProfiles: Record<string, DomainModelProfile>;
     designSystems: Record<string, DomainDesignSystemContent>;
     previewSlots: Record<string, DomainPreviewSlot>;
   };
@@ -139,22 +136,13 @@ const HypothesisSchema = z
     id: z.string(),
     incubatorId: z.string(),
     strategyId: z.string(),
-    modelNodeIds: z.array(z.string()),
+    /** @deprecated Pre-Phase-7-D snapshots may carry this; ignored on restore. */
+    modelNodeIds: z.array(z.string()).optional(),
     designSystemNodeIds: z.array(z.string()),
     revisionEnabled: z.boolean().optional(),
     maxRevisionRounds: z.number().optional(),
     minOverallScore: z.number().nullable().optional(),
     placeholder: z.boolean(),
-  })
-  .passthrough();
-
-const ModelProfileSchema = z
-  .object({
-    nodeId: z.string(),
-    providerId: z.string(),
-    modelId: z.string(),
-    title: z.string().optional(),
-    thinkingLevel: z.enum(['off', 'minimal', 'low', 'medium', 'high', 'xhigh']).optional(),
   })
   .passthrough();
 
@@ -233,13 +221,13 @@ export const SavedCanvasSnapshotSchema = z
     workspaceDomain: z
       .object({
         incubatorWirings: z.record(z.string(), IncubatorWiringSchema),
-        incubatorModelNodeIds: z.record(z.string(), z.array(z.string())),
         hypotheses: z.record(z.string(), HypothesisSchema),
-        modelProfiles: z.record(z.string(), ModelProfileSchema),
         designSystems: z.record(z.string(), DesignSystemContentSchema),
         previewSlots: z.record(z.string(), PreviewSlotSchema),
       })
-      .strict(),
+      // Pre-Phase-7-D snapshots may carry incubatorModelNodeIds and modelProfiles;
+      // ignore them on restore so old saves still load.
+      .passthrough(),
     incubator: z
       .object({
         incubationPlans: z.record(z.string(), JsonRecordSchema),

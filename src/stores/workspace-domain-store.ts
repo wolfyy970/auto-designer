@@ -15,8 +15,6 @@ export type { WorkspaceDomainStore } from './workspace-domain-store-types';
 const empty = (): Omit<
   WorkspaceDomainStore,
   | 'ensureIncubatorWiring'
-  | 'attachModelToTarget'
-  | 'detachModelFromTarget'
   | 'attachIncubatorInput'
   | 'detachIncubatorInput'
   | 'attachDesignSystemToHypothesis'
@@ -26,9 +24,6 @@ const empty = (): Omit<
   | 'setHypothesisPlaceholder'
   | 'removeHypothesis'
   | 'removeIncubator'
-  | 'upsertModelProfile'
-  | 'removeModelProfile'
-  | 'purgeModelNode'
   | 'upsertDesignSystem'
   | 'removeDesignSystem'
   | 'setPreviewSlot'
@@ -36,9 +31,7 @@ const empty = (): Omit<
   | 'reset'
 > => ({
   incubatorWirings: {},
-  incubatorModelNodeIds: {},
   hypotheses: {},
-  modelProfiles: {},
   designSystems: {},
   previewSlots: {},
 });

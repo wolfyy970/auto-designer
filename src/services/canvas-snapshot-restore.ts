@@ -68,9 +68,7 @@ export async function restoreCanvasSnapshot(snapshot: SavedCanvasSnapshot): Prom
         },
       ]),
     ),
-    incubatorModelNodeIds: snapshotClone(snapshot.workspaceDomain.incubatorModelNodeIds),
     hypotheses: snapshotClone(snapshot.workspaceDomain.hypotheses),
-    modelProfiles: snapshotClone(snapshot.workspaceDomain.modelProfiles),
     designSystems: snapshotClone(snapshot.workspaceDomain.designSystems),
     previewSlots: snapshotClone(snapshot.workspaceDomain.previewSlots),
   });

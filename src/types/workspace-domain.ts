@@ -21,7 +21,6 @@ export interface DomainHypothesis {
   id: string;
   incubatorId: string;
   strategyId: string;
-  modelNodeIds: string[];
   designSystemNodeIds: string[];
   /** When true, run evaluator-driven revision after the initial build + eval. Default false = one pass (no Pi revision loop). */
   revisionEnabled?: boolean;
@@ -32,15 +31,6 @@ export interface DomainHypothesis {
    */
   minOverallScore?: number | null;
   placeholder: boolean;
-}
-
-export interface DomainModelProfile {
-  readonly nodeId: string;
-  providerId: string;
-  modelId: string;
-  title?: string;
-  /** Reasoning depth for this model when generating. */
-  thinkingLevel?: ThinkingLevel;
 }
 
 export interface DesignMdLintFinding {
@@ -90,10 +80,7 @@ export interface DomainPreviewSlot {
 export interface WorkspaceDomainStateV1 {
   schemaVersion: 1;
   incubatorWirings: Record<string, DomainIncubatorWiring>;
-  /** Model nodes feeding the incubator (incubate / connected-model for IncubatorNode). */
-  incubatorModelNodeIds: Record<string, string[]>;
   hypotheses: Record<string, DomainHypothesis>;
-  modelProfiles: Record<string, DomainModelProfile>;
   designSystems: Record<string, DomainDesignSystemContent>;
   previewSlots: Record<string, DomainPreviewSlot>;
 }

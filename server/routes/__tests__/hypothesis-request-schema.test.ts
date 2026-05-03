@@ -26,11 +26,8 @@ function minimalCore(overrides: Record<string, unknown> = {}) {
     spec: minimalValidSpec(),
     snapshot: { nodes: [], edges: [] },
     domainHypothesis: null,
-    modelProfiles: {
-      m1: { nodeId: 'm1', providerId: 'openrouter', modelId: 'x' },
-    },
     designSystems: {},
-    defaultIncubatorProvider: 'openrouter',
+    settingsCredential: { providerId: 'openrouter', modelId: 'x', thinkingLevel: 'medium' },
     ...overrides,
   };
 }

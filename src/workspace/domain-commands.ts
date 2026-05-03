@@ -46,10 +46,6 @@ export function syncDomainForRemovedNode(node: WorkspaceNode): void {
     d.removeHypothesis(node.id);
     return;
   }
-  if (node.type === NODE_TYPES.MODEL) {
-    d.purgeModelNode(node.id);
-    return;
-  }
   if (node.type === NODE_TYPES.DESIGN_SYSTEM) {
     d.removeDesignSystem(node.id);
     for (const h of Object.values(d.hypotheses)) {

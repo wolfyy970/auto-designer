@@ -41,9 +41,8 @@ const hypothesisPayload = {
   spec,
   snapshot: { nodes: [], edges: [] },
   domainHypothesis: null,
-  modelProfiles: {},
   designSystems: {},
-  defaultIncubatorProvider: 'openrouter',
+  settingsCredential: { providerId: 'openrouter', modelId: 'model', thinkingLevel: 'medium' },
 };
 
 describe('shared request schemas', () => {

@@ -1,10 +1,10 @@
 export {
   DomainHypothesisSchema,
-  DomainModelProfileSchema,
   HypothesisGenerateRequestSchema,
   HypothesisStrategySchema,
   HypothesisWorkspaceCoreSchema,
   PromptBundleRequestSchema,
+  SettingsModelCredentialSchema,
   ThinkingLevelSchema,
   ThinkingOverrideSchema,
   type HypothesisWorkspaceCoreInput,

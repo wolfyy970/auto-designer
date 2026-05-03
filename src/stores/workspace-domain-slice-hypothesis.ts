@@ -62,7 +62,6 @@ export function createWorkspaceDomainHypothesisSlice(set: DomainSet): Pick<
           id: hypothesisId,
           incubatorId,
           strategyId,
-          modelNodeIds: prev?.modelNodeIds ?? [],
           designSystemNodeIds: prev?.designSystemNodeIds ?? [],
           revisionEnabled: prev?.revisionEnabled ?? false,
           maxRevisionRounds: prev?.maxRevisionRounds,
@@ -138,15 +137,12 @@ export function createWorkspaceDomainHypothesisSlice(set: DomainSet): Pick<
       set((s) => {
         const restW = { ...s.incubatorWirings };
         delete restW[incubatorId];
-        const restIncModels = { ...s.incubatorModelNodeIds };
-        delete restIncModels[incubatorId];
         const restH = { ...s.hypotheses };
         for (const [hid, h] of Object.entries(restH)) {
           if (h.incubatorId === incubatorId) delete restH[hid];
         }
         return {
           incubatorWirings: restW,
-          incubatorModelNodeIds: restIncModels,
           hypotheses: restH,
         };
       }),

@@ -2,8 +2,7 @@
  * Store-free hypothesis generation context (server- and client-safe).
  * No Zustand, no Vite env, no IndexedDB.
  */
-import { NODE_TYPES } from '../constants/canvas';
-import { getDesignSystemNodeData, getModelNodeData } from '../lib/canvas-node-data';
+import { getDesignSystemNodeData } from '../lib/canvas-node-data';
 import type { HypothesisStrategy } from '../types/incubator';
 import type { EvaluationContextPayload } from '../types/evaluation';
 import type { ProvenanceContext } from '../types/provenance-context';
@@ -11,58 +10,15 @@ import type { DesignSpec, ReferenceImage } from '../types/spec';
 import type {
   DomainDesignSystemContent,
   DomainHypothesis,
-  DomainModelProfile,
   ThinkingLevel,
 } from '../types/workspace-domain';
+import { NODE_TYPES } from '../constants/canvas';
 import type { WorkspaceSnapshotWire } from '../lib/workspace-snapshot-schema';
 import type { WorkspaceEdge, WorkspaceNode } from '../types/workspace-graph';
 import type { WorkspaceGraphSnapshot } from './graph-queries.ts';
-import {
-  LOCKDOWN_MODEL_ID,
-  LOCKDOWN_PROVIDER_ID,
-} from '../lib/lockdown-model';
-import { THINKING_LEVELS } from '../lib/thinking-defaults';
 import { formatDesignSystemSourceMarkdown } from '../lib/design-md-core';
 
 export type { WorkspaceGraphSnapshot };
-
-function isThinkingLevel(x: unknown): x is ThinkingLevel {
-  return typeof x === 'string' && (THINKING_LEVELS as readonly string[]).includes(x);
-}
-
-/**
- * Ensures every model profile value matches the hypothesis API Zod schema.
- * Stale persisted rows or partial merges can leave `providerId` / `modelId` as undefined; the server
- * validates the full `modelProfiles` record, not only lanes used by the hypothesis.
- */
-export function normalizeModelProfilesForApi(
-  profiles: Record<string, DomainModelProfile>,
-  defaultIncubatorProvider: string,
-  lockdown = false,
-): Record<string, DomainModelProfile> {
-  const out: Record<string, DomainModelProfile> = {};
-  for (const [nodeId, raw] of Object.entries(profiles)) {
-    if (!raw || typeof raw !== 'object') continue;
-    let providerId =
-      typeof raw.providerId === 'string' && raw.providerId.trim() !== ''
-        ? raw.providerId
-        : defaultIncubatorProvider;
-    let modelId = typeof raw.modelId === 'string' ? raw.modelId : '';
-    if (lockdown) {
-      providerId = LOCKDOWN_PROVIDER_ID;
-      modelId = LOCKDOWN_MODEL_ID;
-    }
-    const entry: DomainModelProfile = {
-      nodeId: typeof raw.nodeId === 'string' && raw.nodeId ? raw.nodeId : nodeId,
-      providerId,
-      modelId,
-    };
-    if (typeof raw.title === 'string' && raw.title) entry.title = raw.title;
-    if (isThinkingLevel(raw.thinkingLevel)) entry.thinkingLevel = raw.thinkingLevel;
-    out[nodeId] = entry;
-  }
-  return out;
-}
 
 /**
  * Single choke point: validated wire snapshot uses unknown[] nodes/edges; runtime graph code
@@ -88,36 +44,6 @@ export interface HypothesisGenerationContext {
   readonly modelCredentials: readonly ModelCredential[];
   readonly designSystemContent: string | undefined;
   readonly designSystemImages: readonly ReferenceImage[];
-}
-
-function nodeById(
-  snapshot: WorkspaceGraphSnapshot,
-  id: string,
-): WorkspaceNode | undefined {
-  return snapshot.nodes.find((n) => n.id === id);
-}
-
-/**
- * Model nodes wired upstream of the hypothesis (graph fallback).
- */
-export function listIncomingModelCredentialsFromGraph(
-  targetNodeId: string,
-  snapshot: WorkspaceGraphSnapshot,
-  defaultIncubatorProvider: string,
-): ModelCredential[] {
-  const out: ModelCredential[] = [];
-  for (const e of snapshot.edges) {
-    if (e.target !== targetNodeId) continue;
-    const src = nodeById(snapshot, e.source);
-    if (!src || src.type !== NODE_TYPES.MODEL) continue;
-    const md = getModelNodeData(src);
-    if (!md?.modelId) continue;
-    const providerId = md.providerId || defaultIncubatorProvider;
-    const thinkingLevel = (isThinkingLevel(md.thinkingLevel) ? md.thinkingLevel : undefined) ?? 'minimal';
-    out.push({ providerId, modelId: md.modelId, thinkingLevel });
-    break;
-  }
-  return out;
 }
 
 function collectDesignSystemFromDomain(
@@ -167,55 +93,19 @@ function collectDesignSystemFromGraph(
   };
 }
 
-function listModelCredentialsFromDomain(
-  hypothesis: DomainHypothesis | undefined,
-  modelProfiles: Record<string, DomainModelProfile>,
-  defaultIncubatorProvider: string,
-): ModelCredential[] {
-  if (!hypothesis) return [];
-  const out: ModelCredential[] = [];
-  for (const mid of hypothesis.modelNodeIds.slice(0, 1)) {
-    const p = modelProfiles[mid];
-    if (!p?.modelId) continue;
-    out.push({
-      providerId: p.providerId || defaultIncubatorProvider,
-      modelId: p.modelId,
-      thinkingLevel: p.thinkingLevel ?? 'minimal',
-    });
-  }
-  return out;
-}
-
 export function buildHypothesisGenerationContextFromInputs(input: {
   hypothesisNodeId: string;
   hypothesisStrategy: HypothesisStrategy;
   spec: DesignSpec;
   snapshot: WorkspaceGraphSnapshot;
   domainHypothesis?: DomainHypothesis | null;
-  modelProfiles: Record<string, DomainModelProfile>;
   designSystems: Record<string, DomainDesignSystemContent>;
-  defaultIncubatorProvider: string;
-  /** Settings-store fallback used when neither domain nor graph yields a credential. */
-  settingsCredential?: ModelCredential;
+  /** Settings-store credential — the canonical source post Phase 7 D. */
+  settingsCredential: ModelCredential;
 }): HypothesisGenerationContext | null {
   const { hypothesisNodeId, hypothesisStrategy, spec, snapshot, domainHypothesis } = input;
 
-  let modelCredentials = listModelCredentialsFromDomain(
-    domainHypothesis ?? undefined,
-    input.modelProfiles,
-    input.defaultIncubatorProvider,
-  );
-  if (modelCredentials.length === 0) {
-    modelCredentials = listIncomingModelCredentialsFromGraph(
-      hypothesisNodeId,
-      snapshot,
-      input.defaultIncubatorProvider,
-    );
-  }
-  if (modelCredentials.length === 0 && input.settingsCredential) {
-    modelCredentials = [input.settingsCredential];
-  }
-  if (modelCredentials.length === 0) return null;
+  const modelCredentials: ModelCredential[] = [input.settingsCredential];
 
   let designSystemContent: string | undefined;
   let designSystemImages: readonly ReferenceImage[] = [];

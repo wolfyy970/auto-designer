@@ -1,14 +1,32 @@
 import type {
   DomainHypothesis,
   DomainIncubatorWiring,
-  DomainModelProfile,
   DomainPreviewSlot,
 } from '../types/workspace-domain';
+
+/**
+ * Persisted hypothesis shape across all historical versions, including the
+ * pre-v12 `modelNodeIds` field that has since been removed from
+ * `DomainHypothesis`. Used only inside this migration file.
+ */
+type PersistedHypothesis = DomainHypothesis & {
+  modelNodeIds: string[];
+};
+
+// Old shape; kept as a local alias so legacy migration code compiles.
+type DomainModelProfile = {
+  nodeId: string;
+  providerId: string;
+  modelId: string;
+  title?: string;
+  thinkingLevel?: string;
+  agentMode?: 'single' | 'agentic';
+};
 
 /** Legacy persisted values before `GenerationMode` was collapsed to agentic-only. */
 type LegacyAgentMode = 'single' | 'agentic';
 
-type DomainHypothesisV2 = DomainHypothesis & { agentMode?: LegacyAgentMode };
+type LegacyHypothesisWithAgentMode = PersistedHypothesis & { agentMode?: LegacyAgentMode };
 
 /**
  * Zustand persist migration for workspace domain store (versioned).
@@ -25,9 +43,9 @@ export function migrateWorkspaceDomainPersist(persisted: unknown, fromVersion: n
   }
   if (fromVersion < 3) {
     type ProfV3 = DomainModelProfile & { agentMode?: LegacyAgentMode };
-    const rawHyp = (p.hypotheses as Record<string, DomainHypothesisV2>) ?? {};
+    const rawHyp = (p.hypotheses as Record<string, LegacyHypothesisWithAgentMode>) ?? {};
     const modelProfiles = { ...(p.modelProfiles as Record<string, ProfV3>) };
-    const hypotheses: Record<string, DomainHypothesis> = {};
+    const hypotheses: Record<string, PersistedHypothesis> = {};
     for (const [hid, h] of Object.entries(rawHyp)) {
       const am = h.agentMode ?? 'single';
       for (const mid of h.modelNodeIds) {
@@ -38,12 +56,12 @@ export function migrateWorkspaceDomainPersist(persisted: unknown, fromVersion: n
       }
       const { agentMode, ...rest } = h;
       void agentMode;
-      hypotheses[hid] = rest as DomainHypothesis;
+      hypotheses[hid] = rest as PersistedHypothesis;
     }
     p = { ...p, hypotheses, modelProfiles: modelProfiles as Record<string, DomainModelProfile> };
   }
   if (fromVersion < 4) {
-    type LegacyHyp = DomainHypothesis & {
+    type LegacyHyp = PersistedHypothesis & {
       thinkingLevel?: string;
       agentMode?: LegacyAgentMode;
       variantStrategyId?: string;
@@ -51,7 +69,7 @@ export function migrateWorkspaceDomainPersist(persisted: unknown, fromVersion: n
     type LegacyProf = DomainModelProfile & { agentMode?: LegacyAgentMode };
     const rawHyp = (p.hypotheses as Record<string, LegacyHyp>) ?? {};
     const modelProfiles = { ...(p.modelProfiles as Record<string, LegacyProf>) };
-    const hypotheses: Record<string, DomainHypothesis> = {};
+    const hypotheses: Record<string, PersistedHypothesis> = {};
 
     for (const [hid, h] of Object.entries(rawHyp)) {
       let aggregated: LegacyAgentMode = 'single';
@@ -80,7 +98,7 @@ export function migrateWorkspaceDomainPersist(persisted: unknown, fromVersion: n
         designSystemNodeIds: h.designSystemNodeIds,
         placeholder: h.placeholder,
         agentMode: aggregated,
-      } as DomainHypothesis & { agentMode: LegacyAgentMode };
+      } as PersistedHypothesis & { agentMode: LegacyAgentMode };
     }
 
     for (const [mid, prof] of Object.entries(modelProfiles)) {
@@ -123,12 +141,12 @@ export function migrateWorkspaceDomainPersist(persisted: unknown, fromVersion: n
     p = { ...p, previewSlots };
 
     const rawHyp = (p.hypotheses as Record<string, Record<string, unknown>>) ?? {};
-    const hypotheses: Record<string, DomainHypothesis> = {};
+    const hypotheses: Record<string, PersistedHypothesis> = {};
     for (const [hid, h] of Object.entries(rawHyp)) {
       hypotheses[hid] = {
         ...h,
         strategyId: (h.strategyId ?? h.variantStrategyId) as string,
-      } as DomainHypothesis;
+      } as PersistedHypothesis;
       delete (hypotheses[hid] as unknown as Record<string, unknown>).variantStrategyId;
     }
     p = { ...p, hypotheses };
@@ -160,7 +178,7 @@ export function migrateWorkspaceDomainPersist(persisted: unknown, fromVersion: n
   }
   if (fromVersion < 8) {
     const rawHyp = (p.hypotheses as Record<string, Record<string, unknown>>) ?? {};
-    const hypotheses: Record<string, DomainHypothesis> = {};
+    const hypotheses: Record<string, PersistedHypothesis> = {};
     for (const [hid, row] of Object.entries(rawHyp)) {
       const copy = { ...row };
       const legacyMode = copy.agentMode as LegacyAgentMode | undefined;
@@ -171,13 +189,13 @@ export function migrateWorkspaceDomainPersist(persisted: unknown, fromVersion: n
         ...copy,
         revisionEnabled,
         placeholder: Boolean(copy.placeholder),
-      } as DomainHypothesis;
+      } as PersistedHypothesis;
     }
     p = { ...p, hypotheses };
   }
   if (fromVersion < 9) {
-    const rawHyp = (p.hypotheses as Record<string, DomainHypothesis>) ?? {};
-    const hypotheses: Record<string, DomainHypothesis> = {};
+    const rawHyp = (p.hypotheses as Record<string, PersistedHypothesis>) ?? {};
+    const hypotheses: Record<string, PersistedHypothesis> = {};
     for (const [hid, h] of Object.entries(rawHyp)) {
       hypotheses[hid] = {
         ...h,
@@ -209,6 +227,21 @@ export function migrateWorkspaceDomainPersist(persisted: unknown, fromVersion: n
     }
     p = { ...p, incubatorWirings };
   }
+  if (fromVersion < 12) {
+    // Drop Model-node fields that survived Phase 7 D as inert dead weight.
+    delete p.incubatorModelNodeIds;
+    delete p.modelProfiles;
+    if (isRecord(p.hypotheses)) {
+      const hypotheses: Record<string, PersistedHypothesis> = {};
+      for (const [hid, h] of Object.entries(p.hypotheses)) {
+        if (!isRecord(h)) continue;
+        const copy = { ...h };
+        delete copy.modelNodeIds;
+        hypotheses[hid] = copy as unknown as PersistedHypothesis;
+      }
+      p = { ...p, hypotheses };
+    }
+  }
   return normalizeWorkspaceDomainPersistShape(p);
 }
 
@@ -224,9 +257,7 @@ function normalizeWorkspaceDomainPersistShape(p: Record<string, unknown>): Recor
   return {
     ...p,
     incubatorWirings: recordOrEmpty(p.incubatorWirings),
-    incubatorModelNodeIds: recordOrEmpty(p.incubatorModelNodeIds),
     hypotheses: recordOrEmpty(p.hypotheses),
-    modelProfiles: recordOrEmpty(p.modelProfiles),
     designSystems: recordOrEmpty(p.designSystems),
     previewSlots: recordOrEmpty(p.previewSlots),
   };

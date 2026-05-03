@@ -6,12 +6,10 @@ export const workspaceDomainPersistOptions = {
   name: STORAGE_KEYS.WORKSPACE_DOMAIN,
   partialize: (state: WorkspaceDomainStore) => ({
     incubatorWirings: state.incubatorWirings,
-    incubatorModelNodeIds: state.incubatorModelNodeIds,
     hypotheses: state.hypotheses,
-    modelProfiles: state.modelProfiles,
     designSystems: state.designSystems,
     previewSlots: state.previewSlots,
   }),
-  version: 11,
+  version: 12,
   migrate: migrateWorkspaceDomainPersist,
 };

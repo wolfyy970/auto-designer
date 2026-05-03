@@ -98,7 +98,9 @@ describe('workspace domain persist migration v5 → v6', () => {
   it('runs full migration from v0 through latest', () => {
     const v0State = { incubatorWirings: {}, hypotheses: {}, modelProfiles: {} };
     const result = migrate(structuredClone(v0State), 0) as Record<string, unknown>;
-    expect(result.incubatorModelNodeIds).toBeDefined();
+    // v12 strips Model fields entirely.
+    expect(result.incubatorModelNodeIds).toBeUndefined();
+    expect(result.modelProfiles).toBeUndefined();
     expect(result.previewSlots).toBeDefined();
   });
 });
@@ -123,8 +125,8 @@ describe('workspace domain persist migration v6 → v7', () => {
   });
 });
 
-describe('workspace domain persist migration v8 → v9', () => {
-  it('truncates hypothesis modelNodeIds to a single entry', () => {
+describe('workspace domain persist migration v8 → v9 (model-node truncation, then stripped at v12)', () => {
+  it('drops the Model-node fields entirely after the v12 final pass', () => {
     const v8State = {
       incubatorWirings: {},
       incubatorModelNodeIds: {},
@@ -144,8 +146,10 @@ describe('workspace domain persist migration v8 → v9', () => {
       previewSlots: {},
     };
     const result = migrate(structuredClone(v8State), 8) as Record<string, unknown>;
-    const hyps = result.hypotheses as Record<string, { modelNodeIds: string[] }>;
-    expect(hyps.h1.modelNodeIds).toEqual(['m1']);
+    const hyps = result.hypotheses as Record<string, Record<string, unknown>>;
+    expect(hyps.h1!.modelNodeIds).toBeUndefined();
+    expect(result.modelProfiles).toBeUndefined();
+    expect(result.incubatorModelNodeIds).toBeUndefined();
   });
 });
 

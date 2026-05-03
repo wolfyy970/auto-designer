@@ -163,21 +163,16 @@ export function hydrateMetaHarnessTestCaseFromParsed(
       id: MH_HYPOTHESIS_NODE,
       incubatorId: MH_INCUBATOR_ID,
       strategyId: strategy.id,
-      modelNodeIds: [MH_MODEL_NODE],
       designSystemNodeIds: [],
       revisionEnabled: true,
       placeholder: false,
     },
-    modelProfiles: {
-      [MH_MODEL_NODE]: {
-        nodeId: MH_MODEL_NODE,
-        providerId: simplified.model.providerId,
-        modelId: simplified.model.modelId,
-        ...(simplified.model.thinkingLevel ? { thinkingLevel: simplified.model.thinkingLevel } : {}),
-      },
-    },
     designSystems: {},
-    defaultIncubatorProvider: options.defaultIncubatorProvider,
+    settingsCredential: {
+      providerId: simplified.model.providerId,
+      modelId: simplified.model.modelId,
+      thinkingLevel: simplified.model.thinkingLevel ?? 'minimal',
+    },
     ...(options.supportsVision !== undefined ? { supportsVision: options.supportsVision } : {}),
     ...(options.correlationId ? { correlationId: options.correlationId } : {}),
     ...(options.agenticMaxRevisionRounds !== undefined

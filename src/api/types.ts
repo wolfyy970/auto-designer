@@ -3,9 +3,9 @@ import type { CompiledPrompt, IncubationPlan, HypothesisStrategy } from '../type
 import type {
   DomainDesignSystemContent,
   DomainHypothesis,
-  DomainModelProfile,
   DesignMdLintSummary,
 } from '../types/workspace-domain';
+import type { ThinkingLevel } from '../lib/thinking-defaults';
 import type { ProvenanceContext } from '../types/provenance-context';
 import type { ProviderModel } from '../types/provider';
 import type { EvaluationContextPayload } from '../types/evaluation';
@@ -38,6 +38,13 @@ export type IncubateRequest = IncubateRequestWire & {
 
 export type IncubateResponse = IncubateWireResponse & IncubationPlan;
 
+/** Settings-side credential carried into the server hypothesis routes. */
+export interface SettingsModelCredential {
+  providerId: string;
+  modelId: string;
+  thinkingLevel: ThinkingLevel;
+}
+
 /** Workspace slice sent to `/api/hypothesis/*` (mirrors client domain + graph). */
 export interface HypothesisWorkspaceApiPayload {
   hypothesisNodeId: string;
@@ -45,9 +52,9 @@ export interface HypothesisWorkspaceApiPayload {
   spec: DesignSpec;
   snapshot: WorkspaceSnapshotWire;
   domainHypothesis: DomainHypothesis | null;
-  modelProfiles: Record<string, DomainModelProfile>;
   designSystems: Record<string, DomainDesignSystemContent>;
-  defaultIncubatorProvider: string;
+  /** Settings-store credential (Phase 7 D source of truth for routing). */
+  settingsCredential: SettingsModelCredential;
 }
 
 export type HypothesisPromptBundleResponse = HypothesisPromptBundleWireResponse & {

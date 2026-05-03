@@ -130,7 +130,6 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
       strategy,
       incubationPlan,
       domainHypothesis: dh,
-      modelProfiles: domain.modelProfiles,
       designSystems: domain.designSystems,
       spec,
       compiledPromptsForStrategy,

@@ -3,8 +3,7 @@
  * Lives outside `workspace-domain-store` so the domain module stays free of canvas wiring rules.
  */
 import { NODE_TYPES } from '../constants/canvas';
-import { DEFAULT_INCUBATOR_PROVIDER } from '../lib/constants';
-import { getDesignSystemNodeData, getModelNodeData } from '../lib/canvas-node-data';
+import { getDesignSystemNodeData } from '../lib/canvas-node-data';
 import { designSystemSourceFromNodeData, getDesignSystemSourceMode } from '../lib/design-md';
 import type { CanvasNodeType } from '../types/workspace-graph';
 import { useWorkspaceDomainStore } from '../stores/workspace-domain-store';
@@ -19,17 +18,6 @@ export function hydrateDomainFromCanvasGraph(input: {
   const store = useWorkspaceDomainStore.getState();
 
   for (const n of input.nodes) {
-    if (n.type === NODE_TYPES.MODEL) {
-      const d = getModelNodeData(snapshotNodeToWorkspace(n));
-      if (d) {
-        store.upsertModelProfile(n.id, {
-          providerId: d.providerId || DEFAULT_INCUBATOR_PROVIDER,
-          modelId: d.modelId || '',
-          title: d.title,
-          thinkingLevel: d.thinkingLevel ?? 'minimal',
-        });
-      }
-    }
     if (n.type === NODE_TYPES.DESIGN_SYSTEM) {
       const d = getDesignSystemNodeData(snapshotNodeToWorkspace(n));
       if (d) {
@@ -58,23 +46,7 @@ export function hydrateDomainFromCanvasGraph(input: {
     ...input.edges.filter((e) => !compilerHypFirst(e)),
   ];
 
-  const nodeById = new Map(input.nodes.map((n) => [n.id, n]));
-  const hypHasModelEdge = new Set<string>();
-  const dedupedEdges: typeof orderedEdges = [];
   for (const e of orderedEdges) {
-    const src = nodeById.get(e.source);
-    const tgt = nodeById.get(e.target);
-    if (
-      src?.type === NODE_TYPES.MODEL &&
-      tgt?.type === NODE_TYPES.HYPOTHESIS
-    ) {
-      if (hypHasModelEdge.has(e.target)) continue;
-      hypHasModelEdge.add(e.target);
-    }
-    dedupedEdges.push(e);
-  }
-
-  for (const e of dedupedEdges) {
     const src = input.nodes.find((node) => node.id === e.source);
     const tgt = input.nodes.find((node) => node.id === e.target);
     if (!src || !tgt) continue;

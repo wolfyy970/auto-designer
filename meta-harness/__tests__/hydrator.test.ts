@@ -8,7 +8,6 @@ import {
   hydrateMetaHarnessTestCase,
   hydrateMetaHarnessTestCaseFromParsed,
   MH_HYPOTHESIS_NODE,
-  MH_MODEL_NODE,
   SimplifiedMetaHarnessTestCaseSchema,
 } from '../test-case-hydrator.ts';
 import type { HypothesisStrategy } from '../../src/types/incubator.ts';
@@ -23,7 +22,7 @@ describe('meta-harness test-case-hydrator', () => {
     const body = hydrateMetaHarnessTestCase(raw, { defaultIncubatorProvider: 'openrouter' });
     expect(body.hypothesisNodeId).toBe(MH_HYPOTHESIS_NODE);
     expect(body.domainHypothesis?.revisionEnabled).toBe(true);
-    expect(body.modelProfiles[MH_MODEL_NODE]?.modelId).toContain('minimax');
+    expect(body.settingsCredential.modelId).toContain('minimax');
     expect(body.strategy.hypothesis.length).toBeGreaterThan(20);
     expect(body.spec.sections['design-brief']?.content).toContain('Northstar');
   });
@@ -139,7 +138,7 @@ describe('meta-harness test-case-hydrator', () => {
     const hypA = hydrateMetaHarnessTestCaseFromParsed(parsed, { defaultIncubatorProvider: 'openrouter' });
     const hypB = hydrateMetaHarnessTestCase(raw, { defaultIncubatorProvider: 'openrouter' });
     expect(hypA.strategy).toEqual(hypB.strategy);
-    expect(hypA.modelProfiles).toEqual(hypB.modelProfiles);
+    expect(hypA.settingsCredential).toEqual(hypB.settingsCredential);
     expect(hypA.spec.title).toBe(hypB.spec.title);
     expect(hypA.hypothesisNodeId).toBe(hypB.hypothesisNodeId);
   });

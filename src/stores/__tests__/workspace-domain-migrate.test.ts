@@ -2,46 +2,41 @@ import { describe, expect, it } from 'vitest';
 import { migrateWorkspaceDomainPersist } from '../workspace-domain-migrate';
 
 describe('migrateWorkspaceDomainPersist', () => {
-  it('adds incubatorModelNodeIds when migrating from v1', () => {
+  it('legacy v1 input still migrates through to current shape', () => {
     const v1 = { hypotheses: {}, modelProfiles: {} };
     const out = migrateWorkspaceDomainPersist(v1, 1) as Record<string, unknown>;
-    expect(out.incubatorModelNodeIds).toEqual({});
+    // v12 strips Model fields from the persisted shape entirely.
+    expect(out.incubatorModelNodeIds).toBeUndefined();
+    expect(out.modelProfiles).toBeUndefined();
+    expect(out.hypotheses).toEqual({});
   });
 
-  it('v8 → v9 truncates hypothesis modelNodeIds to one entry', () => {
-    const v8 = {
+  it('v11 → v12 strips Model-node fields from the persisted shape', () => {
+    const v11 = {
       hypotheses: {
         h1: {
           id: 'h1',
           incubatorId: 'inc',
           strategyId: 's1',
-          modelNodeIds: ['m1', 'm2'],
+          modelNodeIds: ['m1'],
           designSystemNodeIds: [],
           placeholder: false,
           revisionEnabled: true,
         },
       },
-      modelProfiles: {},
+      modelProfiles: { m1: { nodeId: 'm1', providerId: 'openrouter', modelId: 'x' } },
       incubatorWirings: {},
       previewSlots: {},
+      incubatorModelNodeIds: { inc: ['m1'] },
     };
-    const out = migrateWorkspaceDomainPersist(v8, 8) as {
-      hypotheses: Record<string, { modelNodeIds: string[] }>;
+    const out = migrateWorkspaceDomainPersist(v11, 11) as {
+      hypotheses: Record<string, Record<string, unknown>>;
+      modelProfiles?: unknown;
+      incubatorModelNodeIds?: unknown;
     };
-    expect(out.hypotheses.h1!.modelNodeIds).toEqual(['m1']);
-  });
-
-  it('is idempotent for already-v9-shaped data', () => {
-    const v9 = {
-      hypotheses: { h1: { id: 'h1', modelNodeIds: ['a'] } },
-      modelProfiles: {},
-      incubatorWirings: {},
-      previewSlots: {},
-      designSystems: {},
-      incubatorModelNodeIds: {},
-    };
-    const out = migrateWorkspaceDomainPersist(v9, 9) as typeof v9;
-    expect(out).toEqual(v9);
+    expect(out.hypotheses.h1!.modelNodeIds).toBeUndefined();
+    expect(out.modelProfiles).toBeUndefined();
+    expect(out.incubatorModelNodeIds).toBeUndefined();
   });
 
   it('v10 → v11 strips retired existing design input wiring', () => {
@@ -79,11 +74,9 @@ describe('migrateWorkspaceDomainPersist', () => {
     ) as Record<string, unknown>;
     expect(out).toEqual({
       hypotheses: {},
-      modelProfiles: {},
       incubatorWirings: {},
       previewSlots: {},
       designSystems: {},
-      incubatorModelNodeIds: {},
     });
   });
 });

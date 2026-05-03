@@ -4,7 +4,6 @@
  *
  * Pure logic lives in `hypothesis-generation-pure.ts` (server-importable).
  */
-import { DEFAULT_INCUBATOR_PROVIDER } from '../lib/constants';
 import type { HypothesisStrategy } from '../types/incubator';
 import type { EvaluationContextPayload } from '../types/evaluation';
 import type { ProvenanceContext } from '../types/provenance-context';
@@ -32,23 +31,19 @@ export function buildHypothesisGenerationContext(input: {
   const s = useWorkspaceDomainStore.getState();
   const domainHyp = s.hypotheses[input.hypothesisNodeId];
   const settings = useThinkingDefaultsStore.getState().getEffective('design');
-  const settingsCredential: ModelCredential | undefined =
-    settings.providerId && settings.modelId
-      ? {
-          providerId: settings.providerId,
-          modelId: settings.modelId,
-          thinkingLevel: EFFORT_TO_LEVEL[settings.effort],
-        }
-      : undefined;
+  if (!settings.providerId || !settings.modelId) return null;
+  const settingsCredential: ModelCredential = {
+    providerId: settings.providerId,
+    modelId: settings.modelId,
+    thinkingLevel: EFFORT_TO_LEVEL[settings.effort],
+  };
   return buildHypothesisGenerationContextFromInputs({
     hypothesisNodeId: input.hypothesisNodeId,
     hypothesisStrategy: input.hypothesisStrategy,
     spec: input.spec,
     snapshot: input.snapshot,
     domainHypothesis: domainHyp ?? null,
-    modelProfiles: s.modelProfiles,
     designSystems: s.designSystems,
-    defaultIncubatorProvider: DEFAULT_INCUBATOR_PROVIDER,
     settingsCredential,
   });
 }

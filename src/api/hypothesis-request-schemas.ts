@@ -13,7 +13,8 @@ export const DomainHypothesisSchema = z.object({
   id: z.string(),
   incubatorId: z.string(),
   strategyId: z.string(),
-  modelNodeIds: z.array(z.string()),
+  /** @deprecated Pre-Phase-7-D requests may include this; ignored on the server. */
+  modelNodeIds: z.array(z.string()).optional(),
   designSystemNodeIds: z.array(z.string()),
   revisionEnabled: z.boolean().optional(),
   maxRevisionRounds: z.number().int().min(0).max(20).optional(),
@@ -21,13 +22,10 @@ export const DomainHypothesisSchema = z.object({
   placeholder: z.boolean(),
 });
 
-export const DomainModelProfileSchema = z.object({
-  nodeId: z.string(),
-  providerId: z.string(),
-  modelId: z.string(),
-  title: z.string().optional(),
-  thinkingLevel: ThinkingLevelSchema.optional(),
-  thinking: ThinkingOverrideSchema.optional(),
+export const SettingsModelCredentialSchema = z.object({
+  providerId: z.string().min(1),
+  modelId: z.string().min(1),
+  thinkingLevel: ThinkingLevelSchema,
 });
 
 export const HypothesisStrategySchema = z.object({
@@ -47,9 +45,9 @@ const HypothesisWorkspaceCoreObjectSchema = z.object({
   spec: DesignSpecSchema,
   snapshot: WorkspaceSnapshotSchema,
   domainHypothesis: DomainHypothesisSchema.nullish(),
-  modelProfiles: z.record(z.string(), DomainModelProfileSchema),
   designSystems: z.record(z.string(), DomainDesignSystemContentSchema),
-  defaultIncubatorProvider: z.string().min(1),
+  /** Settings-store credential — Phase 7 D source of truth for routing. */
+  settingsCredential: SettingsModelCredentialSchema,
 });
 
 type WorkspaceCoreRaw = z.infer<typeof HypothesisWorkspaceCoreObjectSchema>;

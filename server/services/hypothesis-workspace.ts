@@ -35,9 +35,8 @@ export async function buildHypothesisWorkspaceBundle(
     spec: body.spec,
     snapshot: workspaceSnapshotWireToGraph(body.snapshot),
     domainHypothesis: body.domainHypothesis ?? undefined,
-    modelProfiles: body.modelProfiles,
     designSystems: body.designSystems,
-    defaultIncubatorProvider: body.defaultIncubatorProvider,
+    settingsCredential: body.settingsCredential,
   });
   if (!ctxRaw) return null;
   const ctx = applyLockdownToHypothesisContext(ctxRaw);

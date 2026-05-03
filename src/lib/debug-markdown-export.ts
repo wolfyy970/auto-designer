@@ -20,7 +20,6 @@ import type {
 import type {
   DomainDesignSystemContent,
   DomainHypothesis,
-  DomainModelProfile,
 } from '../types/workspace-domain';
 
 const HR = '\n\n---\n\n';
@@ -229,7 +228,6 @@ function formatCompiledPrompts(prompts: CompiledPrompt[]): string {
 
 function formatDomainHypothesisBlock(
   hyp: DomainHypothesis | undefined,
-  profiles: Record<string, DomainModelProfile>,
   designSystems: Record<string, DomainDesignSystemContent>,
 ): string {
   if (!hyp) return '_No domain hypothesis record (not linked in workspace domain)._ \n';
@@ -240,17 +238,7 @@ function formatDomainHypothesisBlock(
   body += `- **maxRevisionRounds (override):** ${hyp.maxRevisionRounds ?? '_use Settings default_'}\n`;
   body += `- **minOverallScore (override):** ${hyp.minOverallScore === undefined ? '_use Settings default_' : hyp.minOverallScore === null ? 'off' : hyp.minOverallScore}\n`;
   body += `- **placeholder:** ${hyp.placeholder}\n\n`;
-  body += '### Model nodes\n\n';
-  if (!hyp.modelNodeIds.length) body += '_None._\n';
-  else {
-    for (const mid of hyp.modelNodeIds) {
-      const m = profiles[mid];
-      body += m
-        ? `- **${mid}** — ${m.providerId} / ${m.modelId}${m.title ? ` (${m.title})` : ''} — thinking: ${m.thinkingLevel ?? 'default'}\n`
-        : `- **${mid}** — _profile missing_\n`;
-    }
-  }
-  body += '\n### Design system nodes\n\n';
+  body += '### Design system nodes\n\n';
   if (!hyp.designSystemNodeIds.length) body += '_None._\n';
   else {
     for (const did of hyp.designSystemNodeIds) {
@@ -298,7 +286,6 @@ export interface HypothesisDebugExportInput {
   strategy: HypothesisStrategy;
   incubationPlan?: IncubationPlan;
   domainHypothesis?: DomainHypothesis;
-  modelProfiles: Record<string, DomainModelProfile>;
   designSystems: Record<string, DomainDesignSystemContent>;
   spec: DesignSpec | undefined;
   compiledPromptsForStrategy: CompiledPrompt[];
@@ -320,7 +307,6 @@ export function buildHypothesisDebugMarkdown(input: HypothesisDebugExportInput):
   md += HR + section('Incubation plan & axes', formatDimensionContext(input.incubationPlan, input.strategy));
   md += HR + section('Workspace domain bindings', formatDomainHypothesisBlock(
     input.domainHypothesis,
-    input.modelProfiles,
     input.designSystems,
   ));
   md += HR + section('Design spec (full text)', formatSpecContext(input.spec));

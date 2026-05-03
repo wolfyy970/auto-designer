@@ -4,16 +4,17 @@ import type { DesignSpec } from '../types/spec';
 import type { HypothesisStrategy } from '../types/incubator';
 import { useCanvasStore } from '../stores/canvas-store';
 import { useWorkspaceDomainStore } from '../stores/workspace-domain-store';
+import { useThinkingDefaultsStore } from '../stores/thinking-defaults-store';
 import { useGenerationStore, nextRunNumber } from '../stores/generation-store';
 import { scheduleCanvasFitViewToNodes } from '../lib/canvas-fit-view';
-import { DEFAULT_INCUBATOR_PROVIDER } from '../lib/constants';
 import { warnIfWorkspaceSnapshotInvalid } from '../lib/workspace-snapshot-warn';
 import { normalizeError } from '../lib/error-utils';
 import { pinModelCredentialsIfLockdown } from '../lib/lockdown-model';
+import { EFFORT_TO_LEVEL } from '../lib/thinking-defaults';
 import {
   buildHypothesisGenerationContextFromInputs,
-  normalizeModelProfilesForApi,
   workspaceSnapshotWireToGraph,
+  type ModelCredential,
 } from '../workspace/hypothesis-generation-pure';
 import { GENERATION_STATUS } from '../constants/generation';
 import { EDGE_STATUS } from '../constants/canvas';
@@ -92,19 +93,26 @@ export async function runHypothesisGenerateFlow({
 
   const domain = useWorkspaceDomainStore.getState();
   const evalSettings = resolveEvaluatorSettings(nodeId);
+  const settings = useThinkingDefaultsStore.getState().getEffective('design');
+  if (!settings.providerId || !settings.modelId) {
+    setGenerationError(
+      'No model selected. Open Settings → Reasoning → Hypothesis design and pick a provider + model.',
+    );
+    return;
+  }
+  const settingsCredential: ModelCredential = {
+    providerId: settings.providerId,
+    modelId: settings.modelId,
+    thinkingLevel: EFFORT_TO_LEVEL[settings.effort],
+  };
   const workspacePayload: HypothesisGenerateApiPayload = {
     hypothesisNodeId: nodeId,
     hypothesisStrategy: strategy,
     spec,
     snapshot: { nodes: snapshot.nodes, edges: snapshot.edges },
     domainHypothesis: domain.hypotheses[nodeId] ?? null,
-    modelProfiles: normalizeModelProfilesForApi(
-      domain.modelProfiles,
-      DEFAULT_INCUBATOR_PROVIDER,
-      lockdown,
-    ),
     designSystems: domain.designSystems,
-    defaultIncubatorProvider: DEFAULT_INCUBATOR_PROVIDER,
+    settingsCredential,
     correlationId: runId,
     agenticMaxRevisionRounds: evalSettings.maxRevisionRounds,
     agenticMinOverallScore: evalSettings.minOverallScore ?? undefined,
@@ -119,13 +127,12 @@ export async function runHypothesisGenerateFlow({
     spec: workspacePayload.spec,
     snapshot: workspaceSnapshotWireToGraph(workspacePayload.snapshot),
     domainHypothesis: workspacePayload.domainHypothesis ?? undefined,
-    modelProfiles: workspacePayload.modelProfiles,
     designSystems: workspacePayload.designSystems,
-    defaultIncubatorProvider: workspacePayload.defaultIncubatorProvider,
+    settingsCredential,
   });
   if (!genCtxRaw) {
     setGenerationError(
-      'No model connected for this hypothesis. Connect a Model node to the hypothesis and try again.',
+      'No model selected. Open Settings → Reasoning → Hypothesis design and pick a provider + model.',
     );
     return;
   }

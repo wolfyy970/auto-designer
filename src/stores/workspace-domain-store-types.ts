@@ -2,26 +2,17 @@ import type {
   DomainDesignSystemContent,
   DomainHypothesis,
   DomainIncubatorWiring,
-  DomainModelProfile,
   DomainPreviewSlot,
 } from '../types/workspace-domain';
 import type { CanvasNodeType } from '../types/workspace-graph';
 
 export interface WorkspaceDomainStore {
   incubatorWirings: Record<string, DomainIncubatorWiring>;
-  incubatorModelNodeIds: Record<string, string[]>;
   hypotheses: Record<string, DomainHypothesis>;
-  modelProfiles: Record<string, DomainModelProfile>;
   designSystems: Record<string, DomainDesignSystemContent>;
   previewSlots: Record<string, DomainPreviewSlot>;
 
   ensureIncubatorWiring: (incubatorId: string) => void;
-  attachModelToTarget: (modelNodeId: string, targetId: string, targetType: CanvasNodeType) => void;
-  detachModelFromTarget: (
-    modelNodeId: string,
-    targetId: string,
-    targetType: CanvasNodeType,
-  ) => void;
   attachIncubatorInput: (
     incubatorId: string,
     sourceId: string,
@@ -50,9 +41,6 @@ export interface WorkspaceDomainStore {
   removeHypothesis: (hypothesisId: string) => void;
   removeIncubator: (incubatorId: string) => void;
 
-  upsertModelProfile: (nodeId: string, partial: Partial<DomainModelProfile>) => void;
-  removeModelProfile: (nodeId: string) => void;
-  purgeModelNode: (modelNodeId: string) => void;
   upsertDesignSystem: (nodeId: string, partial: Partial<DomainDesignSystemContent>) => void;
   removeDesignSystem: (nodeId: string) => void;
 

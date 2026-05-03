@@ -34,9 +34,7 @@ export async function captureCurrentCanvasSnapshot(): Promise<SavedCanvasSnapsho
     },
     workspaceDomain: {
       incubatorWirings: snapshotClone(domain.incubatorWirings),
-      incubatorModelNodeIds: snapshotClone(domain.incubatorModelNodeIds),
       hypotheses: snapshotClone(domain.hypotheses),
-      modelProfiles: snapshotClone(domain.modelProfiles),
       designSystems: snapshotClone(domain.designSystems),
       previewSlots: snapshotClone(domain.previewSlots),
     },
