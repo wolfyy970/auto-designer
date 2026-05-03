@@ -4,7 +4,7 @@ import { parseRequestJson } from '../lib/parse-request.ts';
 import { SSE_EVENT_NAMES } from '../../src/constants/sse-events.ts';
 import { lintDesignMdDocument } from '../lib/design-md-lint.ts';
 import { runTaskAgentRoute } from '../lib/task-agent-route-runner.ts';
-import { getPromptBody } from '../lib/prompt-resolution.ts';
+import { inlineGuidance } from '../lib/inline-guidance.ts';
 import { DesignSystemExtractRequestSchema } from '../../src/api/request-schemas.ts';
 
 const designSystem = new Hono();
@@ -37,7 +37,7 @@ ${source.content.trim()}
     )
     .join('\n\n');
 
-  const extractionGuidance = await getPromptBody('design-system-extract-system');
+  const guidance = await inlineGuidance('design-system-extract-system', 'design_md_extraction_guidance');
   const agentUserPrompt = `<task>
 Create a Google DESIGN.md document from the provided design-system source material.
 
@@ -48,9 +48,7 @@ Analyze the written source material, uploaded Markdown sources, and any UI scree
 Uploaded Markdown sources, including files already named \`DESIGN.md\`, are source evidence. Do not assume they are already canonical or lint-clean. Preserve their intent, repair schema/section/token issues where needed, normalize them into the current Google/Stitch DESIGN.md format, and produce one complete lint-friendly \`DESIGN.md\`.
 </task>
 
-<design_md_extraction_guidance>
-${extractionGuidance}
-</design_md_extraction_guidance>
+${guidance}
 
 <design_system_title>
 ${body.title ?? 'Design System'}

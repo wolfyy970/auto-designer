@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { buildIncubatorUserPrompt } from '../../src/lib/prompts/incubator-user.ts';
 import { getPromptBody } from '../lib/prompt-resolution.ts';
+import { inlineGuidance } from '../lib/inline-guidance.ts';
 import { clampProviderModel } from '../lib/lockdown-model.ts';
 import { parseRequestJson } from '../lib/parse-request.ts';
 import { SSE_EVENT_NAMES } from '../../src/constants/sse-events.ts';
@@ -98,7 +99,7 @@ incubate.post('/', async (c) => {
     },
   );
 
-  const hypothesesGuidance = await getPromptBody('hypotheses-generator-system');
+  const guidance = await inlineGuidance('hypotheses-generator-system', 'hypotheses_generator_guidance');
   const agentUserPrompt = `<task>
 Analyze the design specification below and produce a dimension map with hypothesis strategies.
 
@@ -107,9 +108,7 @@ Write the complete JSON result to \`result.json\` in the workspace root. The JSO
 - "hypotheses": array of { name, hypothesis, rationale, measurements, dimensionValues }
 </task>
 
-<hypotheses_generator_guidance>
-${hypothesesGuidance}
-</hypotheses_generator_guidance>
+${guidance}
 
 ${assembledSpec}`;
 

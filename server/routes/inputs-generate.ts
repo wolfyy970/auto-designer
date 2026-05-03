@@ -7,7 +7,7 @@ import {
   buildInputsGenerateUserMessage,
 } from '../../src/lib/prompts/inputs-generate.ts';
 import { runTaskAgentRoute } from '../lib/task-agent-route-runner.ts';
-import { getPromptBody } from '../lib/prompt-resolution.ts';
+import { inlineGuidance } from '../lib/inline-guidance.ts';
 import { InputsGenerateRequestSchema } from '../../src/api/request-schemas.ts';
 
 const inputsGenerate = new Hono();
@@ -40,7 +40,7 @@ inputsGenerate.post('/generate', async (c) => {
 
   const label = INPUT_LABELS[body.inputId] ?? body.inputId;
   const promptKey = INPUT_PROMPT_KEYS[body.inputId];
-  const guidance = promptKey ? await getPromptBody(promptKey) : '';
+  const guidance = promptKey ? await inlineGuidance(promptKey, 'input_generator_guidance') : '';
   const agentUserPrompt = `<task>
 Generate the **${label}** section content for a design specification.
 
@@ -48,7 +48,7 @@ Write the result as plain text to \`result.txt\` in the workspace root.
 The output should be ready to paste into a textarea — no JSON wrapping, no markdown code fences, no meta commentary.
 </task>
 
-${guidance ? `<input_generator_guidance>\n${guidance}\n</input_generator_guidance>\n\n` : ''}${contextMessage}`;
+${guidance ? `${guidance}\n\n` : ''}${contextMessage}`;
 
   return runTaskAgentRoute(c, {
     routeLabel: 'inputs-generate',

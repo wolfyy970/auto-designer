@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import { loadPackagePromptBody } from '@auto-designer/pi';
 import { clampProviderModel } from '../lib/lockdown-model.ts';
 import { parseRequestJson } from '../lib/parse-request.ts';
 import { SSE_EVENT_NAMES } from '../../src/constants/sse-events.ts';
+import { inlineGuidance } from '../lib/inline-guidance.ts';
 import { buildInternalContextUserMessage } from '../../src/lib/internal-context.ts';
 import { runTaskAgentRoute } from '../lib/task-agent-route-runner.ts';
 import { InternalContextGenerateRequestSchema } from '../../src/api/request-schemas.ts';
@@ -16,7 +16,7 @@ internalContext.post('/generate', async (c) => {
   const body = { ...parsed.data, providerId: pinned.providerId, modelId: pinned.modelId };
 
   const contextMessage = buildInternalContextUserMessage(body.spec);
-  const guidance = loadPackagePromptBody('gen-internal-context.md');
+  const guidance = await inlineGuidance('internal-context-synthesis', 'internal_context_guidance');
   const agentUserPrompt = `<task>
 Create an internal design context document from the specification inputs below.
 
@@ -24,9 +24,7 @@ Write the final Markdown document to \`result.md\` in the workspace root.
 The output should be ready for a designer to inspect and for the Incubator to use as context — no JSON wrapping, no markdown code fences around the whole document, no meta commentary before or after the document.
 </task>
 
-<internal_context_guidance>
 ${guidance}
-</internal_context_guidance>
 
 <source_hash>${body.sourceHash}</source_hash>
 

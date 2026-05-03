@@ -27,6 +27,7 @@ const PACKAGE_PROMPT_FILES: Partial<Record<PromptKey, string>> = {
   'design-system-extract-user-input': 'ds-extract-input.md',
   'designer-agentic-revision-user': 'revise.md',
   'agents-md-file': 'artifact-conventions.md',
+  'internal-context-synthesis': 'gen-internal-context.md',
 };
 
 /**
