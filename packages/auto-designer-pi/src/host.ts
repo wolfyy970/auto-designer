@@ -22,7 +22,7 @@ import {
 } from './sandbox/virtual-workspace.ts';
 import { createSandboxBashTool } from './tools/bash-tool.ts';
 import { createVirtualPiCodingTools } from './tools/virtual-tools.ts';
-import { createDesignerExtensionFactory } from './extension/designer.ts';
+import { EXTENSION_TOOL_NAMES, createDesignerExtensionFactory } from './extension/designer.ts';
 import {
   SessionScopedResourceLoader,
   type SessionType,
@@ -193,11 +193,12 @@ export async function createSession(opts: SessionRunnerOptions): Promise<Session
     thinkingLevel: opts.thinkingLevel ?? 'medium',
     /**
      * Pi 0.72 changed `tools: []` semantics to "allowlist of size zero", which
-     * filters out customTools too. Allowlist customTool names explicitly so the
-     * built-in read/write/edit/bash stay disabled while our VFS-backed versions
-     * are visible to the model.
+     * filters out customTools too AND extension-registered tools. Allowlist
+     * custom tool names plus EXTENSION_TOOL_NAMES so the built-in
+     * read/write/edit/bash stay disabled while our VFS-backed versions and
+     * extension tools (todo_write / validate_*) are visible to the model.
      */
-    tools: customTools.map((t) => t.name),
+    tools: [...customTools.map((t) => t.name), ...EXTENSION_TOOL_NAMES],
     customTools,
     sessionManager: SessionManager.inMemory(),
     cwd: SANDBOX_PROJECT_ROOT,

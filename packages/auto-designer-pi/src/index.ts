@@ -92,6 +92,7 @@ export {
 // Designer extension (todo_write, validate_js, validate_html, compaction hook)
 
 export {
+  EXTENSION_TOOL_NAMES,
   createDesignerExtensionFactory,
   type DesignerExtensionOptions,
 } from './extension/designer.ts';
