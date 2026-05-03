@@ -30,7 +30,6 @@ import {
 const THINKING_TASK_LABELS: Record<ThinkingTask, string> = {
   design: 'Hypothesis design',
   incubate: 'Incubator',
-  'internal-context': 'Internal context document',
   inputs: 'Inputs',
   'design-system': 'Design system',
   evaluator: 'Evaluator',
@@ -44,8 +43,6 @@ const THINKING_TASK_LABELS: Record<ThinkingTask, string> = {
 const THINKING_TASK_DESCRIPTIONS: Record<ThinkingTask, string> = {
   design: 'Building the actual design from a hypothesis (initial pass and revision rounds).',
   incubate: 'Generating hypothesis strategies from a design brief.',
-  'internal-context':
-    'Synthesising a single internal context document from your design brief and inputs.',
   inputs:
     'Auto-fill for the Research & Context, Objectives & Metrics, and Design Constraints inputs.',
   'design-system': 'Extracting a Google DESIGN.md from a design system source.',

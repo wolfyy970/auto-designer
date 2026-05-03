@@ -59,7 +59,6 @@ export const UI_LEVELS = [
 export type ThinkingTask =
   | 'design'
   | 'incubate'
-  | 'internal-context'
   | 'inputs'
   | 'design-system'
   | 'evaluator';
@@ -67,7 +66,6 @@ export type ThinkingTask =
 export const THINKING_TASKS = [
   'design',
   'incubate',
-  'internal-context',
   'inputs',
   'design-system',
   'evaluator',

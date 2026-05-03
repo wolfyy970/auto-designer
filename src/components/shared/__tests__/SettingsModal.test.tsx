@@ -54,7 +54,8 @@ describe('SettingsModal', () => {
 
     expect(screen.queryByText('Hypothesis design')).not.toBeNull();
     expect(screen.queryByText('Incubator')).not.toBeNull();
-    expect(screen.queryByText('Internal context document')).not.toBeNull();
+    // "Internal context document" row was retired with the synthesis task.
+    expect(screen.queryByText('Internal context document')).toBeNull();
     // The Inputs row replaces the previous three per-section rows.
     const inputsLabels = screen.queryAllByText('Inputs');
     expect(inputsLabels.length).toBeGreaterThanOrEqual(1);

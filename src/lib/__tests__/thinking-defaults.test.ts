@@ -67,7 +67,6 @@ describe('resolveThinkingConfig — task defaults', () => {
     expect(THINKING_CONFIG_DEFAULTS).toMatchObject({
       design: { level: 'high', budgetTokens: 20_000 },
       incubate: { level: 'high', budgetTokens: 20_000 },
-      'internal-context': { level: 'high', budgetTokens: 20_000 },
       inputs: { level: 'medium', budgetTokens: 5_000 },
       'design-system': { level: 'high', budgetTokens: 20_000 },
     });

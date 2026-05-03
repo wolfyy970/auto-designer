@@ -148,7 +148,7 @@ export const useTaskConfigStore = create<TaskConfigStore>()(
     }),
     {
       name: STORAGE_KEYS.THINKING_DEFAULTS,
-      version: 5,
+      version: 6,
       partialize: (s) => ({ overrides: s.overrides }),
       migrate: (persisted, fromVersion) => {
         const p = persisted as { overrides?: Partial<Record<string, unknown>> };
@@ -187,6 +187,11 @@ export const useTaskConfigStore = create<TaskConfigStore>()(
 
         // v4 → v5 collapse: rename `effort` to `level` per task. normalizeOverride
         // handles the per-task migration as part of its normal parsing path.
+
+        if (fromVersion < 6) {
+          // v5 → v6: drop the persisted 'internal-context' slot — the task is gone.
+          delete existingRaw['internal-context'];
+        }
 
         const merged = { ...EMPTY_OVERRIDES } as ThinkingOverridesByTask;
         for (const t of THINKING_TASKS) {
