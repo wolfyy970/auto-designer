@@ -600,6 +600,28 @@ function migrateV29ToV30(s: Record<string, unknown>): Record<string, unknown> {
   };
 }
 
+/**
+ * v31 -> v32: strip Model nodes (and any edges touching them) from
+ * persisted canvases. Stage 2 of Phase 7 D wrote each Model node's
+ * (providerId, modelId) into the per-task Settings store; this
+ * removes the node from the saved graph so it stops rendering.
+ */
+function migrateV31ToV32(s: Record<string, unknown>): Record<string, unknown> {
+  const nodes = Array.isArray(s.nodes) ? (s.nodes as Array<Record<string, unknown>>) : [];
+  const edges = Array.isArray(s.edges) ? (s.edges as Array<Record<string, unknown>>) : [];
+  const modelIds = new Set(
+    nodes.filter((n) => n.type === NODE_TYPES.MODEL).map((n) => String(n.id)),
+  );
+  if (modelIds.size === 0) return s;
+  return {
+    ...s,
+    nodes: nodes.filter((n) => n.type !== NODE_TYPES.MODEL),
+    edges: edges.filter(
+      (e) => !modelIds.has(String(e.source)) && !modelIds.has(String(e.target)),
+    ),
+  };
+}
+
 /** v30 -> v31: Design System uses the implicit Incubator model, not a direct model edge. */
 function migrateV30ToV31(s: Record<string, unknown>): Record<string, unknown> {
   const nodes = Array.isArray(s.nodes) ? (s.nodes as Array<Record<string, unknown>>) : [];
@@ -660,6 +682,7 @@ export function migrateCanvasState(
   if (fromVersion < 29) s = migrateV28ToV29(s);
   if (fromVersion < 30) s = migrateV29ToV30(s);
   if (fromVersion < 31) s = migrateV30ToV31(s);
+  if (fromVersion < 32) s = migrateV31ToV32(s);
 
   return normalizeMigratedCanvasState(s);
 }
@@ -670,7 +693,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeMigratedCanvasState(state: Record<string, unknown>): Record<string, unknown> {
   const viewport = isRecord(state.viewport) ? state.viewport : FRESH_STATE.viewport;
-  const migrated = migrateV30ToV31(migrateV29ToV30(state));
+  const migrated = migrateV31ToV32(migrateV30ToV31(migrateV29ToV30(state)));
   return {
     ...migrated,
     nodes: Array.isArray(migrated.nodes) ? migrated.nodes : [],

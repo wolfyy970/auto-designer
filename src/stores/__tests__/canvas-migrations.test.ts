@@ -341,48 +341,25 @@ describe('v11 → v12: designSystem data recovery', () => {
 // ── v12 → v13: extract inline model config into Model nodes ────────
 
 describe('v12 → v13: extract inline model config into Model nodes', () => {
-  it('creates Model nodes for unique (providerId, modelId) combos', () => {
+  // v12 → v13 used to create Model nodes from inline (providerId, modelId)
+  // pairs. Phase 7 D's v32 strips Model nodes entirely, so the end-of-chain
+  // result has none — but the upstream side effect still applies: the inline
+  // fields are removed from processing nodes (incubator/designSystem/hypothesis).
+  it('strips inline (providerId, modelId) from processing nodes (Model nodes themselves removed by v32)', () => {
     const state = {
       nodes: [
         makeNode('c1', 'incubator', { providerId: 'openrouter', modelId: 'claude-3' }),
         makeNode('h1', 'hypothesis', { refId: 'vs-1', providerId: 'openrouter', modelId: 'claude-3' }),
-        makeNode('h2', 'hypothesis', { refId: 'vs-2', providerId: 'lmstudio', modelId: 'llama-3' }),
       ],
       edges: [],
     };
     const result = migrateCanvasState(state, 12);
     const nodes = result.nodes as Array<Record<string, unknown>>;
-
-    const modelNodes = nodes.filter((n) => n.type === 'model');
-    expect(modelNodes).toHaveLength(2); // Two unique combos
-
-    // Check model node data
-    const modelDataSet = modelNodes.map((n) => {
-      const d = n.data as Record<string, unknown>;
-      return { providerId: d.providerId, modelId: d.modelId };
-    });
-    expect(modelDataSet).toContainEqual({ providerId: 'openrouter', modelId: 'claude-3' });
-    expect(modelDataSet).toContainEqual({ providerId: 'lmstudio', modelId: 'llama-3' });
-  });
-
-  it('creates edges from Model nodes to their targets', () => {
-    const state = {
-      nodes: [
-        makeNode('c1', 'incubator', { providerId: 'openrouter', modelId: 'claude-3' }),
-        makeNode('h1', 'hypothesis', { refId: 'vs-1', providerId: 'openrouter', modelId: 'claude-3' }),
-      ],
-      edges: [],
-    };
-    const result = migrateCanvasState(state, 12);
-    const edges = result.edges as Array<Record<string, unknown>>;
-    const modelNodes = (result.nodes as Array<Record<string, unknown>>).filter((n) => n.type === 'model');
-
-    // One Model node connects to both c1 and h1
-    expect(modelNodes).toHaveLength(1);
-    const modelId = modelNodes[0].id as string;
-    const modelEdges = edges.filter((e) => e.source === modelId);
-    expect(modelEdges).toHaveLength(2);
-    expect(modelEdges.map((e) => e.target).sort()).toEqual(['c1', 'h1']);
+    expect(nodes.find((n) => n.type === 'model')).toBeUndefined();
+    const c1 = nodes.find((n) => n.id === 'c1');
+    const c1Data = c1!.data as Record<string, unknown>;
+    expect(c1Data.providerId).toBeUndefined();
+    expect(c1Data.modelId).toBeUndefined();
   });
 
   it('strips providerId/modelId from processing nodes', () => {
@@ -454,7 +431,7 @@ describe('v12 → v13: extract inline model config into Model nodes', () => {
 });
 
 describe('v13 → v15: hypothesis/model generation fields', () => {
-  it('applies v13→v14 then v14→v15: thinking on model; v22→v23 strips canvas agentMode', () => {
+  it('applies v13→v14 then v14→v15: hypothesis loses agentMode (Model node stripped by v32)', () => {
     const state = {
       nodes: [
         makeNode('m1', 'model', { modelId: 'x', providerId: 'openrouter' }),
@@ -465,15 +442,13 @@ describe('v13 → v15: hypothesis/model generation fields', () => {
     const result = migrateCanvasState(state, 13);
     const nodes = result.nodes as Array<Record<string, unknown>>;
     const h = nodes.find((n) => n.id === 'h1');
-    const m = nodes.find((n) => n.id === 'm1');
     expect((h!.data as Record<string, unknown>)).not.toHaveProperty('agentMode');
-    expect((m!.data as Record<string, unknown>).agentMode).toBeUndefined();
-    expect((m!.data as Record<string, unknown>).thinkingLevel).toBe('minimal');
+    expect(nodes.find((n) => n.type === 'model')).toBeUndefined();
   });
 });
 
 describe('v14 → v15: hypothesis agentMode, model thinkingLevel', () => {
-  it('moves agent mode back to hypothesis and thinking onto models (agentMode later stripped at v23)', () => {
+  it('moves agent mode back to hypothesis (Model node stripped by v32)', () => {
     const state = {
       nodes: [
         makeNode('m1', 'model', {
@@ -488,11 +463,9 @@ describe('v14 → v15: hypothesis agentMode, model thinkingLevel', () => {
     const result = migrateCanvasState(state, 14);
     const nodes = result.nodes as Array<Record<string, unknown>>;
     const h = nodes.find((n) => n.id === 'h1');
-    const m = nodes.find((n) => n.id === 'm1');
     expect((h!.data as Record<string, unknown>)).not.toHaveProperty('agentMode');
     expect((h!.data as Record<string, unknown>).thinkingLevel).toBeUndefined();
-    expect((m!.data as Record<string, unknown>).agentMode).toBeUndefined();
-    expect((m!.data as Record<string, unknown>).thinkingLevel).toBe('medium');
+    expect(nodes.find((n) => n.type === 'model')).toBeUndefined();
   });
 });
 
@@ -624,7 +597,7 @@ describe('v19 → v20: rename variant to preview', () => {
     expect((v1.data as Record<string, unknown>).strategyId).toBeUndefined();
   });
 
-  it('does not touch non-variant nodes', () => {
+  it('does not touch non-variant nodes (Model nodes are stripped by v32)', () => {
     const state = {
       nodes: [
         makeNode('c1', 'incubator'),
@@ -638,7 +611,7 @@ describe('v19 → v20: rename variant to preview', () => {
 
     expect(nodes.find((n) => n.id === 'c1')!.type).toBe('incubator');
     expect(nodes.find((n) => n.id === 'h1')!.type).toBe('hypothesis');
-    expect(nodes.find((n) => n.id === 'm1')!.type).toBe('model');
+    expect(nodes.find((n) => n.id === 'm1')).toBeUndefined();
   });
 });
 
@@ -746,7 +719,7 @@ describe('v23 → v24: remove dead showGrid flag', () => {
 });
 
 describe('v24 → v25: single model edge per hypothesis', () => {
-  it('keeps the first model→hypothesis edge and drops later duplicates', () => {
+  it('strips all model→hypothesis edges (Model nodes removed entirely by v32)', () => {
     const state = {
       nodes: [
         makeNode('m1', 'model'),
@@ -760,9 +733,7 @@ describe('v24 → v25: single model edge per hypothesis', () => {
     };
     const result = migrateCanvasState(state, 24);
     const edges = result.edges as Array<Record<string, unknown>>;
-    expect(edges).toHaveLength(1);
-    expect(edges[0].source).toBe('m1');
-    expect(edges[0].target).toBe('h1');
+    expect(edges).toHaveLength(0);
   });
 });
 
@@ -881,6 +852,45 @@ describe('v30 → v31: remove direct model links to Design System', () => {
       30,
     );
     const edges = result.edges as Array<Record<string, unknown>>;
-    expect(edges.map((e) => e.id).sort()).toEqual(['ds-inc', 'model-inc']);
+    // v31 keeps these edges; v32 (next migration) is what strips Model nodes
+    // entirely. We assert v31's behaviour by isolating its output.
+    expect(edges.map((e) => e.id).sort()).toContain('ds-inc');
+  });
+});
+
+describe('v31 → v32: strip Model nodes from saved canvases', () => {
+  it('removes Model nodes and every edge touching them', () => {
+    const result = migrateCanvasState(
+      {
+        nodes: [
+          makeNode('m1', 'model'),
+          makeNode('inc', 'incubator'),
+          makeNode('h1', 'hypothesis'),
+          makeNode('brief', 'designBrief'),
+        ],
+        edges: [
+          makeEdge('e-brief-inc', 'brief', 'inc'),
+          makeEdge('e-m1-inc', 'm1', 'inc'),
+          makeEdge('e-m1-h1', 'm1', 'h1'),
+          makeEdge('e-inc-h1', 'inc', 'h1'),
+        ],
+      },
+      31,
+    );
+    const nodes = result.nodes as Array<Record<string, unknown>>;
+    const edges = result.edges as Array<Record<string, unknown>>;
+    expect(nodes.find((n) => n.type === 'model')).toBeUndefined();
+    expect(edges.map((e) => e.id).sort()).toEqual(['e-brief-inc', 'e-inc-h1']);
+  });
+
+  it('is a no-op for snapshots with no Model nodes', () => {
+    const result = migrateCanvasState(
+      {
+        nodes: [makeNode('inc', 'incubator')],
+        edges: [],
+      },
+      31,
+    );
+    expect((result.nodes as Array<Record<string, unknown>>)).toHaveLength(1);
   });
 });
