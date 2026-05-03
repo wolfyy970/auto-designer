@@ -195,7 +195,7 @@ export async function runPiAgentSession(
     providerId: params.providerId,
     modelId: params.modelId,
     source: mapSessionTypeToLlmLogSource(params.sessionType),
-    phase: params.compactionNote?.trim() ? PI_LLM_LOG_PHASE.REVISION : PI_LLM_LOG_PHASE.AGENTIC_TURN,
+    phase: params.phase === 'revision' ? PI_LLM_LOG_PHASE.REVISION : PI_LLM_LOG_PHASE.AGENTIC_TURN,
     turnLogRef: llmTurnLogRef,
     correlationId: params.correlationId,
   });

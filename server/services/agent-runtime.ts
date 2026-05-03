@@ -6,7 +6,6 @@
  * this boundary while preserving these app contracts.
  */
 import type { RunTraceEvent, TodoItem } from '../../src/types/provider.ts';
-import type { SkillCatalogEntry } from '../lib/skill-schema.ts';
 import type { SessionType } from '../lib/session-types.ts';
 import type { ThinkingLevel } from '../../src/lib/thinking-defaults.ts';
 
@@ -19,17 +18,18 @@ export interface AgentRunParams {
   signal?: AbortSignal;
 }
 
-/** Extended session for revision rounds: seeded virtual FS + compaction hint. */
+/** Tags the LLM-log entry's `phase` field. `revision` only fires on round ≥ 2. */
+export type AgentSessionPhase = 'agentic_turn' | 'revision';
+
+/** Extended session for revision rounds: seeded virtual FS + log phase. */
 export interface AgentSessionParams extends AgentRunParams {
   /** Drives LLM log source and task observability. */
   sessionType?: SessionType;
   correlationId?: string;
   seedFiles?: Record<string, string>;
-  /** @deprecated Pi currently manages compaction; reserved for future runtime hooks. */
-  compactionNote?: string;
+  /** Defaults to `'agentic_turn'`; orchestrator sets `'revision'` on rounds ≥ 2. */
+  phase?: AgentSessionPhase;
   initialProgressMessage?: string;
-  /** Non-manual skills for this session; drives the model-facing skill catalog. */
-  skillCatalog?: SkillCatalogEntry[];
 }
 
 export interface DesignAgentSessionResult {

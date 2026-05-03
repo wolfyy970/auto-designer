@@ -152,7 +152,7 @@ describe('runAgenticWithEvaluation', () => {
 
     expect(result).not.toBeNull();
     expect(mocks.runDesignAgentSession).toHaveBeenCalledTimes(1);
-    expect(mocks.runDesignAgentSession.mock.calls[0][0].skillCatalog).toEqual([]);
+    expect(mocks.runDesignAgentSession.mock.calls[0][0].sessionType).toBe('design');
     expect(mocks.runEvaluationWorkers).toHaveBeenCalledTimes(1);
     expect(result?.rounds).toHaveLength(1);
     expect(result?.finalAggregate.shouldRevise).toBe(false);

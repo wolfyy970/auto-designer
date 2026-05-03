@@ -40,7 +40,6 @@ export async function runTaskAgentPiSession(
       correlationId: input.correlationId,
       sessionType: input.sessionType,
       systemPrompt: ctx.systemPrompt,
-      skillCatalog: ctx.skillCatalog,
       seedFiles: ctx.sandboxSeedFiles,
       initialProgressMessage:
         input.initialProgressMessage ?? 'Starting task…',

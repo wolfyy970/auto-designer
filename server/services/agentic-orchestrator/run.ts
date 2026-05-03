@@ -223,7 +223,7 @@ async function runAgenticWithEvaluationImpl(
       const revised = await runAgenticPiSessionRound(mergedOptions, streamCtx, forward, 'revising', setPiTrace, () => ({
         userPrompt: revisionUser,
         seedFiles: files,
-        compactionNote: `Post-evaluation revision requested. Overall ${snapshot.aggregate.overallScore.toFixed(2)}. Hard fails: ${snapshot.aggregate.hardFails.length}.`,
+        phase: 'revision',
         initialProgressMessage: 'Revising design from evaluation feedback…',
       }));
 

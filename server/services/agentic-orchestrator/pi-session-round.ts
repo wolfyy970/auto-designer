@@ -9,7 +9,7 @@ import { emitOrchestratorEvent, type StreamEmissionContext } from './emit.ts';
 type PiSessionExtras = Partial<
   Pick<
     import('../agent-runtime.ts').AgentSessionParams,
-    'userPrompt' | 'seedFiles' | 'compactionNote' | 'initialProgressMessage'
+    'userPrompt' | 'seedFiles' | 'phase' | 'initialProgressMessage'
   >
 >;
 
@@ -36,7 +36,6 @@ export async function runAgenticPiSessionRound(
       ...extras,
       sessionType: options.sessionType ?? 'design',
       systemPrompt: ctx.systemPrompt,
-      skillCatalog: ctx.skillCatalog,
     },
     forward,
   );
