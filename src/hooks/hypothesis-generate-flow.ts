@@ -37,6 +37,10 @@ import type { CompiledPrompt } from '../types/incubator';
 import type { GenerationResult } from '../types/provider';
 import { resolveEvaluatorSettings } from './resolveEvaluatorSettings';
 import { LOST_STREAM_CONNECTION_MESSAGE } from '../api/client-sse-lifecycle';
+import type { ThinkingTask } from '../lib/thinking-defaults';
+
+/** This flow's task identity — Settings reads + lockdown clamp share it. */
+const TASK = 'design' as const satisfies ThinkingTask;
 
 export interface GenerationProgress {
   completed: number;
@@ -92,7 +96,7 @@ export async function runHypothesisGenerateFlow({
 
   const domain = useWorkspaceDomainStore.getState();
   const evalSettings = resolveEvaluatorSettings(nodeId);
-  const settings = useTaskConfigStore.getState().getEffective('design');
+  const settings = useTaskConfigStore.getState().getEffective(TASK);
   if (!settings.providerId || !settings.modelId) {
     setGenerationError(
       'No model selected. Open Settings → Reasoning → Hypothesis design and pick a provider + model.',
@@ -137,7 +141,7 @@ export async function runHypothesisGenerateFlow({
   }
   const genCtx = {
     ...genCtxRaw,
-    modelCredentials: pinForLockdown(genCtxRaw.modelCredentials, lockdown, 'design'),
+    modelCredentials: pinForLockdown(genCtxRaw.modelCredentials, lockdown, TASK),
   };
 
   setEdgeStatusBySource(nodeId, EDGE_STATUS.PROCESSING);

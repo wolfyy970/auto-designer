@@ -24,19 +24,26 @@ export type FeatureFlags = z.infer<typeof FeatureFlagsFileSchema>;
 
 const FLAGS = FeatureFlagsFileSchema.parse(rawFlags);
 
-/** True when running in a production build. Works on both Vite client and Node server. */
-function isProductionEnv(): boolean {
+/**
+ * True when running in a production build. Works on both Vite client and
+ * Node server. Single probe site so the dev/prod gate is consistent.
+ */
+export function isProductionEnv(): boolean {
   const meta =
     typeof import.meta !== 'undefined'
       ? ((import.meta as { env?: { PROD?: boolean } }).env ?? null)
       : null;
   if (meta && typeof meta.PROD === 'boolean') return meta.PROD;
-  // Node side — guarded so tsc client builds without @types/node still compile.
   const proc = (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process;
   if (proc && proc.env) {
     return proc.env.NODE_ENV === 'production';
   }
   return false;
+}
+
+/** Inverse of {@link isProductionEnv}. Use this for "log only in dev" guards etc. */
+export function isDevEnv(): boolean {
+  return !isProductionEnv();
 }
 
 function resolveFlag(value: 0 | 1 | 'auto'): boolean {

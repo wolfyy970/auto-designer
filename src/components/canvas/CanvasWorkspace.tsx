@@ -41,7 +41,6 @@ import { useFeedbackLoopConnection } from './hooks/useFeedbackLoopConnection';
 import { PermanentDeleteConfirmProvider } from '../../contexts/PermanentDeleteConfirmProvider';
 import { useAppConfig } from '../../hooks/useAppConfig';
 import { useSyncEvaluatorDefaultsFromConfig } from '../../hooks/useSyncEvaluatorDefaultsFromConfig';
-import { reconcileLockdownCanvasState } from '../../lib/lockdown-reconcile';
 import { useTheme } from '@ds/lib/use-theme';
 
 function CanvasInner() {
@@ -66,17 +65,12 @@ function CanvasInner() {
     return unsub;
   }, []);
 
-  const lockdownReconciledRef = useRef(false);
-  useEffect(() => {
-    if (!lockdown) {
-      lockdownReconciledRef.current = false;
-      return;
-    }
-    if (!canvasHydrated) return;
-    if (lockdownReconciledRef.current) return;
-    lockdownReconciledRef.current = true;
-    reconcileLockdownCanvasState();
-  }, [lockdown, canvasHydrated]);
+  // Phase 7 D removed the canvas Model node, so there is no canvas-state
+  // reconciliation to do under lockdown — the per-task Settings store
+  // and the route-boundary clamp own the pin. The hydration flag is kept
+  // for any future canvas-side lockdown work.
+  void canvasHydrated;
+  void lockdown;
   const { handleConnect } = useFeedbackLoopConnection();
 
   const nodes = useCanvasStore((s) => s.nodes);
