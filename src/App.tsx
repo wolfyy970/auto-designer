@@ -8,6 +8,7 @@ import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { LogRocketRouteTracker } from './components/shared/LogRocketRouteTracker';
 import { ViewportGate } from './components/shared/ViewportGate';
 import { ApiServerGate } from './components/shared/ApiServerGate';
+import { migrateModelNodeToSettings } from './lib/migrate-model-node-to-settings';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const CanvasPage = lazy(() => import('./pages/CanvasPage'));
@@ -54,6 +55,21 @@ export default function App() {
         }
       });
     }, 3000); // Defer 3s to not compete with initial render
+    return () => clearTimeout(timer);
+  }, []);
+
+  // One-shot Model-node → Settings migration. Defers a tick so persist
+  // hydration completes before we read either store.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        migrateModelNodeToSettings();
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn('[migrate-model-node-to-settings] failed', err);
+        }
+      }
+    }, 0);
     return () => clearTimeout(timer);
   }, []);
 

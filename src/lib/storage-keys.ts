@@ -16,6 +16,8 @@ export const STORAGE_KEYS = {
   // localStorage (manual)
   /** User dismissed the optional-input tip on the canvas (string value is legacy; stable across renames). */
   CANVAS_OPTIONAL_INPUTS_TIP_DISMISSED: 'auto-designer-canvas-optional-sections-tip-dismissed',
+  /** Set once the Model-node → Settings migration has run for this user. */
+  MODEL_NODE_TO_SETTINGS_MIGRATION_DONE: 'auto-designer-model-node-migration-done',
   CANVASES: 'auto-designer-canvases',
   MIGRATION_FLAG: 'auto-designer-migrated-idb',
 
