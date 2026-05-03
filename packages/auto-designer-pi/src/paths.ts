@@ -12,12 +12,39 @@
  */
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Locate the package root across three runtimes:
+ *   1. Source execution (`tsx`, vitest from repo root): `resolve(__dirname, '..')`
+ *      points at `packages/auto-designer-pi/src/..` = the package root.
+ *   2. Vercel function bundle: the bundle inlines `paths.ts` so `__dirname`
+ *      becomes `/var/task/api`. Fall back to `process.cwd()/packages/auto-designer-pi`,
+ *      which Vercel's `includeFiles` ships at deploy time.
+ *   3. Package-local tests (`cd packages/auto-designer-pi && pnpm vitest run`):
+ *      `process.cwd()` is the package itself.
+ *
+ * The first candidate that contains `prompts/_designer-system.md` wins; later
+ * lookups use the cached path.
+ */
+function locatePackageRoot(): string {
+  const candidates = [
+    resolve(__dirname, '..'),
+    resolve(process.cwd(), 'packages', 'auto-designer-pi'),
+    process.cwd(),
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(resolve(candidate, 'prompts', '_designer-system.md'))) {
+      return candidate;
+    }
+  }
+  return candidates[0]!;
+}
+
 /** Repo-relative absolute path to the package root. */
-export const PACKAGE_ROOT = resolve(__dirname, '..');
+export const PACKAGE_ROOT = locatePackageRoot();
 
 /** Absolute path to the package's bundled skills directory. */
 export const PACKAGE_SKILLS_DIR = resolve(PACKAGE_ROOT, 'skills');

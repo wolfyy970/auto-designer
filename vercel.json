@@ -6,7 +6,7 @@
   },
   "functions": {
     "api/[[...route]].js": {
-      "includeFiles": "{config,prompts,skills}/**",
+      "includeFiles": "{config,packages/auto-designer-pi/prompts,packages/auto-designer-pi/skills}/**",
       "maxDuration": 800
     }
   },
