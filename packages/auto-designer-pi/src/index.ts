@@ -140,7 +140,6 @@ export {
   createIncubationSession,
   createInputsGenSession,
   createDesignSystemSession,
-  createInternalContextSession,
   type SessionRunnerOptions,
   type SessionRunResult,
   type SessionHandle,
@@ -149,7 +148,6 @@ export {
   type IncubationSessionOptions,
   type InputsGenSessionOptions,
   type DesignSystemSessionOptions,
-  type InternalContextSessionOptions,
 } from './host.ts';
 
 // ────────────────────────────────────────────────────────────────────────────

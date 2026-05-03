@@ -21,8 +21,7 @@ export type SessionType =
   | 'evaluation'
   | 'incubation'
   | 'inputs-gen'
-  | 'design-system'
-  | 'internal-context';
+  | 'design-system';
 
 /** Tags associated with each session type. A skill is visible to a session if any of its tags matches. */
 export const SESSION_TAGS: Record<SessionType, readonly string[]> = {
@@ -31,7 +30,6 @@ export const SESSION_TAGS: Record<SessionType, readonly string[]> = {
   incubation: ['incubation'],
   'inputs-gen': ['inputs-gen'],
   'design-system': ['design-system'],
-  'internal-context': ['internal-context'],
 } as const;
 
 interface SkillLike {

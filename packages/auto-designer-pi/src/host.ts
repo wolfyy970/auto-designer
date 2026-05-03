@@ -261,7 +261,6 @@ export type EvaluationSessionOptions = Omit<SessionRunnerOptions, 'sessionType' 
 export type IncubationSessionOptions = Omit<SessionRunnerOptions, 'sessionType' | 'seedFiles'>;
 export type InputsGenSessionOptions = Omit<SessionRunnerOptions, 'sessionType' | 'seedFiles'>;
 export type DesignSystemSessionOptions = Omit<SessionRunnerOptions, 'sessionType' | 'seedFiles'>;
-export type InternalContextSessionOptions = Omit<SessionRunnerOptions, 'sessionType' | 'seedFiles'>;
 
 export function createDesignSession(opts: DesignSessionOptions): Promise<SessionHandle> {
   return createSession({ ...opts, sessionType: 'design' });
@@ -277,9 +276,4 @@ export function createInputsGenSession(opts: InputsGenSessionOptions): Promise<S
 }
 export function createDesignSystemSession(opts: DesignSystemSessionOptions): Promise<SessionHandle> {
   return createSession({ ...opts, sessionType: 'design-system' });
-}
-export function createInternalContextSession(
-  opts: InternalContextSessionOptions,
-): Promise<SessionHandle> {
-  return createSession({ ...opts, sessionType: 'internal-context' });
 }

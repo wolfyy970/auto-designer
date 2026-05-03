@@ -10,7 +10,6 @@
 export type SessionType =
   | 'design'
   | 'incubation'
-  | 'internal-context'
   | 'evaluation'
   | 'inputs-gen'
   | 'design-system';

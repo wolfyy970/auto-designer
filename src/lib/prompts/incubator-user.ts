@@ -1,13 +1,7 @@
 import type { DesignSpec } from '../../types/spec';
 import type { HypothesisStrategy } from '../../types/incubator';
 import { interpolate } from '../utils';
-import { getSectionContent, collectImageLines } from './helpers';
-
-function imageBlock(spec: DesignSpec): string {
-  const lines = collectImageLines(spec);
-  if (lines.length === 0) return '';
-  return '## Reference Images\n' + lines.join('\n');
-}
+import { buildInternalContext } from '../internal-context';
 
 /** Optional appendix after the main incubate instruction; empty when no reference designs. */
 export function formatReferenceDesignsBlock(
@@ -56,7 +50,6 @@ export function formatIncubatorHypothesisCountLine(count: number | undefined): s
 export interface IncubatorPromptOptions {
   count?: number;
   existingStrategies?: HypothesisStrategy[];
-  internalContextDocument?: string;
   designSystemDocuments?: { nodeId: string; title: string; content: string }[];
 }
 
@@ -67,13 +60,7 @@ export function buildIncubatorUserPrompt(
   options?: IncubatorPromptOptions,
 ): string {
   return interpolate(incubatorUserTemplate, {
-    SPEC_TITLE: spec.title,
-    DESIGN_BRIEF: getSectionContent(spec, 'design-brief'),
-    RESEARCH_CONTEXT: getSectionContent(spec, 'research-context'),
-    OBJECTIVES_METRICS: getSectionContent(spec, 'objectives-metrics'),
-    DESIGN_CONSTRAINTS: getSectionContent(spec, 'design-constraints'),
-    IMAGE_BLOCK: imageBlock(spec),
-    INTERNAL_CONTEXT_DOCUMENT_BLOCK: formatInternalContextDocumentBlock(options?.internalContextDocument),
+    INTERNAL_CONTEXT: buildInternalContext(spec),
     DESIGN_SYSTEM_DOCUMENTS_BLOCK: formatDesignSystemDocumentsBlock(options?.designSystemDocuments),
     REFERENCE_DESIGNS_BLOCK: formatReferenceDesignsBlock(referenceDesigns),
     EXISTING_HYPOTHESES_BLOCK: formatExistingHypothesesBlock(options?.existingStrategies),
@@ -93,10 +80,4 @@ export function formatDesignSystemDocumentsBlock(
     block += `### Source: ${doc.title || 'Design System'} (${doc.nodeId})\n\n${doc.content.trim()}\n\n`;
   }
   return block;
-}
-
-export function formatInternalContextDocumentBlock(document?: string): string {
-  const body = document?.trim();
-  if (!body) return '';
-  return `\n\n## Internal Context Document (system-generated synthesis)\nUse this derived context as an interpretation aid for hypothesis generation. It is grounded in the user inputs but may contain labeled inferences; keep final hypotheses anchored to the specification.\n\n${body}\n`;
 }

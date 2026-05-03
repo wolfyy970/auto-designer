@@ -92,8 +92,6 @@ incubate.post('/', async (c) => {
     body.referenceDesigns,
     {
       ...body.promptOptions,
-      internalContextDocument:
-        body.promptOptions?.internalContextDocument ?? body.internalContextDocument,
       designSystemDocuments:
         body.promptOptions?.designSystemDocuments ?? body.designSystemDocuments,
     },

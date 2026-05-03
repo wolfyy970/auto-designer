@@ -14,12 +14,10 @@ import {
 
 const apiMocks = vi.hoisted(() => ({
   extractDesignSystem: vi.fn(),
-  generateInternalContext: vi.fn(),
 }));
 
 vi.mock('../../api/client', () => ({
   extractDesignSystem: apiMocks.extractDesignSystem,
-  generateInternalContext: apiMocks.generateInternalContext,
 }));
 
 function renderPreparationHook() {
@@ -27,7 +25,6 @@ function renderPreparationHook() {
     const setTaskStreamState = vi.fn<
       (next: TaskStreamState | ((prev: TaskStreamState) => TaskStreamState)) => void
     >();
-    const setContextGenerating = vi.fn<(next: boolean | ((prev: boolean) => boolean)) => void>();
     const setDesignMdGeneratingNodeId = vi.fn<
       (next: string | null | ((prev: string | null) => string | null)) => void
     >();
@@ -36,7 +33,6 @@ function renderPreparationHook() {
       providerId: 'openrouter',
       modelId: 'test-model',
       setTaskStreamState,
-      setContextGenerating,
       setDesignMdGeneratingNodeId,
     });
   });
@@ -49,29 +45,10 @@ describe('useIncubatorDocumentPreparation', () => {
     useCanvasStore.getState().reset();
     useSpecStore.getState().createNewCanvas('Test');
     useSpecStore.getState().updateSection('design-brief', 'Improve onboarding.');
-    apiMocks.generateInternalContext.mockResolvedValue({ result: '# Context' });
     apiMocks.extractDesignSystem.mockResolvedValue({
       result: '---\nname: Generated\n---\n# Generated',
       lint: { errors: 0, warnings: 0, infos: 0, findings: [] },
     });
-  });
-
-  it('refreshes internal context and stores the returned document', async () => {
-    const { result } = renderPreparationHook();
-
-    await act(async () => {
-      await result.current.refreshInternalContext();
-    });
-
-    expect(apiMocks.generateInternalContext).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sourceHash: expect.stringMatching(/^fnv1a:/),
-        providerId: 'openrouter',
-        modelId: 'test-model',
-      }),
-      expect.anything(),
-    );
-    expect(useSpecStore.getState().spec.internalContextDocument?.content).toBe('# Context');
   });
 
   it('preserves existing DESIGN.md content when refresh fails', async () => {

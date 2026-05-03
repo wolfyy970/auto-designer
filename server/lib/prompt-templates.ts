@@ -14,30 +14,10 @@
 
 export const INCUBATOR_USER_INPUTS_TEMPLATE = `Analyze the following design specification and produce a dimension map with hypothesis strategies.
 
-<specification title="{{SPEC_TITLE}}">
-
-<design_brief>
-{{DESIGN_BRIEF}}
-</design_brief>
-
-<research_context>
-{{RESEARCH_CONTEXT}}
-</research_context>
-
-<objectives_metrics>
-{{OBJECTIVES_METRICS}}
-</objectives_metrics>
-
-<design_constraints>
-{{DESIGN_CONSTRAINTS}}
-</design_constraints>
-
-{{IMAGE_BLOCK}}
-
-{{INTERNAL_CONTEXT_DOCUMENT_BLOCK}}
+<specification>
+{{INTERNAL_CONTEXT}}
 
 {{DESIGN_SYSTEM_DOCUMENTS_BLOCK}}
-
 </specification>
 
 Produce the dimension map as JSON.{{REFERENCE_DESIGNS_BLOCK}}{{EXISTING_HYPOTHESES_BLOCK}}{{INCUBATOR_HYPOTHESIS_COUNT_LINE}}`;

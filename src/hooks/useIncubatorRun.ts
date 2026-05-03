@@ -7,7 +7,6 @@ import {
   createCanvasOperationController,
   isCurrentCanvasSession,
 } from '../lib/canvas-session-guard';
-import { needsInternalContextRefresh } from './useIncubatorDocumentPreparation';
 import { buildIncubatorRunInputs } from './incubator-run-inputs';
 import { createTaskStreamSession } from './task-stream-session';
 import {
@@ -30,9 +29,7 @@ interface UseIncubatorRunParams {
   modelId: string | null | undefined;
   supportsVision: boolean | undefined;
   hypothesisCount: number;
-  contextGenerating: boolean;
   designMdGeneratingNodeId: string | null;
-  refreshInternalContext: () => Promise<string>;
   ensureDesignSystemDocuments: () => Promise<
     { nodeId: string; title: string; content: string }[]
   >;
@@ -48,9 +45,7 @@ export function useIncubatorRun({
   modelId,
   supportsVision,
   hypothesisCount,
-  contextGenerating,
   designMdGeneratingNodeId,
-  refreshInternalContext,
   ensureDesignSystemDocuments,
   fitView,
   setTaskStreamState,
@@ -66,7 +61,6 @@ export function useIncubatorRun({
   return useCallback(async () => {
     if (
       useIncubatorStore.getState().isCompiling ||
-      contextGenerating ||
       designMdGeneratingNodeId
     ) {
       return;
@@ -87,23 +81,7 @@ export function useIncubatorRun({
 
     let session: ReturnType<typeof createTaskStreamSession> | undefined;
     try {
-      const existingInternalContextDocument =
-        useSpecStore.getState().spec.internalContextDocument?.content ?? '';
-      const internalContextPromise = needsInternalContextRefresh()
-        ? refreshInternalContext()
-        : Promise.resolve(existingInternalContextDocument);
-      const [internalContextResult, designSystemDocumentsResult] = await Promise.allSettled([
-        internalContextPromise,
-        ensureDesignSystemDocuments(),
-      ]);
-      if (internalContextResult.status === 'rejected') {
-        throw internalContextResult.reason;
-      }
-      if (designSystemDocumentsResult.status === 'rejected') {
-        throw designSystemDocumentsResult.reason;
-      }
-      const internalContextDocument = internalContextResult.value;
-      const designSystemDocumentsForPrompt = designSystemDocumentsResult.value;
+      const designSystemDocumentsForPrompt = await ensureDesignSystemDocuments();
 
       const runInputs = await buildIncubatorRunInputs({
         snapshot: {
@@ -117,7 +95,6 @@ export function useIncubatorRun({
           hypotheses: domainState.hypotheses,
         },
         hypothesisCount,
-        internalContextDocument,
         designSystemDocuments: designSystemDocumentsForPrompt,
       });
 
@@ -137,7 +114,6 @@ export function useIncubatorRun({
           modelId: modelId!,
           referenceDesigns: runInputs.referenceDesigns,
           supportsVision,
-          internalContextDocument: runInputs.internalContextDocument,
           designSystemDocuments: runInputs.designSystemDocuments,
           promptOptions: runInputs.promptOptions,
           thinking: thinkingOverride,
@@ -167,7 +143,6 @@ export function useIncubatorRun({
   }, [
     addPlaceholderHypotheses,
     appendStrategiesToNode,
-    contextGenerating,
     designMdGeneratingNodeId,
     edges,
     ensureDesignSystemDocuments,
@@ -177,7 +152,6 @@ export function useIncubatorRun({
     modelId,
     nodes,
     providerId,
-    refreshInternalContext,
     removePlaceholders,
     setCompiling,
     setEdgeStatusBySource,

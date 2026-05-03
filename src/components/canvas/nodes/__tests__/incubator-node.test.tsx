@@ -9,7 +9,6 @@ import { useCanvasStore } from '../../../../stores/canvas-store';
 import { useIncubatorStore } from '../../../../stores/incubator-store';
 import { useWorkspaceDomainStore } from '../../../../stores/workspace-domain-store';
 import { computeDesignMdSourceHash } from '../../../../lib/design-md';
-import { computeInternalContextSourceHash } from '../../../../lib/internal-context';
 
 const apiMocks = vi.hoisted(() => ({
   extractDesignSystem: vi.fn(),
@@ -83,7 +82,6 @@ describe('IncubatorNode', () => {
     useCanvasStore.getState().reset();
     useSpecStore.getState().createNewCanvas('Test canvas');
     useSpecStore.getState().resetSectionContent('design-brief');
-    useSpecStore.getState().setInternalContextDocument(undefined);
   });
 
   it('disables Generate and blank hypothesis when Design Brief is empty', () => {
@@ -103,69 +101,6 @@ describe('IncubatorNode', () => {
     expect(blank.disabled).toBe(false);
   });
 
-  it('shows missing design specification status when Design Brief is empty', () => {
-    render(<IncubatorNode {...minimalIncubatorProps()} />);
-    expect(screen.getByText('Design specification')).toBeTruthy();
-    expect(screen.getByText('missing')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'View design specification' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Generate design specification' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Regenerate design specification' })).toBeNull();
-  });
-
-  it('shows ready-to-generate design specification status once Design Brief has content', () => {
-    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
-    render(<IncubatorNode {...minimalIncubatorProps()} />);
-    expect(screen.getByText('Design specification')).toBeTruthy();
-    expect(screen.getByText('ready to generate')).toBeTruthy();
-    expect(screen.getByText('DESIGN.md')).toBeTruthy();
-    expect(screen.getByText('optional')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'View design specification' })).toBeNull();
-    expect((screen.getByRole('button', { name: 'Generate design specification' }) as HTMLButtonElement).disabled).toBe(false);
-  });
-
-  it('shows ready design specification as green-dot-only with view action', () => {
-    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
-    const currentSpec = useSpecStore.getState().spec;
-    useSpecStore.getState().setInternalContextDocument({
-      content: '# Context',
-      sourceHash: computeInternalContextSourceHash(currentSpec),
-      generatedAt: '2026-01-01T00:00:00Z',
-      providerId: 'openrouter',
-      modelId: 'test-model',
-    });
-    const { container } = render(<IncubatorNode {...minimalIncubatorProps()} />);
-
-    expect(screen.getByText('Design specification')).toBeTruthy();
-    expect(container.querySelector('.bg-success')).toBeTruthy();
-    expect(screen.queryByText('ready')).toBeNull();
-    expect(screen.getByRole('button', { name: 'View design specification' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Regenerate design specification' })).toBeNull();
-  });
-
-  it('shows needs-update design specification status with view and regenerate actions', () => {
-    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
-    useSpecStore.getState().setInternalContextDocument({
-      content: '# Context',
-      sourceHash: 'old',
-      generatedAt: '2026-01-01T00:00:00Z',
-      providerId: 'openrouter',
-      modelId: 'test-model',
-    });
-    render(<IncubatorNode {...minimalIncubatorProps()} />);
-    expect(screen.getByText('needs update')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'View design specification' })).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Regenerate design specification' }) as HTMLButtonElement).disabled).toBe(false);
-  });
-
-  it('places generated document rows above connected input controls', () => {
-    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
-    render(<IncubatorNode {...minimalIncubatorProps()} />);
-
-    const contextRow = screen.getByText('Design specification');
-    const inputCount = screen.getByText(/inputs? connected/);
-    expect(Boolean(contextRow.compareDocumentPosition(inputCount) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
-  });
-
   it('shows connected DESIGN.md as needing generation before a document exists', () => {
     useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
     useCanvasStore.setState({
@@ -183,25 +118,9 @@ describe('IncubatorNode', () => {
     render(<IncubatorNode {...minimalIncubatorProps()} />);
 
     expect(screen.getByText('DESIGN.md')).toBeTruthy();
-    expect(screen.getAllByText('ready to generate')).toHaveLength(2);
+    expect(screen.getByText('ready to generate')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Generate DESIGN.md' }) as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByRole('button', { name: 'View DESIGN.md' })).toBeNull();
-  });
-
-  it('shows error design specification status when the last refresh failed', () => {
-    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
-    useSpecStore.getState().setInternalContextDocument({
-      content: '',
-      sourceHash: 'old',
-      generatedAt: '2026-01-01T00:00:00Z',
-      providerId: 'openrouter',
-      modelId: 'test-model',
-      error: 'Context failed',
-    });
-    render(<IncubatorNode {...minimalIncubatorProps()} />);
-    expect(screen.getByText('error')).toBeTruthy();
-    expect(screen.getByText('Context failed')).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Retry design specification' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('shows ready scoped DESIGN.md as green-dot-only with view action', () => {
@@ -391,14 +310,6 @@ describe('IncubatorNode', () => {
 
   it('refreshes missing DESIGN.md before incubating', async () => {
     useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
-    const currentSpec = useSpecStore.getState().spec;
-    useSpecStore.getState().setInternalContextDocument({
-      content: '# Context',
-      sourceHash: computeInternalContextSourceHash(currentSpec),
-      generatedAt: '2026-01-01T00:00:00Z',
-      providerId: 'openrouter',
-      modelId: 'test-model',
-    });
     useCanvasStore.setState({
       nodes: [
         { id: 'inc-1', type: 'incubator', position: { x: 0, y: 0 }, data: {} },

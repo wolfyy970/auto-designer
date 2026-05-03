@@ -1,5 +1,5 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
-import { extractDesignSystem, generateInternalContext } from '../api/client';
+import { extractDesignSystem } from '../api/client';
 import { NODE_TYPES } from '../constants/canvas';
 import {
   createInitialTaskStreamState,
@@ -7,7 +7,6 @@ import {
 } from './task-stream-state';
 import { createTaskStreamSession } from './task-stream-session';
 import { useCanvasStore } from '../stores/canvas-store';
-import { useSpecStore } from '../stores/spec-store';
 import { thinkingOverrideForWire, useTaskConfigStore } from '../stores/task-config-store';
 import { useWorkspaceDomainStore } from '../stores/workspace-domain-store';
 import type { DesignSystemNodeData } from '../types/canvas-data';
@@ -19,16 +18,11 @@ import {
   isDesignMdDocumentStale,
 } from '../lib/design-md';
 import {
-  computeInternalContextSourceHash,
-  isInternalContextDocumentStale,
-} from '../lib/internal-context';
-import {
   buildDesignMdDocument,
   buildFailedDesignMdDocument,
 } from '../lib/design-md-document';
 
 type TaskStreamStateSetter = Dispatch<SetStateAction<TaskStreamState>>;
-type BooleanSetter = Dispatch<SetStateAction<boolean>>;
 type NullableStringSetter = Dispatch<SetStateAction<string | null>>;
 
 export interface UseIncubatorDocumentPreparationOptions {
@@ -36,7 +30,6 @@ export interface UseIncubatorDocumentPreparationOptions {
   providerId?: string | null;
   modelId?: string | null;
   setTaskStreamState: TaskStreamStateSetter;
-  setContextGenerating: BooleanSetter;
   setDesignMdGeneratingNodeId: NullableStringSetter;
 }
 
@@ -51,69 +44,13 @@ export function useIncubatorDocumentPreparation({
   providerId,
   modelId,
   setTaskStreamState,
-  setContextGenerating,
   setDesignMdGeneratingNodeId,
 }: UseIncubatorDocumentPreparationOptions): {
-  refreshInternalContext: () => Promise<string>;
   refreshDesignMdDocument: (nodeId: string) => Promise<string>;
   ensureDesignSystemDocuments: () => Promise<DesignSystemDocumentForPrompt[]>;
 } {
-  const refreshInternalContext = useCallback(async (): Promise<string> => {
-    if (!providerId || !modelId) throw new Error('Connect a Model node first');
-    const currentSpec = useSpecStore.getState().spec;
-    const sourceHash = computeInternalContextSourceHash(currentSpec);
-    setContextGenerating(true);
-    setTaskStreamState({ ...createInitialTaskStreamState(), status: 'streaming' });
-    let session: ReturnType<typeof createTaskStreamSession> | undefined;
-    try {
-      const taskSession = createTaskStreamSession({
-        sessionId: `internal-context-${incubatorId}-${Date.now()}`,
-        correlationId: crypto.randomUUID(),
-        onPatch: (patch) => setTaskStreamState((prev) => ({ ...prev, ...patch })),
-      });
-      session = taskSession;
-      const thinkingOverride = thinkingOverrideForWire(
-        useTaskConfigStore.getState().overrides['internal-context'],
-      );
-      const response = await generateInternalContext(
-        {
-          spec: currentSpec,
-          sourceHash,
-          providerId,
-          modelId,
-          thinking: thinkingOverride,
-        },
-        { agentic: taskSession.callbacks },
-      );
-      useSpecStore.getState().setInternalContextDocument({
-        content: response.result,
-        sourceHash,
-        generatedAt: new Date().toISOString(),
-        providerId,
-        modelId,
-      });
-      return response.result;
-    } catch (err) {
-      const message = normalizeError(err, 'Internal context generation failed');
-      const existing = useSpecStore.getState().spec.internalContextDocument;
-      useSpecStore.getState().setInternalContextDocument({
-        content: existing?.content ?? '',
-        sourceHash,
-        generatedAt: existing?.generatedAt ?? new Date().toISOString(),
-        providerId,
-        modelId,
-        error: message,
-      });
-      throw err;
-    } finally {
-      void session?.finalize();
-      setTaskStreamState(createInitialTaskStreamState('idle'));
-      setContextGenerating(false);
-    }
-  }, [incubatorId, modelId, providerId, setContextGenerating, setTaskStreamState]);
-
   const refreshDesignMdDocument = useCallback(async (nodeId: string): Promise<string> => {
-    if (!providerId || !modelId) throw new Error('Connect a Model node first');
+    if (!providerId || !modelId) throw new Error('Pick a model in Settings first');
     const currentNode = useCanvasStore.getState().nodes.find((n) => n.id === nodeId);
     if (!currentNode || currentNode.type !== NODE_TYPES.DESIGN_SYSTEM) {
       throw new Error('Design System node is no longer available');
@@ -219,14 +156,7 @@ export function useIncubatorDocumentPreparation({
   }, [incubatorId, refreshDesignMdDocument]);
 
   return {
-    refreshInternalContext,
     refreshDesignMdDocument,
     ensureDesignSystemDocuments,
   };
-}
-
-export function needsInternalContextRefresh(): boolean {
-  const currentSpec = useSpecStore.getState().spec;
-  const currentDoc = currentSpec.internalContextDocument;
-  return !currentDoc?.content || Boolean(currentDoc.error) || isInternalContextDocumentStale(currentSpec, currentDoc);
 }

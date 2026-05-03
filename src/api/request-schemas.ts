@@ -33,14 +33,6 @@ export const DesignSystemExtractRequestSchema = z
     message: 'Provide design-system text, Markdown sources, reference images, or a combination.',
   });
 
-export const InternalContextGenerateRequestSchema = z.object({
-  spec: DesignSpecSchema,
-  sourceHash: z.string().min(1),
-  providerId: z.string().min(1),
-  modelId: z.string().min(1),
-  thinking: ThinkingOverrideSchema.optional(),
-});
-
 export const InputsGenerateTargetSchema = z.enum([
   'research-context',
   'objectives-metrics',
@@ -61,7 +53,6 @@ export const InputsGenerateRequestSchema = z.object({
 const IncubatorPromptOptionsSchema = z.object({
   count: z.number().int().positive().optional(),
   existingStrategies: z.array(HypothesisStrategySchema).optional(),
-  internalContextDocument: z.string().optional(),
   designSystemDocuments: z
     .array(z.object({ nodeId: z.string(), title: z.string(), content: z.string() }))
     .optional(),
@@ -80,7 +71,6 @@ export const IncubateRequestSchema = z.object({
     )
     .optional(),
   supportsVision: z.boolean().optional(),
-  internalContextDocument: z.string().optional(),
   designSystemDocuments: z
     .array(z.object({ nodeId: z.string(), title: z.string(), content: z.string() }))
     .optional(),
@@ -91,6 +81,3 @@ export const IncubateRequestSchema = z.object({
 export type DesignSystemExtractRequestWire = z.infer<typeof DesignSystemExtractRequestSchema>;
 export type IncubateRequestWire = z.infer<typeof IncubateRequestSchema>;
 export type InputsGenerateRequestWire = z.infer<typeof InputsGenerateRequestSchema>;
-export type InternalContextGenerateRequestWire = z.infer<
-  typeof InternalContextGenerateRequestSchema
->;

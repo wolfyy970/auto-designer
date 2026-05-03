@@ -16,7 +16,6 @@ import type {
   HypothesisPromptBundleWireResponse,
   IncubateWireResponse,
   InputsGenerateWireResponse,
-  InternalContextGenerateWireResponse,
   ModelsWireResponse,
   ProvidersListWireResponse,
 } from './wire-schemas';
@@ -24,7 +23,6 @@ import type {
   DesignSystemExtractRequestWire,
   IncubateRequestWire,
   InputsGenerateRequestWire,
-  InternalContextGenerateRequestWire,
 } from './request-schemas';
 
 // ── Incubate (spec → incubation plan) ────────────────────────────────
@@ -108,11 +106,4 @@ export type InputsGenerateRequest = InputsGenerateRequestWire;
 
 export type InputsGenerateResponse = InputsGenerateWireResponse;
 
-// ── Internal context document (spec inputs → derived Markdown) ──────
-
-export type InternalContextGenerateRequest = InternalContextGenerateRequestWire & {
-  spec: DesignSpec;
-};
-
-export type InternalContextGenerateResponse = InternalContextGenerateWireResponse;
 export type { AppConfigResponse };

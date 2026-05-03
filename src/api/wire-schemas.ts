@@ -151,11 +151,6 @@ export const InputsGenerateResponseSchema = z.object({
   result: z.string(),
 });
 
-/** POST /api/internal-context/generate */
-export const InternalContextGenerateResponseSchema = z.object({
-  result: z.string(),
-});
-
 /** GET /api/config - default rubric blend (repo: src/lib/rubric-weights.json) */
 export const DefaultRubricWeightsSchema = z.object({
   design: z.number(),
@@ -189,7 +184,4 @@ export type OpenRouterBudgetStatusResponse = z.infer<
 >;
 export type DesignSystemExtractWireResponse = z.infer<typeof DesignSystemExtractResponseSchema>;
 export type InputsGenerateWireResponse = z.infer<typeof InputsGenerateResponseSchema>;
-export type InternalContextGenerateWireResponse = z.infer<
-  typeof InternalContextGenerateResponseSchema
->;
 export type AppConfigResponse = z.infer<typeof AppConfigResponseSchema>;

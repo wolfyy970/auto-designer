@@ -6,13 +6,7 @@ import {
 
 /** Placeholders that structural templates must retain for prompt assembly. */
 const INCUBATOR_PLACEHOLDERS = [
-  '{{SPEC_TITLE}}',
-  '{{DESIGN_BRIEF}}',
-  '{{RESEARCH_CONTEXT}}',
-  '{{OBJECTIVES_METRICS}}',
-  '{{DESIGN_CONSTRAINTS}}',
-  '{{IMAGE_BLOCK}}',
-  '{{INTERNAL_CONTEXT_DOCUMENT_BLOCK}}',
+  '{{INTERNAL_CONTEXT}}',
   '{{DESIGN_SYSTEM_DOCUMENTS_BLOCK}}',
   '{{REFERENCE_DESIGNS_BLOCK}}',
   '{{EXISTING_HYPOTHESES_BLOCK}}',

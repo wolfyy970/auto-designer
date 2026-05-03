@@ -22,7 +22,6 @@ import {
   createEvaluationSession,
   createIncubationSession,
   createInputsGenSession,
-  createInternalContextSession,
   loadDesignerSystemPrompt,
   type ResourceLoader,
   type SessionHandle,
@@ -97,8 +96,6 @@ export function dispatchSessionFactory(
       return createInputsGenSession(baseOpts);
     case 'design-system':
       return createDesignSystemSession(baseOpts);
-    case 'internal-context':
-      return createInternalContextSession(baseOpts);
     case 'design':
     default:
       return createDesignSession({ ...baseOpts, seedFiles });

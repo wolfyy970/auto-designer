@@ -5,7 +5,6 @@ import { normalizeError } from '../../../lib/error-utils';
 import { Button } from '@ds/components/ui/button';
 import { Badge } from '@ds/components/ui/badge';
 import { DocumentViewer } from '@ds/components/ui/document-viewer';
-import type { StatusPanelTone } from '@ds/components/ui/status-panel';
 import { useSpecStore } from '../../../stores/spec-store';
 import {
   useIncubatorStore,
@@ -20,10 +19,6 @@ import {
   designSystemSourceFromNodeData,
   isDesignMdDocumentStale,
 } from '../../../lib/design-md';
-import {
-  getInternalContextUiState,
-  isInternalContextDocumentStale,
-} from '../../../lib/internal-context';
 import { useWorkspaceDomainStore } from '../../../stores/workspace-domain-store';
 import { processingOrFilled } from '../../../lib/node-status';
 import { isPlaceholderHypothesis } from '../../../lib/hypothesis-node-utils';
@@ -52,7 +47,6 @@ type IncubatorNodeFlowType = Node<IncubatorNodeData, 'incubator'>;
 
 function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>) {
   const { fitView } = useReactFlow();
-  const spec = useSpecStore((s) => s.spec);
   const hasDesignBrief = useSpecStore((s) =>
     Boolean(s.spec.sections['design-brief']?.content?.trim()),
   );
@@ -72,26 +66,8 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
   const [taskStreamState, setTaskStreamState] = useState<TaskStreamState>(() =>
     createInitialTaskStreamState('idle'),
   );
-  const [contextGenerating, setContextGenerating] = useState(false);
-  const [contextModalOpen, setContextModalOpen] = useState(false);
   const [designMdGeneratingNodeId, setDesignMdGeneratingNodeId] = useState<string | null>(null);
   const [designMdModalNodeId, setDesignMdModalNodeId] = useState<string | null>(null);
-  const internalContextDoc = spec.internalContextDocument;
-  const internalContextStale = isInternalContextDocumentStale(spec, internalContextDoc);
-  const internalContextUiState = getInternalContextUiState(spec, {
-    generating: contextGenerating,
-    document: internalContextDoc,
-  });
-  const internalContextStatus = internalContextUiState.status;
-  const internalContextStatusLabel = internalContextUiState.statusLabel;
-  const internalContextStatusTone: StatusPanelTone =
-    internalContextStatus === 'ready'
-      ? 'success'
-      : internalContextStatus === 'error'
-          ? 'error'
-          : internalContextStatus === 'generating'
-            ? 'accent'
-            : 'warning';
 
   const scopedDesignSystemNodes = useMemo((): WorkspaceNode[] => {
     const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
@@ -146,7 +122,6 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
   );
 
   const {
-    refreshInternalContext,
     refreshDesignMdDocument,
     ensureDesignSystemDocuments,
   } = useIncubatorDocumentPreparation({
@@ -154,15 +129,8 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
     providerId,
     modelId,
     setTaskStreamState,
-    setContextGenerating,
     setDesignMdGeneratingNodeId,
   });
-
-  const handleRefreshInternalContext = useCallback(() => {
-    void refreshInternalContext().catch((err) => {
-      setError(normalizeError(err, 'Internal context generation failed'));
-    });
-  }, [refreshInternalContext, setError]);
 
   const handleRefreshDesignMdDocument = useCallback((nodeId: string) => {
     void refreshDesignMdDocument(nodeId).catch((err) => {
@@ -178,17 +146,15 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
     modelId,
     supportsVision,
     hypothesisCount,
-    contextGenerating,
     designMdGeneratingNodeId,
-    refreshInternalContext,
     ensureDesignSystemDocuments,
     fitView,
     setTaskStreamState,
   });
 
-  const elapsed = useElapsedTimer(isCompiling || contextGenerating || Boolean(designMdGeneratingNodeId));
+  const elapsed = useElapsedTimer(isCompiling || Boolean(designMdGeneratingNodeId));
 
-  const status = processingOrFilled(isCompiling || contextGenerating || Boolean(designMdGeneratingNodeId));
+  const status = processingOrFilled(isCompiling || Boolean(designMdGeneratingNodeId));
 
   const isReady = hasDesignBrief && !!modelId;
 
@@ -200,7 +166,7 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
       : undefined;
 
   // Layer 2: inline readiness hint
-  const hint = !isCompiling && !contextGenerating && !designMdGeneratingNodeId ? readinessBlockReason ?? null : null;
+  const hint = !isCompiling && !designMdGeneratingNodeId ? readinessBlockReason ?? null : null;
   const activeDesignMdModalNode = designMdModalNodeId
     ? scopedDesignSystemNodes.find((node) => node.id === designMdModalNodeId)
     : undefined;
@@ -211,10 +177,6 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
     ? activeDesignMdDocumentForDesignSystem(activeDesignMdModalData)
     : undefined;
   const canRunDocumentTask = Boolean(providerId && modelId);
-  const internalContextCanView = internalContextUiState.canView;
-  const internalContextCanRefresh =
-    canRunDocumentTask &&
-    internalContextUiState.canGenerate;
 
   return (
     <NodeShell
@@ -234,16 +196,12 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
       </NodeHeader>
 
       {/* Skeleton overlay while incubating or refreshing generated documents */}
-      {(isCompiling || contextGenerating || designMdGeneratingNodeId) && (
+      {(isCompiling || designMdGeneratingNodeId) && (
         <TaskStreamMonitor
           state={taskStreamState}
           elapsed={elapsed}
           fallbackLabel={
-            designMdGeneratingNodeId
-              ? 'Generating DESIGN.md…'
-              : contextGenerating
-                ? 'Synthesizing context…'
-                : 'Incubating…'
+            designMdGeneratingNodeId ? 'Generating DESIGN.md…' : 'Incubating…'
           }
         />
       )}
@@ -254,20 +212,10 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
 
         <div className={`${RF_INTERACTIVE} space-y-2`}>
           <IncubatorDocumentStatusPanels
-            internalContextDoc={internalContextDoc}
-            internalContextStatus={internalContextStatus}
-            internalContextStatusLabel={internalContextStatusLabel}
-            internalContextStatusTone={internalContextStatusTone}
-            internalContextCanView={internalContextCanView}
-            internalContextCanRefresh={internalContextCanRefresh}
-            internalContextRefreshLabel={internalContextUiState.actionLabel}
-            contextGenerating={contextGenerating}
             isCompiling={isCompiling}
             scopedDesignSystemNodes={scopedDesignSystemNodes}
             canRunDocumentTask={canRunDocumentTask}
             designMdGeneratingNodeId={designMdGeneratingNodeId}
-            onViewInternalContext={() => setContextModalOpen(true)}
-            onRefreshInternalContext={handleRefreshInternalContext}
             onViewDesignMdDocument={setDesignMdModalNodeId}
             onRefreshDesignMdDocument={handleRefreshDesignMdDocument}
           />
@@ -304,10 +252,10 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
               size="md"
               className="w-full"
               onClick={handleIncubate}
-              disabled={isCompiling || contextGenerating || Boolean(designMdGeneratingNodeId) || !isReady}
-              aria-busy={isCompiling || contextGenerating || Boolean(designMdGeneratingNodeId)}
-              aria-label={isCompiling || contextGenerating || designMdGeneratingNodeId ? 'Incubating…' : 'Generate hypotheses'}
-              title={isCompiling || contextGenerating || designMdGeneratingNodeId ? 'Incubating…' : undefined}
+              disabled={isCompiling || Boolean(designMdGeneratingNodeId) || !isReady}
+              aria-busy={isCompiling || Boolean(designMdGeneratingNodeId)}
+              aria-label={isCompiling || designMdGeneratingNodeId ? 'Incubating…' : 'Generate hypotheses'}
+              title={isCompiling || designMdGeneratingNodeId ? 'Incubating…' : undefined}
             >
               {isCompiling ? (
                 <>
@@ -328,9 +276,9 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
               size="sm"
               className="w-full"
               onClick={handleAddBlank}
-              disabled={isCompiling || contextGenerating || Boolean(designMdGeneratingNodeId) || !isReady}
+              disabled={isCompiling || Boolean(designMdGeneratingNodeId) || !isReady}
               aria-label="Add blank hypothesis card"
-              title={isCompiling || contextGenerating || designMdGeneratingNodeId ? 'Incubating…' : readinessBlockReason}
+              title={isCompiling || designMdGeneratingNodeId ? 'Incubating…' : readinessBlockReason}
             >
               <Plus size={12} strokeWidth={2} aria-hidden />
               Blank hypothesis
@@ -338,33 +286,12 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
           </div>
         </div>
 
-        {totalHypotheses > 0 && !isCompiling && !contextGenerating && !designMdGeneratingNodeId && (
+        {totalHypotheses > 0 && !isCompiling && !designMdGeneratingNodeId && (
           <p className="text-nano text-fg-secondary">
             {totalHypotheses} {totalHypotheses === 1 ? 'hypothesis' : 'hypotheses'} total
           </p>
         )}
       </div>
-
-      <Modal
-        open={contextModalOpen}
-        onClose={() => setContextModalOpen(false)}
-        title="Design specification"
-        size="lg"
-      >
-        <DocumentViewer
-          content={internalContextDoc?.content}
-          emptyMessage="No design specification has been generated yet."
-          metadata={
-            internalContextDoc ? (
-              <>
-                <div>Generated: {internalContextDoc.generatedAt}</div>
-                <div>Model: {internalContextDoc.providerId} / {internalContextDoc.modelId}</div>
-                <div>Source: {internalContextStale ? 'stale' : 'current'}</div>
-              </>
-            ) : null
-          }
-        />
-      </Modal>
 
       <Modal
         open={Boolean(designMdModalNodeId)}

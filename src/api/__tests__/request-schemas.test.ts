@@ -3,7 +3,6 @@ import {
   DesignSystemExtractRequestSchema,
   IncubateRequestSchema,
   InputsGenerateRequestSchema,
-  InternalContextGenerateRequestSchema,
 } from '../request-schemas';
 import {
   HypothesisGenerateRequestSchema,
@@ -50,13 +49,6 @@ describe('shared request schemas', () => {
     expect(InputsGenerateRequestSchema.safeParse({
       inputId: 'research-context',
       designBrief: 'Brief',
-      providerId: 'openrouter',
-      modelId: 'model',
-    }).success).toBe(true);
-
-    expect(InternalContextGenerateRequestSchema.safeParse({
-      spec,
-      sourceHash: 'fnv1a:abc',
       providerId: 'openrouter',
       modelId: 'model',
     }).success).toBe(true);

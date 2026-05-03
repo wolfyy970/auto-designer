@@ -25,7 +25,6 @@ import type { SessionType } from './session-types.ts';
 const SESSION_TAGS: Record<SessionType, string[]> = {
   design: ['design'],
   incubation: ['incubation'],
-  'internal-context': ['internal-context'],
   evaluation: ['evaluation'],
   'inputs-gen': ['inputs-gen'],
   'design-system': ['design-system'],

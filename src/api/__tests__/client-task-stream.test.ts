@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   extractDesignSystem,
   generateInputContent,
-  generateInternalContext,
 } from '../client-task-stream';
 import { SSE_EVENT_NAMES } from '../../constants/sse-events';
 import { LOST_STREAM_CONNECTION_MESSAGE } from '../client-sse-lifecycle';
@@ -72,33 +71,6 @@ describe('task stream client contract validation', () => {
         ...modelFields,
         inputId: 'research-context',
         designBrief: 'Improve onboarding.',
-      }),
-    ).rejects.toThrow(/Invalid task result payload/);
-  });
-
-  it('rejects malformed internal-context task_result payloads', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        sseResponse([
-          { name: SSE_EVENT_NAMES.task_result, data: { markdown: '# Context' } },
-          { name: SSE_EVENT_NAMES.done, data: {} },
-        ]),
-      ),
-    );
-
-    await expect(
-      generateInternalContext({
-        ...modelFields,
-        sourceHash: 'fnv1a:test',
-        spec: {
-          id: 'spec-1',
-          title: 'Spec',
-          sections: {},
-          version: 1,
-          createdAt: '',
-          lastModified: '',
-        },
       }),
     ).rejects.toThrow(/Invalid task result payload/);
   });

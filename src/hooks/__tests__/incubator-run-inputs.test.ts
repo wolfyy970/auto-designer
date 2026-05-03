@@ -51,7 +51,6 @@ describe('incubator run input assembly', () => {
         id: 'h1',
         incubatorId: 'inc-1',
         strategyId: 'st-1',
-        modelNodeIds: [],
         designSystemNodeIds: [],
         placeholder: false,
       },
@@ -59,7 +58,6 @@ describe('incubator run input assembly', () => {
         id: 'h2',
         incubatorId: 'inc-1',
         strategyId: 'st-placeholder',
-        modelNodeIds: [],
         designSystemNodeIds: [],
         placeholder: true,
       },
@@ -96,12 +94,10 @@ describe('incubator run input assembly', () => {
         hypotheses: {},
       },
       hypothesisCount: 3,
-      internalContextDocument: '# Context',
       designSystemDocuments: [{ nodeId: 'ds-1', title: 'DS', content: '# DS' }],
     });
 
     expect(out.spec.id).toBe('spec-1');
-    expect(out.internalContextDocument).toBe('# Context');
     expect(out.designSystemDocuments).toEqual([{ nodeId: 'ds-1', title: 'DS', content: '# DS' }]);
     expect(out.promptOptions).toEqual({ count: 3, existingStrategies: [] });
   });

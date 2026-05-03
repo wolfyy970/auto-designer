@@ -6,8 +6,6 @@ import type {
   DesignSystemExtractResponse,
   InputsGenerateRequest,
   InputsGenerateResponse,
-  InternalContextGenerateRequest,
-  InternalContextGenerateResponse,
 } from './types';
 import type { z } from 'zod';
 import { parseApiErrorBody } from '../lib/error-utils';
@@ -30,7 +28,6 @@ import {
 import {
   DesignSystemExtractResponseSchema,
   InputsGenerateResponseSchema,
-  InternalContextGenerateResponseSchema,
 } from './response-schemas.ts';
 
 export interface PostTaskStreamOptions {
@@ -130,11 +127,4 @@ export async function generateInputContent(
   options?: PostTaskStreamOptions,
 ): Promise<InputsGenerateResponse> {
   return postTaskStream('/inputs/generate', req, InputsGenerateResponseSchema, options);
-}
-
-export async function generateInternalContext(
-  req: InternalContextGenerateRequest,
-  options?: PostTaskStreamOptions,
-): Promise<InternalContextGenerateResponse> {
-  return postTaskStream('/internal-context/generate', req, InternalContextGenerateResponseSchema, options);
 }

@@ -11,7 +11,6 @@ import preview from './routes/preview.ts';
 import configRoute from './routes/config.ts';
 import providerStatus from './routes/provider-status.ts';
 import inputsGenerate from './routes/inputs-generate.ts';
-import internalContext from './routes/internal-context.ts';
 import { env } from './env.ts';
 import { apiJsonError } from './lib/api-json-error.ts';
 import { DEFAULT_DEV_CLIENT_PORT } from './dev-defaults.ts';
@@ -70,6 +69,5 @@ app.route('/design-system', designSystem);
 app.route('/hypothesis', hypothesis);
 app.route('/preview', preview);
 app.route('/inputs', inputsGenerate);
-app.route('/internal-context', internalContext);
 
 export default app;
