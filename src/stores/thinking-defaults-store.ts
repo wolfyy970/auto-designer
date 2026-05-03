@@ -106,9 +106,21 @@ function patchTask(
   return { ...state, [task]: next };
 }
 
+/**
+ * Wire-shape thinking override. The two fields always travel together:
+ * if a user has set effort for a task, the resolver returns both the
+ * SDK-native level and its budget. `undefined` means "no override —
+ * the server picks defaults for this task." The narrower types stop
+ * call sites from accidentally constructing a half-populated override.
+ */
+export interface WireThinkingOverride {
+  level: ThinkingLevel;
+  budgetTokens: number;
+}
+
 export function thinkingOverrideForWire(
   override: ThinkingOverride | undefined,
-): { level?: ThinkingLevel; budgetTokens?: number } | undefined {
+): WireThinkingOverride | undefined {
   if (!override?.effort) return undefined;
   const level = EFFORT_TO_LEVEL[override.effort];
   return { level, budgetTokens: THINKING_BUDGET_BY_LEVEL[level] };
