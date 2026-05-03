@@ -68,9 +68,7 @@ describe('resolveThinkingConfig — task defaults', () => {
       design: { level: 'high', budgetTokens: 20_000 },
       incubate: { level: 'high', budgetTokens: 20_000 },
       'internal-context': { level: 'high', budgetTokens: 20_000 },
-      'inputs-research': { level: 'medium', budgetTokens: 5_000 },
-      'inputs-objectives': { level: 'medium', budgetTokens: 5_000 },
-      'inputs-constraints': { level: 'high', budgetTokens: 20_000 },
+      inputs: { level: 'medium', budgetTokens: 5_000 },
       'design-system': { level: 'high', budgetTokens: 20_000 },
     });
   });
@@ -91,9 +89,9 @@ describe('resolveThinkingConfig — overrides', () => {
   });
 
   it('budget-only override keeps the task default level', () => {
-    const result = resolveThinkingConfig('inputs-research', REASONING_MODEL, { budgetTokens: 4096 });
+    const result = resolveThinkingConfig('inputs', REASONING_MODEL, { budgetTokens: 4096 });
     expect(result).toEqual({
-      level: THINKING_CONFIG_DEFAULTS['inputs-research'].level,
+      level: THINKING_CONFIG_DEFAULTS.inputs.level,
       budgetTokens: 4096,
     });
   });

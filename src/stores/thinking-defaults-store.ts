@@ -99,14 +99,14 @@ export const useThinkingDefaultsStore = create<ThinkingDefaultsStore>()(
     }),
     {
       name: STORAGE_KEYS.THINKING_DEFAULTS,
-      version: 3,
+      version: 4,
       partialize: (s) => ({ overrides: s.overrides }),
       migrate: (persisted, fromVersion) => {
         const p = persisted as { overrides?: Partial<Record<string, unknown>> };
         const existingRaw = { ...(p.overrides ?? {}) } as Record<string, unknown>;
 
-        // v1 → v2: split the single `inputs` slot into three per-section slots.
-        // Phase 7 collapses them back, but we still honour an old user's tuning.
+        // v1 → v2: split single `inputs` into three per-section slots so
+        // older v2 reads still pick up tuning. v3 → v4 collapses them back.
         if (fromVersion < 2) {
           const oldInputs = existingRaw.inputs;
           if (oldInputs && typeof oldInputs === 'object' && Object.keys(oldInputs).length > 0) {
@@ -117,7 +117,31 @@ export const useThinkingDefaultsStore = create<ThinkingDefaultsStore>()(
           delete existingRaw.inputs;
         }
 
-        // v2 → v3: drop the `level` + `budgetTokens` shape; keep only `effort`.
+        // v3 → v4: collapse the three input-section slots back into one
+        // `inputs` slot. Pick the most-customized (constraints first) so the
+        // user's tuning carries forward.
+        if (fromVersion < 4) {
+          const constraints = existingRaw['inputs-constraints'];
+          const objectives = existingRaw['inputs-objectives'];
+          const research = existingRaw['inputs-research'];
+          const isCustomized = (x: unknown) =>
+            x && typeof x === 'object' && Object.keys(x).length > 0;
+          const carry = isCustomized(constraints)
+            ? constraints
+            : isCustomized(objectives)
+              ? objectives
+              : isCustomized(research)
+                ? research
+                : undefined;
+          if (carry !== undefined && existingRaw.inputs === undefined) {
+            existingRaw.inputs = carry;
+          }
+          delete existingRaw['inputs-research'];
+          delete existingRaw['inputs-objectives'];
+          delete existingRaw['inputs-constraints'];
+        }
+
+        // v2 → v4: drop the `level` + `budgetTokens` shape; keep only `effort`.
         // Convert any legacy level into the matching effort. budgetTokens are
         // dropped — budgets now come from the operator-tuned table.
         const merged = { ...EMPTY_OVERRIDES } as ThinkingOverridesByTask;

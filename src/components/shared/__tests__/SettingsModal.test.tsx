@@ -38,13 +38,16 @@ describe('SettingsModal', () => {
     expect(screen.queryByText('Evaluator')).not.toBeNull();
   });
 
-  it('lists each input-section auto-fill as its own thinking row', () => {
+  it('lists every Reasoning row with plain-English labels', () => {
     render(<SettingsModal open onClose={() => {}} initialTab="general" />);
 
-    expect(screen.queryByText('Inputs — Research & Context')).not.toBeNull();
-    expect(screen.queryByText('Inputs — Objectives & Metrics')).not.toBeNull();
-    expect(screen.queryByText('Inputs — Design Constraints')).not.toBeNull();
     expect(screen.queryByText('Hypothesis design')).not.toBeNull();
+    expect(screen.queryByText('Incubator')).not.toBeNull();
     expect(screen.queryByText('Internal context document')).not.toBeNull();
+    // The Inputs row replaces the previous three per-section rows.
+    const inputsLabels = screen.queryAllByText('Inputs');
+    expect(inputsLabels.length).toBeGreaterThanOrEqual(1);
+    // "Design system" appears in both the section heading and the Reasoning row.
+    expect(screen.queryAllByText('Design system').length).toBeGreaterThanOrEqual(1);
   });
 });

@@ -3,8 +3,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { STORAGE_KEYS } from '../../lib/storage-keys';
 
 async function importStoreFresh(): Promise<typeof import('../thinking-defaults-store')> {
-  // Drop the module cache so persist's hydrate runs against the current
-  // localStorage value. Each test seeds its own legacy blob first.
   vi.resetModules();
   return import('../thinking-defaults-store');
 }
@@ -14,7 +12,7 @@ describe('thinking-defaults-store migrations', () => {
     localStorage.clear();
   });
 
-  it('v1 → v3: copies legacy `inputs` to the three split slots, then collapses level → effort', async () => {
+  it('v1 → v4: legacy `inputs` carries through to the collapsed `inputs` slot, level → effort', async () => {
     const v1 = {
       state: {
         overrides: {
@@ -35,31 +33,41 @@ describe('thinking-defaults-store migrations', () => {
     const overrides = useThinkingDefaultsStore.getState().overrides;
 
     expect(overrides.design).toEqual({ effort: 'maximum' });
-    expect(overrides['inputs-research']).toEqual({ effort: 'thorough' });
-    expect(overrides['inputs-objectives']).toEqual({ effort: 'thorough' });
-    expect(overrides['inputs-constraints']).toEqual({ effort: 'thorough' });
-    // The old top-level inputs key is dropped, and budgets do not survive.
-    expect((overrides as unknown as Record<string, unknown>).inputs).toBeUndefined();
+    expect(overrides.inputs).toEqual({ effort: 'thorough' });
+    // The split per-section keys never exist on the final shape.
+    const raw = overrides as unknown as Record<string, unknown>;
+    expect(raw['inputs-research']).toBeUndefined();
+    expect(raw['inputs-objectives']).toBeUndefined();
+    expect(raw['inputs-constraints']).toBeUndefined();
     for (const t of Object.keys(overrides)) {
-      expect((overrides[t as keyof typeof overrides] as Record<string, unknown>).budgetTokens).toBeUndefined();
+      expect(
+        (overrides[t as keyof typeof overrides] as Record<string, unknown>).budgetTokens,
+      ).toBeUndefined();
     }
   });
 
-  it('v1 → v3: empty legacy `inputs` produces empty overrides on all three slots', async () => {
-    const v1 = { state: { overrides: { design: {}, inputs: {} } }, version: 1 };
-    localStorage.setItem(STORAGE_KEYS.THINKING_DEFAULTS, JSON.stringify(v1));
+  it('v3 → v4: collapses three customised input slots into one (constraints wins)', async () => {
+    const v3 = {
+      state: {
+        overrides: {
+          design: {},
+          'inputs-research': { effort: 'quick' },
+          'inputs-objectives': { effort: 'balanced' },
+          'inputs-constraints': { effort: 'maximum' },
+        },
+      },
+      version: 3,
+    };
+    localStorage.setItem(STORAGE_KEYS.THINKING_DEFAULTS, JSON.stringify(v3));
 
     const { useThinkingDefaultsStore } = await importStoreFresh();
     await Promise.resolve();
     const overrides = useThinkingDefaultsStore.getState().overrides;
 
-    expect(overrides['inputs-research']).toEqual({});
-    expect(overrides['inputs-objectives']).toEqual({});
-    expect(overrides['inputs-constraints']).toEqual({});
-    expect((overrides as unknown as Record<string, unknown>).inputs).toBeUndefined();
+    expect(overrides.inputs).toEqual({ effort: 'maximum' });
   });
 
-  it('v2 → v3: legacy `level` overrides become `effort`; budgets are dropped', async () => {
+  it('v2 → v4: legacy `level` overrides become `effort`; budgets are dropped', async () => {
     const v2 = {
       state: {
         overrides: {
@@ -79,7 +87,6 @@ describe('thinking-defaults-store migrations', () => {
 
     expect(overrides.design).toEqual({ effort: 'quick' });
     expect(overrides.incubate).toEqual({ effort: 'balanced' });
-    // budgetTokens-only override has no effort signal — drops to {}.
     expect(overrides.evaluator).toEqual({});
     expect(overrides['design-system']).toEqual({ effort: 'quick' });
   });

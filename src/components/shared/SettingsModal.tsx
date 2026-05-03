@@ -28,9 +28,7 @@ const THINKING_TASK_LABELS: Record<ThinkingTask, string> = {
   design: 'Hypothesis design',
   incubate: 'Incubator',
   'internal-context': 'Internal context document',
-  'inputs-research': 'Inputs — Research & Context',
-  'inputs-objectives': 'Inputs — Objectives & Metrics',
-  'inputs-constraints': 'Inputs — Design Constraints',
+  inputs: 'Inputs',
   'design-system': 'Design system',
   evaluator: 'Evaluator',
 };
@@ -45,9 +43,8 @@ const THINKING_TASK_DESCRIPTIONS: Record<ThinkingTask, string> = {
   incubate: 'Generating hypothesis strategies from a design brief.',
   'internal-context':
     'Synthesising a single internal context document from your design brief and inputs.',
-  'inputs-research': 'Auto-fill for the Research & Context input.',
-  'inputs-objectives': 'Auto-fill for the Objectives & Metrics input.',
-  'inputs-constraints': 'Auto-fill for the Design Constraints input.',
+  inputs:
+    'Auto-fill for the Research & Context, Objectives & Metrics, and Design Constraints inputs.',
   'design-system': 'Extracting a Google DESIGN.md from a design system source.',
   evaluator: 'Scoring designs against the rubric (server-side).',
 };

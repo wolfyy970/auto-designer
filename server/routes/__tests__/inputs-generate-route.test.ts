@@ -86,19 +86,13 @@ describe('POST /api/inputs/generate', () => {
     expect(taskOptions?.userPrompt).not.toContain('use the `use_skill` tool');
   });
 
-  // Per-inputId thinking-task wiring. The route maps inputId → ThinkingTask,
-  // resolveThinkingConfig turns the task into a level/budget. Constraints uses
-  // a higher default (high / 20k) than research+objectives (medium / 5k), so
-  // the resolved level is a faithful proxy for the slot the route picked.
-  // Using a reasoning-capable model (`openai/o1`) so the capability gate
-  // doesn't short-circuit to `off`.
-  it.each([
-    ['research-context', 'medium'],
-    ['objectives-metrics', 'medium'],
-    ['design-constraints', 'high'],
-  ] as const)(
-    'routes inputId %s to its own thinking slot (resolved level: %s)',
-    async (inputId, expectedLevel) => {
+  // All three inputs flows share one `inputs` thinking slot (medium default).
+  // Per-input granularity is achieved by the user picking model + effort in
+  // Settings, not by separate task slots. Using a reasoning-capable model
+  // (`openai/o1`) so the capability gate doesn't short-circuit to `off`.
+  it.each(['research-context', 'objectives-metrics', 'design-constraints'] as const)(
+    'inputs flow %s shares the single `inputs` thinking slot',
+    async (inputId) => {
       vi.mocked(executeTaskAgentStream).mockClear();
       await app.request('http://localhost/api/inputs/generate', {
         method: 'POST',
@@ -106,7 +100,7 @@ describe('POST /api/inputs/generate', () => {
         body: JSON.stringify({ ...baseBody, inputId, modelId: 'openai/o1' }),
       });
       const taskOptions = vi.mocked(executeTaskAgentStream).mock.calls.at(-1)?.[1];
-      expect(taskOptions?.thinking?.level).toBe(expectedLevel);
+      expect(taskOptions?.thinking?.level).toBe('medium');
     },
   );
 

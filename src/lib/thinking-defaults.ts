@@ -36,16 +36,15 @@ export const THINKING_LEVELS = [
  * Which task the LLM call is serving — drives defaults.
  * `design` covers the hypothesis-design build (initial + revision rounds).
  * `incubate` covers the incubator's hypothesis-strategy generation.
- * The three `inputs-*` slots cover the per-section auto-fill so users can
- * tune each section's thinking independently.
+ * `inputs` covers all three input-section auto-fills (research, objectives,
+ * constraints) — per-section granularity is achieved via the model + effort
+ * the user picks, not via separate task slots.
  */
 export type ThinkingTask =
   | 'design'
   | 'incubate'
   | 'internal-context'
-  | 'inputs-research'
-  | 'inputs-objectives'
-  | 'inputs-constraints'
+  | 'inputs'
   | 'design-system'
   | 'evaluator';
 
@@ -53,9 +52,7 @@ export const THINKING_TASKS = [
   'design',
   'incubate',
   'internal-context',
-  'inputs-research',
-  'inputs-objectives',
-  'inputs-constraints',
+  'inputs',
   'design-system',
   'evaluator',
 ] as const satisfies readonly ThinkingTask[];

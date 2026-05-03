@@ -1,13 +1,11 @@
 {
   "perTaskDefaults": {
-    "design":              { "level": "high",   "budgetTokens": 20000 },
-    "incubate":            { "level": "high",   "budgetTokens": 20000 },
-    "internal-context":    { "level": "high",   "budgetTokens": 20000 },
-    "inputs-research":     { "level": "medium", "budgetTokens":  5000 },
-    "inputs-objectives":   { "level": "medium", "budgetTokens":  5000 },
-    "inputs-constraints":  { "level": "high",   "budgetTokens": 20000 },
-    "design-system":       { "level": "high",   "budgetTokens": 20000 },
-    "evaluator":           { "level": "low",    "budgetTokens":  2048 }
+    "design":           { "level": "high",   "budgetTokens": 20000 },
+    "incubate":         { "level": "high",   "budgetTokens": 20000 },
+    "internal-context": { "level": "high",   "budgetTokens": 20000 },
+    "inputs":           { "level": "medium", "budgetTokens":  5000 },
+    "design-system":    { "level": "high",   "budgetTokens": 20000 },
+    "evaluator":        { "level": "low",    "budgetTokens":  2048 }
   },
   "budgetByLevel": {
     "off":     0,
