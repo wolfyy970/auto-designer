@@ -1,7 +1,5 @@
 import { FEATURE_LOCKDOWN } from '../../src/lib/feature-flags.ts';
-import {
-  getLockdownModelForTask,
-} from '../../src/lib/lockdown-model.ts';
+import { getLockdownModelForTask, pinForLockdown } from '../../src/lib/lockdown-model.ts';
 import type { ThinkingTask } from '../../src/lib/thinking-defaults.ts';
 import type { HypothesisGenerationContext } from '../../src/workspace/hypothesis-generation-pure.ts';
 
@@ -9,17 +7,13 @@ export function isLockdownEnabled(): boolean {
   return FEATURE_LOCKDOWN;
 }
 
-/**
- * Defensive server-side pin. Returns the per-task lockdown model when
- * lockdown is on; otherwise returns the caller's values unchanged.
- */
+/** Defensive server-side pin for a single (providerId, modelId) pair. */
 export function clampProviderModel(
   providerId: string,
   modelId: string,
   task: ThinkingTask,
 ): { providerId: string; modelId: string } {
-  if (!isLockdownEnabled()) return { providerId, modelId };
-  return getLockdownModelForTask(task);
+  return pinForLockdown({ providerId, modelId }, isLockdownEnabled(), task);
 }
 
 /** When lockdown, evaluator overrides clamp to the evaluator task's pin. */
@@ -41,14 +35,8 @@ export function clampEvaluatorOptional(
 export function applyLockdownToHypothesisContext(
   ctx: HypothesisGenerationContext,
 ): HypothesisGenerationContext {
-  if (!isLockdownEnabled()) return ctx;
-  const pin = getLockdownModelForTask('design');
   return {
     ...ctx,
-    modelCredentials: ctx.modelCredentials.map((c) => ({
-      ...c,
-      providerId: pin.providerId,
-      modelId: pin.modelId,
-    })),
+    modelCredentials: pinForLockdown(ctx.modelCredentials, isLockdownEnabled(), 'design'),
   };
 }

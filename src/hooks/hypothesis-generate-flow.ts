@@ -9,7 +9,7 @@ import { useGenerationStore, nextRunNumber } from '../stores/generation-store';
 import { scheduleCanvasFitViewToNodes } from '../lib/canvas-fit-view';
 import { warnIfWorkspaceSnapshotInvalid } from '../lib/workspace-snapshot-warn';
 import { normalizeError } from '../lib/error-utils';
-import { pinModelCredentialsIfLockdown } from '../lib/lockdown-model';
+import { pinForLockdown } from '../lib/lockdown-model';
 import {
   buildHypothesisGenerationContextFromInputs,
   workspaceSnapshotWireToGraph,
@@ -137,7 +137,7 @@ export async function runHypothesisGenerateFlow({
   }
   const genCtx = {
     ...genCtxRaw,
-    modelCredentials: pinModelCredentialsIfLockdown(genCtxRaw.modelCredentials, lockdown, 'design'),
+    modelCredentials: pinForLockdown(genCtxRaw.modelCredentials, lockdown, 'design'),
   };
 
   setEdgeStatusBySource(nodeId, EDGE_STATUS.PROCESSING);
