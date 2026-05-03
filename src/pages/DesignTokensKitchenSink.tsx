@@ -527,7 +527,7 @@ export function DesignTokensKitchenSinkContent({ embedded = false }: { embedded?
         <Section title="Status panels and documents">
           <div className="space-y-4 rounded-lg border border-border bg-surface p-4">
             <StatusPanel
-              title="Design specification"
+              title="Generated artifact"
               tone="success"
               actions={(
                 <>
@@ -536,7 +536,7 @@ export function DesignTokensKitchenSinkContent({ embedded = false }: { embedded?
                 </>
               )}
             />
-            <StatusPanel title="Design specification" status="generating..." tone="accent" animated>
+            <StatusPanel title="Generated artifact" status="generating..." tone="accent" animated>
               Generated artifacts use the same compact row instead of local one-off chrome.
             </StatusPanel>
             <StatusPanel

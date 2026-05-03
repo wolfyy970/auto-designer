@@ -112,13 +112,13 @@ Write in prose, not bullets. Precision is the product.
 
 ### 2. Pick model + effort in Settings
 
-Open **Settings → Reasoning** to choose, per task, the **provider + model** and the **effort** you want (a five-position slider: Off / Quick / Balanced / Thorough / Maximum). Each task — Hypothesis design, Incubator, Internal context document, Inputs, Design system, Evaluator — keeps its own choice. When **lockdown** is enabled in `config/feature-flags.json`, every run uses **OpenRouter + MiniMax M2.5** and the pickers are disabled (the slider stays editable but is honestly a no-op for non-reasoning models — a chip beside the picker tells you).
+Open **Settings → Reasoning** to choose, per task, the **provider + model** and the **effort** you want (a five-position slider: Off / Quick / Balanced / Thorough / Maximum). Each task — Hypothesis design, Incubator, Inputs, Design system, Evaluator — keeps its own choice. When **lockdown** is enabled in `config/feature-flags.json`, every run uses **OpenRouter + MiniMax M2.5** and the pickers are disabled (the slider stays editable but is honestly a no-op for non-reasoning models — a chip beside the picker tells you).
 
 ### 3. Incubate
 
 Connect input nodes to the **Incubator** (edges auto-connect on add). With at least a minimal **Design Brief** written, click **Generate** and choose how many new hypotheses to create. The Incubator uses **Settings → Reasoning → Incubator** for the model + effort. The Incubator sends your connected inputs to the LLM and produces that many hypothesis strategy cards. **blank hypothesis** does the same readiness check (brief + model) but adds a single empty strategy card without calling the LLM, for hand-editing.
 
-The Incubator shows generated-document readiness before it runs. **Design specification** moves from **missing** to **ready to generate** once the Design Brief has content, then to **needs update** if connected input content changes after a document exists. **DESIGN.md** follows the active Design System style: Wireframe is already ready, Custom only participates when custom source material exists, and None is ignored.
+The Incubator shows **DESIGN.md** readiness before it runs: it follows the active Design System style — Wireframe is already ready, Custom only participates when custom source material exists, and None is ignored. The user's spec inputs (Design Brief, Research, Objectives, Constraints) are passed verbatim to the Incubator at run time — there is no separate "Design specification" document to generate or review.
 
 ### 4. Edit Hypotheses
 
