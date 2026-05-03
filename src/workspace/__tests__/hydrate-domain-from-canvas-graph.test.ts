@@ -8,20 +8,20 @@ describe('hydrateDomainFromCanvasGraph', () => {
     useWorkspaceDomainStore.getState().reset();
   });
 
-  it('keeps the first model→hypothesis edge when duplicates exist on the graph', () => {
+  it('hydrates the incubator/hypothesis link without populating modelNodeIds (Settings is the model source)', () => {
     hydrateDomainFromCanvasGraph({
       nodes: [
         { id: 'm1', type: NODE_TYPES.MODEL, data: { modelId: 'a', providerId: 'openrouter' } },
-        { id: 'm2', type: NODE_TYPES.MODEL, data: { modelId: 'b', providerId: 'openrouter' } },
         { id: 'h1', type: NODE_TYPES.HYPOTHESIS, data: { refId: 'vs1' } },
         { id: 'c1', type: NODE_TYPES.INCUBATOR, data: {} },
       ],
       edges: [
         { source: 'c1', target: 'h1' },
         { source: 'm1', target: 'h1' },
-        { source: 'm2', target: 'h1' },
       ],
     });
-    expect(useWorkspaceDomainStore.getState().hypotheses.h1?.modelNodeIds).toEqual(['m1']);
+    const h1 = useWorkspaceDomainStore.getState().hypotheses.h1;
+    expect(h1?.incubatorId).toBe('c1');
+    expect(h1?.modelNodeIds ?? []).toEqual([]);
   });
 });

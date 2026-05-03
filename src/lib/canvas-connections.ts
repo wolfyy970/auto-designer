@@ -26,10 +26,10 @@ export function isValidConnection(sourceType: string, targetType: string): boole
 // ── Prerequisite rules ──────────────────────────────────────────────
 
 export function findMissingPrerequisite(
-  newNodeType: string,
-  existingNodes: MinimalNode[],
+  _newNodeType: string,
+  _existingNodes: MinimalNode[],
 ): string | null {
-  return findMissingPrerequisiteFromContracts(newNodeType, existingNodes);
+  return findMissingPrerequisiteFromContracts();
 }
 
 // ── Edge helpers ────────────────────────────────────────────────────
@@ -77,12 +77,12 @@ export function buildAutoConnectEdges(
  * Falls back to the first model on the canvas if the parent has none.
  */
 export function buildModelEdgesFromParent(
-  parentId: string,
-  childIds: string[],
-  nodes: MinimalNode[],
-  edges: MinimalEdge[],
+  _parentId: string,
+  _childIds: string[],
+  _nodes: MinimalNode[],
+  _edges: MinimalEdge[],
 ): AutoEdge[] {
-  return buildScopedModelEdgesFromParent(parentId, childIds, nodes, edges);
+  return buildScopedModelEdgesFromParent();
 }
 
 /**
@@ -90,9 +90,9 @@ export function buildModelEdgesFromParent(
  * Connects the first available model (no parent context).
  */
 export function buildModelEdgeForNode(
-  nodeId: string,
-  nodeType: string,
-  existingNodes: MinimalNode[],
+  _nodeId: string,
+  _nodeType: string,
+  _existingNodes: MinimalNode[],
 ): AutoEdge[] {
-  return buildPaletteModelEdgesForNode(nodeId, nodeType, existingNodes);
+  return buildPaletteModelEdgesForNode();
 }

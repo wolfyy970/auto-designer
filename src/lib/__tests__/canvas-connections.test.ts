@@ -48,25 +48,15 @@ describe('isValidConnection', () => {
     expect(isValidConnection('designBrief', 'unknown')).toBe(false);
   });
 
-  it('allows model to connect to compiler and hypothesis only', () => {
-    expect(isValidConnection('model', 'incubator')).toBe(true);
-    expect(isValidConnection('model', 'hypothesis')).toBe(true);
-    expect(isValidConnection('model', 'designSystem')).toBe(false);
-  });
-
-  it('rejects model connecting to sections or previews', () => {
-    expect(isValidConnection('model', 'designBrief')).toBe(false);
-    expect(isValidConnection('model', 'preview')).toBe(false);
-  });
-
-  it('rejects connections TO model nodes', () => {
+  it('rejects model edges in either direction (Settings is the model source)', () => {
+    expect(isValidConnection('model', 'incubator')).toBe(false);
+    expect(isValidConnection('model', 'hypothesis')).toBe(false);
     expect(isValidConnection('incubator', 'model')).toBe(false);
     expect(isValidConnection('hypothesis', 'model')).toBe(false);
-    expect(isValidConnection('designBrief', 'model')).toBe(false);
   });
 
   it('covers all defined source types', () => {
     const definedSources = Object.keys(VALID_CONNECTIONS);
-    expect(definedSources.length).toBeGreaterThanOrEqual(9);
+    expect(definedSources.length).toBeGreaterThanOrEqual(7);
   });
 });

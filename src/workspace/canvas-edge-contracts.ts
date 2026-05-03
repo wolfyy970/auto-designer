@@ -8,7 +8,6 @@ import { findIncubatorForHypothesis, snapshotNodeToWorkspace } from './graph-que
 type NodeType = Exclude<CanvasNodeType, 'inputGhost'>;
 
 type MinimalNode = { id: string; type?: string };
-type MinimalEdge = { source: string; target: string };
 export type AutoConnectMode = 'new-source-to-sole-target' | 'existing-sources-to-first-target' | 'new-source-to-all-targets' | 'all-sources-to-new-target';
 
 export interface AutoEdge {
@@ -141,49 +140,6 @@ export const CANVAS_EDGE_CONTRACTS: readonly CanvasEdgeContract[] = [
     },
   }),
   makeContract({
-    id: 'model-compiler',
-    sourceTypes: [NODE_TYPES.MODEL],
-    targetTypes: [NODE_TYPES.INCUBATOR],
-    manual: true,
-    paletteModelTarget: true,
-    onAdd: ({ d, src, tgt }) => {
-      d.ensureIncubatorWiring(tgt.id);
-      d.attachModelToTarget(src.id, tgt.id, NODE_TYPES.INCUBATOR);
-    },
-    onRemove: ({ d, src, tgt }) => {
-      d.detachModelFromTarget(src.id, tgt.id, NODE_TYPES.INCUBATOR);
-    },
-    onHydrate: ({ store, src, tgt }) => {
-      store.ensureIncubatorWiring(tgt.id);
-      store.attachModelToTarget(src.id, tgt.id, NODE_TYPES.INCUBATOR);
-    },
-  }),
-  makeContract({
-    id: 'model-hypothesis',
-    sourceTypes: [NODE_TYPES.MODEL],
-    targetTypes: [NODE_TYPES.HYPOTHESIS],
-    manual: true,
-    paletteModelTarget: true,
-    onAdd: ({ d, src, tgt, nodes, allEdges }) => {
-      const refId = getHypothesisRefId(tgt);
-      const inc = findIncubatorForHypothesis({ nodes, edges: allEdges }, tgt.id);
-      if (refId && inc) d.linkHypothesisToIncubator(tgt.id, inc, refId);
-      d.setHypothesisPlaceholder(tgt.id, isPlaceholderHypothesis(tgt.data));
-      d.attachModelToTarget(src.id, tgt.id, NODE_TYPES.HYPOTHESIS);
-    },
-    onRemove: ({ d, src, tgt }) => {
-      d.detachModelFromTarget(src.id, tgt.id, NODE_TYPES.HYPOTHESIS);
-    },
-    onHydrate: ({ store, input, src, tgt }) => {
-      store.attachModelToTarget(src.id, tgt.id, NODE_TYPES.HYPOTHESIS);
-      const h = getHypothesisNodeData(snapshotNodeToWorkspace(tgt));
-      if (h?.refId) {
-        const inc = findIncubatorForHypothesis(input, tgt.id);
-        if (inc) store.linkHypothesisToIncubator(tgt.id, inc, h.refId);
-      }
-    },
-  }),
-  makeContract({
     id: 'compiler-hypothesis',
     sourceTypes: [NODE_TYPES.INCUBATOR],
     targetTypes: [NODE_TYPES.HYPOTHESIS],
@@ -250,16 +206,8 @@ export function buildValidConnectionMap(): Record<NodeType, Set<NodeType>> {
   return map;
 }
 
-export function findMissingPrerequisiteFromContracts(
-  newNodeType: string,
-  existingNodes: MinimalNode[],
-): string | null {
-  const requiresModel = CANVAS_EDGE_CONTRACTS.some(
-    (contract) => contract.paletteModelTarget && contract.targetTypes.includes(newNodeType as NodeType),
-  );
-  if (!requiresModel) return null;
-  if (existingNodes.some((node) => node.type === NODE_TYPES.MODEL)) return null;
-  return NODE_TYPES.MODEL;
+export function findMissingPrerequisiteFromContracts(): string | null {
+  return null;
 }
 
 export function buildStructuralAutoConnectEdges(
@@ -307,52 +255,10 @@ export function buildStructuralAutoConnectEdges(
   return edges;
 }
 
-export function buildPaletteModelEdgesForNode(
-  nodeId: string,
-  nodeType: string,
-  existingNodes: MinimalNode[],
-): AutoEdge[] {
-  const needsModel = CANVAS_EDGE_CONTRACTS.some(
-    (contract) =>
-      contract.paletteModelTarget
-      && contract.sourceTypes.includes(NODE_TYPES.MODEL)
-      && contract.targetTypes.includes(nodeType as NodeType),
-  );
-  if (!needsModel) return [];
-
-  const model = existingNodes.find((node) => node.type === NODE_TYPES.MODEL);
-  return model ? [makeEdge(model.id, nodeId)] : [];
+export function buildPaletteModelEdgesForNode(): AutoEdge[] {
+  return [];
 }
 
-function findModelsConnectedTo(
-  parentId: string,
-  nodes: MinimalNode[],
-  edges: MinimalEdge[],
-): MinimalNode[] {
-  const modelIds = new Set<string>();
-  for (const edge of edges) {
-    if (edge.target === parentId) {
-      const source = nodes.find((node) => node.id === edge.source);
-      if (source?.type === NODE_TYPES.MODEL) modelIds.add(source.id);
-    }
-  }
-  return nodes.filter((node) => modelIds.has(node.id));
-}
-
-export function buildScopedModelEdgesFromParent(
-  parentId: string,
-  childIds: string[],
-  nodes: MinimalNode[],
-  edges: MinimalEdge[],
-): AutoEdge[] {
-  let models = findModelsConnectedTo(parentId, nodes, edges);
-
-  if (models.length === 0) {
-    const firstModel = nodes.find((node) => node.type === NODE_TYPES.MODEL);
-    if (firstModel) models = [firstModel];
-  } else {
-    models = [models[0]!];
-  }
-
-  return models.flatMap((model) => childIds.map((childId) => makeEdge(model.id, childId)));
+export function buildScopedModelEdgesFromParent(): AutoEdge[] {
+  return [];
 }

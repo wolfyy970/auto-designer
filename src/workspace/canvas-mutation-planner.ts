@@ -20,7 +20,6 @@ import type { CanvasNodeType, WorkspaceEdge, WorkspaceNode } from '../types/work
 
 export const REMOVE_PROTECTED_NODE_TYPES = new Set<string>([
   NODE_TYPES.DESIGN_BRIEF,
-  NODE_TYPES.MODEL,
   NODE_TYPES.DESIGN_SYSTEM,
   NODE_TYPES.INCUBATOR,
   INPUT_GHOST_NODE_TYPE,
@@ -67,19 +66,8 @@ export function planConnectionMutation(input: {
   nodes: readonly WorkspaceNode[];
   edges: readonly WorkspaceEdge[];
 }): ConnectionPlan {
-  let edges = [...input.edges];
-  let removedEdges: WorkspaceEdge[] = [];
-  const sourceNode = input.nodes.find((node) => node.id === input.source);
-  const targetNode = input.nodes.find((node) => node.id === input.target);
-
-  if (sourceNode?.type === NODE_TYPES.MODEL && targetNode?.type === NODE_TYPES.HYPOTHESIS) {
-    removedEdges = edges.filter((edge) => {
-      if (edge.target !== input.target) return false;
-      return input.nodes.find((node) => node.id === edge.source)?.type === NODE_TYPES.MODEL;
-    });
-    const removedIds = new Set(removedEdges.map((edge) => edge.id));
-    edges = edges.filter((edge) => !removedIds.has(edge.id));
-  }
+  const edges = [...input.edges];
+  const removedEdges: WorkspaceEdge[] = [];
 
   const edgeId = buildEdgeId(input.source, input.target);
   if (edges.some((edge) => edge.id === edgeId)) {

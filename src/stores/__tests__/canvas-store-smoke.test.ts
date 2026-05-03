@@ -55,7 +55,6 @@ describe('canvas-store smoke', () => {
   it('does not remove required structural nodes', () => {
     const required: WorkspaceNode[] = [
       { id: 'brief-1', type: NODE_TYPES.DESIGN_BRIEF, position: { x: 0, y: 0 }, data: {} },
-      { id: 'model-1', type: NODE_TYPES.MODEL, position: { x: 0, y: 0 }, data: {} },
       { id: 'ds-1', type: NODE_TYPES.DESIGN_SYSTEM, position: { x: 0, y: 0 }, data: {} },
       { id: 'inc-1', type: NODE_TYPES.INCUBATOR, position: { x: 0, y: 0 }, data: {} },
       { id: 'ghost-input-researchContext', type: 'inputGhost', position: { x: 0, y: 0 }, data: { targetType: 'researchContext' } },
@@ -142,42 +141,35 @@ describe('canvas-store smoke', () => {
     expect(pendingFocusNodeId).toBeNull();
   });
 
-  it('removeEdge detaches model and design-system hypothesis wiring from the domain store', () => {
+  it('removeEdge detaches design-system hypothesis wiring from the domain store', () => {
     useCanvasStore.setState({
       nodes: [
         { id: 'inc-1', type: NODE_TYPES.INCUBATOR, position: { x: 0, y: 0 }, data: {} },
-        { id: 'model-1', type: NODE_TYPES.MODEL, position: { x: 0, y: 0 }, data: {} },
         { id: 'ds-1', type: NODE_TYPES.DESIGN_SYSTEM, position: { x: 0, y: 0 }, data: {} },
         { id: 'hyp-1', type: NODE_TYPES.HYPOTHESIS, position: { x: 0, y: 0 }, data: { refId: 'strategy-1' } },
       ],
       edges: [
-        { id: 'e-model-hyp', source: 'model-1', target: 'hyp-1', type: 'dataFlow', data: { status: 'idle' } },
         { id: 'e-ds-hyp', source: 'ds-1', target: 'hyp-1', type: 'dataFlow', data: { status: 'idle' } },
       ],
     });
     const domain = useWorkspaceDomainStore.getState();
     domain.linkHypothesisToIncubator('hyp-1', 'inc-1', 'strategy-1');
-    domain.attachModelToTarget('model-1', 'hyp-1', NODE_TYPES.HYPOTHESIS);
     domain.attachDesignSystemToHypothesis('ds-1', 'hyp-1');
 
-    useCanvasStore.getState().removeEdge('e-model-hyp');
     useCanvasStore.getState().removeEdge('e-ds-hyp');
 
-    expect(useWorkspaceDomainStore.getState().hypotheses['hyp-1']?.modelNodeIds).toEqual([]);
     expect(useWorkspaceDomainStore.getState().hypotheses['hyp-1']?.designSystemNodeIds).toEqual([]);
   });
 
-  it('disconnectOutputs detaches incubator model and input wiring from the domain store', () => {
+  it('disconnectOutputs detaches incubator input wiring from the domain store', () => {
     useCanvasStore.setState({
       nodes: [
         { id: 'brief-1', type: NODE_TYPES.DESIGN_BRIEF, position: { x: 0, y: 0 }, data: {} },
-        { id: 'model-1', type: NODE_TYPES.MODEL, position: { x: 0, y: 0 }, data: {} },
         { id: 'ds-1', type: NODE_TYPES.DESIGN_SYSTEM, position: { x: 0, y: 0 }, data: {} },
         { id: 'inc-1', type: NODE_TYPES.INCUBATOR, position: { x: 0, y: 0 }, data: {} },
       ],
       edges: [
         { id: 'e-brief-inc', source: 'brief-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } },
-        { id: 'e-model-inc', source: 'model-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } },
         { id: 'e-ds-inc', source: 'ds-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } },
       ],
     });
@@ -185,15 +177,12 @@ describe('canvas-store smoke', () => {
     domain.ensureIncubatorWiring('inc-1');
     domain.attachIncubatorInput('inc-1', 'brief-1', NODE_TYPES.DESIGN_BRIEF);
     domain.attachIncubatorInput('inc-1', 'ds-1', NODE_TYPES.DESIGN_SYSTEM);
-    domain.attachModelToTarget('model-1', 'inc-1', NODE_TYPES.INCUBATOR);
 
     useCanvasStore.getState().disconnectOutputs('brief-1');
-    useCanvasStore.getState().disconnectOutputs('model-1');
     useCanvasStore.getState().disconnectOutputs('ds-1');
 
     const nextDomain = useWorkspaceDomainStore.getState();
     expect(nextDomain.incubatorWirings['inc-1']?.inputNodeIds).toEqual([]);
     expect(nextDomain.incubatorWirings['inc-1']?.designSystemNodeIds).toEqual([]);
-    expect(nextDomain.incubatorModelNodeIds['inc-1']).toEqual([]);
   });
 });

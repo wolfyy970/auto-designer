@@ -42,22 +42,24 @@ describe('domain-commands', () => {
     useWorkspaceDomainStore.getState().reset();
   });
 
-  it('syncDomainForNewEdge links compiler→hypothesis then model→hypothesis', () => {
+  it('syncDomainForNewEdge links compiler→hypothesis (model edges are no-ops now)', () => {
     const nodes = [model, compiler, hypothesis];
     syncDomainForNewEdge(e('c1', 'h1'), nodes, [e('c1', 'h1')]);
     syncDomainForNewEdge(e('m1', 'h1'), nodes, [e('c1', 'h1'), e('m1', 'h1')]);
     const s = useWorkspaceDomainStore.getState();
     expect(s.hypotheses.h1?.incubatorId).toBe('c1');
     expect(s.hypotheses.h1?.strategyId).toBe('vs1');
-    expect(s.hypotheses.h1?.modelNodeIds).toContain('m1');
+    // Model edges no longer populate modelNodeIds — Settings is the source.
+    expect(s.hypotheses.h1?.modelNodeIds ?? []).toEqual([]);
   });
 
-  it('syncDomainForRemovedEdge detaches model from compiler', () => {
+  it('syncDomainForRemovedEdge ignores model edges (no-op)', () => {
     useWorkspaceDomainStore.setState({
       incubatorModelNodeIds: { c1: ['m1'] },
     });
     syncDomainForRemovedEdge({ source: 'm1', target: 'c1' }, [model, compiler]);
-    expect(useWorkspaceDomainStore.getState().incubatorModelNodeIds.c1 ?? []).toEqual([]);
+    // The legacy slot is left untouched — Stage 6 deletes it.
+    expect(useWorkspaceDomainStore.getState().incubatorModelNodeIds.c1 ?? []).toEqual(['m1']);
   });
 
   it('syncDomainForRemovedNode purges compiler incubator', () => {

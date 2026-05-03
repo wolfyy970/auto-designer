@@ -102,112 +102,32 @@ describe('buildAutoConnectEdges', () => {
   });
 });
 
-// ── buildModelEdgeForNode (palette add: first model → new node) ─────
+// ── Model wiring is no longer canvas-driven (Settings is the source) ─
 
-describe('buildModelEdgeForNode', () => {
-  it('connects first model to new compiler', () => {
-    const existing = [makeNode('m1', 'model'), makeNode('s1', 'designBrief')];
-    const edges = buildModelEdgeForNode('c1', 'incubator', existing);
-    expect(edges).toHaveLength(1);
-    expect(edges[0]).toMatchObject({ source: 'm1', target: 'c1' });
-  });
-
-  it('connects first model to new hypothesis', () => {
+describe('buildModelEdgeForNode (deprecated, returns nothing)', () => {
+  it('returns empty for every node type', () => {
     const existing = [makeNode('m1', 'model')];
-    const edges = buildModelEdgeForNode('h1', 'hypothesis', existing);
-    expect(edges).toHaveLength(1);
-    expect(edges[0]).toMatchObject({ source: 'm1', target: 'h1' });
-  });
-
-  it('does not auto-connect a model to new designSystem', () => {
-    const existing = [makeNode('m1', 'model')];
-    const edges = buildModelEdgeForNode('ds1', 'designSystem', existing);
-    expect(edges).toHaveLength(0);
-  });
-
-  it('returns empty when no model exists', () => {
-    const edges = buildModelEdgeForNode('c1', 'incubator', []);
-    expect(edges).toHaveLength(0);
-  });
-
-  it('only uses the first model, not all models', () => {
-    const existing = [makeNode('m1', 'model'), makeNode('m2', 'model')];
-    const edges = buildModelEdgeForNode('h1', 'hypothesis', existing);
-    expect(edges).toHaveLength(1);
-    expect(edges[0].source).toBe('m1');
-  });
-
-  it('returns empty for types that do not need a model', () => {
-    const existing = [makeNode('m1', 'model')];
-    expect(buildModelEdgeForNode('v1', 'preview', existing)).toHaveLength(0);
-    expect(buildModelEdgeForNode('s1', 'designBrief', existing)).toHaveLength(0);
-    expect(buildModelEdgeForNode('m2', 'model', existing)).toHaveLength(0);
+    expect(buildModelEdgeForNode('c1', 'incubator', existing)).toHaveLength(0);
+    expect(buildModelEdgeForNode('h1', 'hypothesis', existing)).toHaveLength(0);
+    expect(buildModelEdgeForNode('ds1', 'designSystem', existing)).toHaveLength(0);
   });
 });
 
-// ── buildModelEdgesFromParent (compilation: inherit compiler's model) ─
-
-describe('buildModelEdgesFromParent', () => {
-  it('propagates compiler model to new hypotheses', () => {
-    const nodes = [makeNode('m1', 'model'), makeNode('c1', 'incubator'), makeNode('h1', 'hypothesis'), makeNode('h2', 'hypothesis')];
-    const edges = [makeEdge('m1', 'c1')];
-    const result = buildModelEdgesFromParent('c1', ['h1', 'h2'], nodes, edges);
-    expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({ source: 'm1', target: 'h1' });
-    expect(result[1]).toMatchObject({ source: 'm1', target: 'h2' });
-  });
-
-  it('propagates only the first model when multiple are connected to the incubator', () => {
-    const nodes = [makeNode('m1', 'model'), makeNode('m2', 'model'), makeNode('c1', 'incubator')];
-    const edges = [makeEdge('m1', 'c1'), makeEdge('m2', 'c1')];
-    const result = buildModelEdgesFromParent('c1', ['h1'], nodes, edges);
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ source: 'm1', target: 'h1' });
-  });
-
-  it('falls back to first canvas model when compiler has no model', () => {
+describe('buildModelEdgesFromParent (deprecated, returns nothing)', () => {
+  it('returns empty regardless of canvas state', () => {
     const nodes = [makeNode('m1', 'model'), makeNode('c1', 'incubator')];
-    const edges: { source: string; target: string }[] = [];
-    const result = buildModelEdgesFromParent('c1', ['h1'], nodes, edges);
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ source: 'm1', target: 'h1' });
-  });
-
-  it('returns empty when no model exists anywhere', () => {
-    const nodes = [makeNode('c1', 'incubator')];
-    const edges: { source: string; target: string }[] = [];
-    const result = buildModelEdgesFromParent('c1', ['h1'], nodes, edges);
-    expect(result).toHaveLength(0);
-  });
-
-  it('does not connect non-model inputs of the parent', () => {
-    const nodes = [makeNode('s1', 'designBrief'), makeNode('c1', 'incubator')];
-    const edges = [makeEdge('s1', 'c1')];
-    const result = buildModelEdgesFromParent('c1', ['h1'], nodes, edges);
-    expect(result).toHaveLength(0);
+    const edges = [makeEdge('m1', 'c1')];
+    expect(buildModelEdgesFromParent('c1', ['h1', 'h2'], nodes, edges)).toHaveLength(0);
   });
 });
 
 // ── findMissingPrerequisite ─────────────────────────────────────────
 
 describe('findMissingPrerequisite', () => {
-  it('returns "model" for compiler when no model exists', () => {
-    expect(findMissingPrerequisite('incubator', [])).toBe('model');
-  });
-
-  it('returns "model" for hypothesis when no model exists', () => {
-    expect(findMissingPrerequisite('hypothesis', [])).toBe('model');
-  });
-
-  it('does not require a model before adding designSystem', () => {
+  it('never requires a Model node prerequisite (Settings holds the model)', () => {
+    expect(findMissingPrerequisite('incubator', [])).toBeNull();
+    expect(findMissingPrerequisite('hypothesis', [])).toBeNull();
     expect(findMissingPrerequisite('designSystem', [])).toBeNull();
-  });
-
-  it('returns null when model already exists', () => {
-    const existing = [makeNode('m1', 'model')];
-    expect(findMissingPrerequisite('incubator', existing)).toBeNull();
-    expect(findMissingPrerequisite('hypothesis', existing)).toBeNull();
-    expect(findMissingPrerequisite('designSystem', existing)).toBeNull();
   });
 
   it('returns null for types with no prerequisite', () => {

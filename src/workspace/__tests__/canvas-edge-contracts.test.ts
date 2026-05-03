@@ -18,8 +18,6 @@ describe('canvas edge contracts', () => {
       'designSystem->incubator',
       'hypothesis->preview',
       'incubator->hypothesis',
-      'model->hypothesis',
-      'model->incubator',
       'objectivesMetrics->incubator',
       'preview->incubator',
       'researchContext->incubator',

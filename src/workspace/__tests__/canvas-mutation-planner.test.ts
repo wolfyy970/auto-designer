@@ -28,11 +28,8 @@ const edge = (source: string, target: string): WorkspaceEdge => ({
 });
 
 describe('canvas mutation planner', () => {
-  it('plans hypothesis add with model/incubator auto edges and binding inputs', () => {
-    const nodes = [
-      node('inc-1', NODE_TYPES.INCUBATOR),
-      node('model-1', NODE_TYPES.MODEL),
-    ];
+  it('plans hypothesis add with the incubator auto-edge only (no model edge)', () => {
+    const nodes = [node('inc-1', NODE_TYPES.INCUBATOR)];
     const ids = ['hypothesis-id'];
     const plan = planAddNodeMutation({
       type: NODE_TYPES.HYPOTHESIS,
@@ -43,13 +40,10 @@ describe('canvas mutation planner', () => {
     });
 
     expect(plan?.nodeId).toBe('hypothesis-hypothesis-id');
-    expect(plan?.nextNodes.some((candidate) => candidate.id === 'hypothesis-hypothesis-id')).toBe(true);
-    expect(plan?.nextEdges.map((candidate) => [candidate.source, candidate.target])).toEqual(
-      expect.arrayContaining([
-        ['inc-1', 'hypothesis-hypothesis-id'],
-        ['model-1', 'hypothesis-hypothesis-id'],
-      ]),
-    );
+    expect(plan?.nextEdges.map((candidate) => [candidate.source, candidate.target])).toEqual([
+      ['inc-1', 'hypothesis-hypothesis-id'],
+    ]);
+    expect(plan?.modelEdges).toHaveLength(0);
     expect(plan?.hypothesisBinding).toMatchObject({
       nodeId: 'hypothesis-hypothesis-id',
     });
@@ -72,25 +66,24 @@ describe('canvas mutation planner', () => {
     );
   });
 
-  it('plans model replacement for a hypothesis connection', () => {
+  it('plans an additive connection without removing pre-existing unrelated edges', () => {
     const nodes = [
-      node('model-a', NODE_TYPES.MODEL),
-      node('model-b', NODE_TYPES.MODEL),
+      node('inc-1', NODE_TYPES.INCUBATOR),
       node('h1', NODE_TYPES.HYPOTHESIS),
+      node('h2', NODE_TYPES.HYPOTHESIS),
     ];
-    const existing = edge('model-a', 'h1');
+    const unrelated = edge('inc-1', 'h2');
 
     const plan = planConnectionMutation({
-      source: 'model-b',
+      source: 'inc-1',
       target: 'h1',
       nodes,
-      edges: [existing],
+      edges: [unrelated],
     });
 
-    expect(plan.removedEdges).toEqual([existing]);
-    expect(plan.newEdge).toMatchObject({ source: 'model-b', target: 'h1' });
-    expect(plan.nextEdges).toHaveLength(1);
-    expect(plan.nextEdges[0]?.source).toBe('model-b');
+    expect(plan.removedEdges).toEqual([]);
+    expect(plan.newEdge).toMatchObject({ source: 'inc-1', target: 'h1' });
+    expect(plan.nextEdges).toHaveLength(2);
   });
 
   it('plans hypothesis removal with preview cascade and preview map cleanup', () => {
