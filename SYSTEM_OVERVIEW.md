@@ -18,7 +18,7 @@ Generation runs as a browser-held stream in the hosted v1 path; durable backgrou
 
 ## Prompts and where they come from
 
-Prompt and skill bodies are repo-owned package content, resolved server-side for each task. This overview only names that boundary; file locations, prompt roles, and skill loading mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md). Editing workflow and version snapshots live in [USER_GUIDE.md](USER_GUIDE.md#prompts-and-skills-editing-the-repo).
+Prompt and skill bodies are repo-owned package content, resolved server-side for each task. This overview only names that boundary; prompt roles and runtime flow live in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md). Implementation mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md), and editing workflow plus version snapshots live in [USER_GUIDE.md](USER_GUIDE.md#prompts-and-skills-editing-the-repo).
 
 ---
 
@@ -50,6 +50,7 @@ Prompt and skill bodies are repo-owned package content, resolved server-side for
 | ----------------------------- | ------------------------------------ |
 | API routes, stores, file map  | [ARCHITECTURE.md](ARCHITECTURE.md)   |
 | Feature list and modes        | [PRODUCT.md](PRODUCT.md)             |
+| Prompt/skill roles and flow   | [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md) |
 | Step-by-step canvas usage     | [USER_GUIDE.md](USER_GUIDE.md)       |
 | Repo commands / agent gotchas | [AGENTS.md](AGENTS.md)               |
 | How we maintain docs          | [DOCUMENTATION.md](DOCUMENTATION.md) |

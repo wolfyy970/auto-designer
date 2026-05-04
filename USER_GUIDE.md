@@ -44,7 +44,7 @@ In **development** only, the API keeps an in-memory `**/api/logs`** ring (LLM ro
 
 ## Prompts and skills (editing the repo)
 
-There is no in-app prompt editor. Change prompt and skill files in the repo, restart the API if needed, run tests, and snapshot the tuned content with `pnpm snap`. Exact prompt locations and server resolution mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md).
+There is no in-app prompt editor. Change prompt and skill files in the repo, restart the API if needed, run tests, and snapshot the tuned content with `pnpm snap`. Prompt roles and locations live in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md); server mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ### Version history
 
@@ -145,7 +145,7 @@ Each hypothesis has built-in generation controls at the bottom. Click **Design**
 
 Runs often take several minutes (shorter when Auto-improve is off). **Server at capacity:** the API enforces a cap of `MAX_CONCURRENT_AGENTIC_RUNS` (default 5) parallel agentic runs; when every slot is busy, **Design** turns into a greyed **“Server busy (N/M)”** hint — wait for a run to finish instead of retrying. When Auto-improve was on, the preview includes an **evaluation summary** and, if Playwright is installed, a small **browser capture** under Runtime QA. Generated HTML may use **Google Fonts** only via `fonts.googleapis.com` / `fonts.gstatic.com` (needs network in your browser for preview); other CDNs stay disallowed — see [ARCHITECTURE.md](ARCHITECTURE.md).
 
-**Output format hint:** If your **incubation plan** strategy dimensions include a value for **format** (or `output_format`), it is sent as evaluation context so the server can pick matching **skills** for the agent. Details live in PRODUCT / ARCHITECTURE — you do not need to set this unless you use those dimensions.
+**Output format hint:** If your **incubation plan** strategy dimensions include a value for **format** (or `output_format`), it is sent as evaluation context so the server can pick matching **skills** for the agent. Details live in [PRODUCT.md](PRODUCT.md), [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md), and [ARCHITECTURE.md](ARCHITECTURE.md) — you do not need to set this unless you use those dimensions.
 
 Running generation again adds new versions — use the version navigation arrows on the preview card to browse previous results.
 

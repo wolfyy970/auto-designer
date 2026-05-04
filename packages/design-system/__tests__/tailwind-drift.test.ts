@@ -3,9 +3,9 @@
  * the design system's tokens and type scale.
  *
  * Forbidden (with rationale):
- *   - `font-bold` / `font-light` — DESIGN_SYSTEM.md + DESIGN-SYSTEM-BLUEPRINT.md
- *     standardize on `font-medium` / `font-semibold`. Bold/light cause tone shifts
- *     that do not match the Indigo triad.
+ *   - `font-bold` / `font-light` — DESIGN_SYSTEM.md standardizes on
+ *     `font-medium` / `font-semibold`. Bold/light cause tone shifts that do not
+ *     match the Indigo triad.
  *   - `bg-[#...]` / `text-[#...]` / `border-[#...]` / `ring-[#...]` — arbitrary hex
  *     bypasses the token pipeline; will not flip in dark mode.
  *   - Raw Tailwind palette (`bg-gray-500`, `text-indigo-600`, …) — bypasses the

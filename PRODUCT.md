@@ -19,7 +19,7 @@ Every subsystem — the incubator, the agentic builder, the evaluator, the revis
 
 ## What Exists Today
 
-**Status:** Canvas interface complete. Hypothesis design uses the agentic Pi pipeline. With the checked-in `autoImprove: 0` flag, runs are single-pass builds; when that flag is enabled, the same pipeline adds post-build evaluation and bounded revision rounds. Vision support implemented. Technical prompt, skill, and sandbox mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md).
+**Status:** Canvas interface complete. Hypothesis design uses the agentic Pi pipeline. With the checked-in `autoImprove: 0` flag, runs are single-pass builds; when that flag is enabled, the same pipeline adds post-build evaluation and bounded revision rounds. Vision support implemented. Prompt and skill roles live in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md); sandbox mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Canvas Interface (`/canvas` — working route)
 
@@ -70,7 +70,7 @@ Structured critique on **Auto-improve** runs comes from the **evaluator** (score
 
 ## Generation Engine
 
-Each hypothesis produces a design through the **agentic** pipeline. **Evaluation** and **revision** run only when **Auto-improve** is enabled and on for that hypothesis. Server routes, SSE events, prompt loading, skills, and store boundaries are documented in [ARCHITECTURE.md](ARCHITECTURE.md); day-to-day controls are documented in [USER_GUIDE.md](USER_GUIDE.md).
+Each hypothesis produces a design through the **agentic** pipeline. **Evaluation** and **revision** run only when **Auto-improve** is enabled and on for that hypothesis. Prompt and skill flow is documented in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md); server routes, SSE events, and store boundaries are documented in [ARCHITECTURE.md](ARCHITECTURE.md); day-to-day controls are documented in [USER_GUIDE.md](USER_GUIDE.md).
 
 **Parallel generation.** Multiple hypotheses generate simultaneously. Progress and completion update independently per preview.
 

@@ -4,15 +4,20 @@
 
 Documentation is persistent memory for human and AI collaborators. The cardinal rule: **just enough, no more**. Every line must earn its place. If information can be derived from code or official docs, do not duplicate it.
 
-**This document is canonical. Do not edit it unless the documentation policy itself is intentionally changing.**
+## Maintenance Rule
 
----
+Read this file first. Treat the current code as the authority, and update docs as a coherent corpus, not as isolated files. Do not append around drift: search every doc for the topic, verify each surviving fact against the code, delete stale content, and remove duplicated detail. Each fact belongs in exactly one canonical place; other docs should only summarize at their proper level or link to the owner. Before finishing, grep the docs again and confirm every mention is current, non-duplicative, and in the right document. Do not assume. Check.
 
-## Document Structure
+## The Law
+
+**This document is canonical. Never changing. Do not edit it EVER. It is LAW.**
+
+
+## Documents Structure
 
 **README.md is the only entry point.** All other docs link from it. No intermediary navigation files.
+**Mandatory** other documentation is README, ARCHITECTURE, USER_GUIDE, PRODUCT. Store all in root.
 
----
 
 ## Writing Rules
 
@@ -22,13 +27,6 @@ Documentation is persistent memory for human and AI collaborators. The cardinal 
 4. **Practical over theoretical** — Working code beats abstract explanation.
 5. **Structure for scanning** — Clear headings, bullets, and tables.
 
----
-
-## Maintenance Rule
-
-Read this file first. Treat the current code as the only authority, and update docs as a coherent corpus, not as isolated files. Do not append around drift: search every doc for the topic, verify each surviving fact against the code, delete stale content, and remove duplicated detail. Each fact belongs in exactly one canonical place; other docs should only summarize at their proper level or link to the owner. Before finishing, grep the docs again and confirm every mention is current, non-duplicative, and in the right document. Do not assume. Check.
-
----
 
 ## What Not To Document
 
@@ -40,7 +38,7 @@ Read this file first. Treat the current code as the only authority, and update d
 
 ---
 
-## Documentation Bloat Indicators
+## BAD: Documentation Bloat Indicators
 
 - Same information in multiple places.
 - Docs describing features that no longer exist.
@@ -51,7 +49,7 @@ Be ruthless: delete obsolete content, consolidate redundant docs, and prefer foc
 
 ---
 
-## Success Metrics
+## GOOD: Success Metrics
 
 Documentation is working when:
 

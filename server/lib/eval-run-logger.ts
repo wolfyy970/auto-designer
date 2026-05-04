@@ -1,5 +1,5 @@
 /**
- * Structured eval-run filesystem logs for Meta-Harness-style outer loops.
+ * Structured eval-run filesystem logs for external observability loops.
  * Gated by OBSERVABILITY_LOG_DIR (via env.OBSERVABILITY_LOG_BASE_DIR).
  */
 import { mkdir, writeFile } from 'node:fs/promises';

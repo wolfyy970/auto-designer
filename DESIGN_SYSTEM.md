@@ -130,7 +130,7 @@ Run with `pnpm test` (chained) or `pnpm -F @auto-designer/design-system test`.
 | **`theme-inline-coverage.test.ts`** | A token declared in `:root` that isn't exposed as a Tailwind utility via `@theme inline`. Uses a brace-counting extractor so multiple `:root` scopes or nested at-rules don't silently truncate. |
 | **`tailwind-drift.test.ts`** | Product source that still uses disallowed one-off Tailwind utility classes instead of design-system atoms or semantic tokens. |
 
-These are the DS-side counterpart to the wider drift guards in the [blueprint](DESIGN-SYSTEM-BLUEPRINT.md). Tailwind drift is wired as a Vitest guard in the package test suite; the blueprint's kitchen-sink integrity and no-OKLCH source guards remain future hardening items.
+These are the active DS-side drift guards. Tailwind drift is wired as a Vitest guard in the package test suite; kitchen-sink integrity and no-OKLCH source guards remain future hardening items.
 
 ---
 
@@ -146,5 +146,4 @@ These are the DS-side counterpart to the wider drift guards in the [blueprint](D
 ## Related docs
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — System layout, stores, API; links here for UI tokens.
-- [DESIGN-SYSTEM-BLUEPRINT.md](DESIGN-SYSTEM-BLUEPRINT.md) — portable DS blueprint (full spec; Phases 1–5 + hardening + Badge landed, remaining phases queued — atoms sweep, patterns, studio tier, kitchen-sink restructure, full drift guards, CI).
 - [DOCUMENTATION.md](DOCUMENTATION.md) — How documentation is organized (this file is in the README hub).
