@@ -19,7 +19,7 @@ Every subsystem — the incubator, the agentic builder, the evaluator, the revis
 
 ## What Exists Today
 
-**Status:** Canvas interface complete. Single-shot and agentic generation operational with post-build evaluation, bounded revision rounds, and optional headless browser QA. Vision support implemented. Repo **Agent Skills** under **`skills/`** are discovered per Pi session, listed in the **`use_skill`** tool catalog (all non-`manual`), and surfaced in the preview run UI; the model loads relevant skills and readable package resources through host-backed skill tools, not as files in the virtual workspace.
+**Status:** Canvas interface complete. Single-shot and agentic generation operational with post-build evaluation, bounded revision rounds, and optional headless browser QA. Vision support implemented. Repo **Agent Skills** under **`skills/`** are discovered per Pi session, surfaced in Pi's stock `<available_skills>` system-prompt block (all non-`manual`), and shown in the preview run UI; SKILL.md content is seeded into the just-bash VFS at session start so the model can load each skill body through the regular `read` tool when its description matches the task.
 
 ## Canvas Interface (`/canvas` — default route)
 
@@ -88,7 +88,7 @@ Start a run with **Design** on the Hypothesis node. With **Auto-improve** **off*
 
 **Typical flow:** plan milestones → create or edit files with `write` / `edit` → validate → optional bash for edge cases. Live **`file`** events update the preview as design artifacts change.
 
-**Skills.** Agent Skills live under **`skills/<key>/SKILL.md`** (YAML frontmatter: `name`, `description`, `tags`, `when`: `auto` | `always` | `manual`) with optional sibling resources such as `references/`, `scripts/`, `assets/`, and `templates/`. On each agentic **build** and **revision** round, the server walks the package directory and puts the **`<available_skills>`** list in the Pi **`use_skill`** tool description (keys + descriptions for non-`manual` entries). Skills are **not** copied into the virtual workspace; the agent calls **`use_skill`** to load instructions, then **`list_skill_resources`** / **`read_skill_resource`** for readable package files. Script files are readable only, not executable. Streamed **`skills_loaded`** lists the catalog; **`skill_activated`** fires when **`use_skill`** succeeds.
+**Skills.** Agent Skills live under **`skills/<key>/SKILL.md`** (YAML frontmatter: `name`, `description`, `tags`, `when`: `auto` | `always` | `manual`). On each agentic **build** and **revision** round, the server filters skills by session-type tags, seeds each filtered SKILL.md into the just-bash VFS at **`/home/user/project/.skills/<name>/SKILL.md`**, and Pi's stock `formatSkillsForPrompt` appends an `<available_skills>` block to the system prompt with each skill's name, description, and the seeded VFS path as `<location>`. The agent loads relevant skills through the regular **`read`** tool against the printed location — no special skill tool, no real-FS escape. Streamed **`skills_loaded`** lists the catalog; **`skill_activated`** fires when the agent reads a seeded SKILL.md.
 
 **Preview uses the real file tree.** The UI **POSTs** the current map to **`/api/preview/sessions`** (debounced while files stream) and loads the canonical HTML entry in an iframe via **`src`** (relative links and multi-page navigation work). If registration fails, **`bundleVirtualFS()`** falls back to a single **`srcDoc`**. Original paths stay available in the code tab and zip export.
 
