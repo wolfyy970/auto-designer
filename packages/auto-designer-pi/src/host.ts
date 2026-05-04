@@ -11,8 +11,8 @@ import {
   AuthStorage,
   SessionManager,
   type AgentSession,
+  type ExtensionFactory,
   type ResourceLoader,
-  type ToolDefinition,
   createAgentSession,
 } from './internal/pi-types.ts';
 import {
@@ -20,9 +20,22 @@ import {
   extractDesignFiles,
   SANDBOX_PROJECT_ROOT,
 } from './sandbox/virtual-workspace.ts';
-import { createSandboxBashTool } from './tools/bash-tool.ts';
-import { createVirtualPiCodingTools } from './tools/virtual-tools.ts';
-import { EXTENSION_TOOL_NAMES, createDesignerExtensionFactory } from './extension/designer.ts';
+import { buildSandboxedBashTool } from './tools/bash-tool.ts';
+import {
+  buildSandboxedEditTool,
+  buildSandboxedFindTool,
+  buildSandboxedGrepTool,
+  buildSandboxedLsTool,
+  buildSandboxedReadTool,
+  buildSandboxedWriteTool,
+  createSandboxToolContext,
+} from './tools/virtual-tools.ts';
+import {
+  createTodoWriteTool,
+  createValidateHtmlTool,
+  createValidateJsTool,
+} from './extension/designer-tools.ts';
+import { ToolSurface } from './internal/pi-tool-surface.ts';
 import {
   SessionScopedResourceLoader,
   type SessionType,
@@ -60,7 +73,7 @@ export interface SessionRunnerOptions {
   /** ResourceLoader factory: host builds Pi `DefaultResourceLoader` with paths it owns and returns it. */
   buildResourceLoader: (input: {
     sessionType: SessionType;
-    extensionFactories: ReturnType<typeof createDesignerExtensionFactory>[];
+    extensionFactories: ExtensionFactory[];
   }) => Promise<ResourceLoader>;
 
   /** Optional override for skill-tag lookup (defaults to YAML frontmatter scan). */
@@ -149,22 +162,43 @@ export async function createSession(opts: SessionRunnerOptions): Promise<Session
     opts.onTodos?.(todos);
   };
 
-  // Each Pi factory returns a strictly-typed ToolDefinition; the array is heterogeneous,
-  // so widen via cast — Pi accepts any ToolDefinition[] downstream.
-  const customTools = [
-    ...createVirtualPiCodingTools(bash, onFile),
-    createSandboxBashTool(bash, onFile),
-  ] as unknown as ToolDefinition[];
+  /**
+   * Declarative tool surface — one entry per model-callable tool, kind tagged.
+   * The `ToolSurface.build()` call below validates this against upstream Pi's
+   * built-in inventory at runtime: if Pi adds a new built-in we haven't
+   * dispositioned, session creation throws with an actionable message
+   * pointing at this list. See src/internal/pi-tool-surface.ts.
+   */
+  const sandboxCtx = createSandboxToolContext(bash, onFile);
+  const surface = new ToolSurface()
+    .add({ kind: 'sandboxed-pi', name: 'read', build: () => buildSandboxedReadTool(sandboxCtx) })
+    .add({ kind: 'sandboxed-pi', name: 'write', build: () => buildSandboxedWriteTool(sandboxCtx) })
+    .add({ kind: 'sandboxed-pi', name: 'edit', build: () => buildSandboxedEditTool(sandboxCtx) })
+    .add({ kind: 'sandboxed-pi', name: 'ls', build: () => buildSandboxedLsTool(sandboxCtx) })
+    .add({ kind: 'sandboxed-pi', name: 'find', build: () => buildSandboxedFindTool(sandboxCtx) })
+    .add({ kind: 'sandboxed-pi', name: 'grep', build: () => buildSandboxedGrepTool(sandboxCtx) })
+    .add({ kind: 'sandboxed-pi', name: 'bash', build: () => buildSandboxedBashTool(sandboxCtx) })
+    .add({
+      kind: 'auto-designer-extension',
+      name: 'todo_write',
+      register: (api) => api.registerTool(createTodoWriteTool(todoState, onTodos)),
+    })
+    .add({
+      kind: 'auto-designer-extension',
+      name: 'validate_js',
+      register: (api) => api.registerTool(createValidateJsTool(bash)),
+    })
+    .add({
+      kind: 'auto-designer-extension',
+      name: 'validate_html',
+      register: (api) => api.registerTool(createValidateHtmlTool(bash)),
+    });
 
-  const designerExtension = createDesignerExtensionFactory({
-    bash,
-    todoState,
-    onTodos,
-  });
+  const built = surface.build();
 
   const baseLoader = await opts.buildResourceLoader({
     sessionType: opts.sessionType,
-    extensionFactories: [designerExtension],
+    extensionFactories: [built.extensionFactory],
   });
 
   const scopedLoader = new SessionScopedResourceLoader(baseLoader, {
@@ -192,14 +226,13 @@ export async function createSession(opts: SessionRunnerOptions): Promise<Session
     model,
     thinkingLevel: opts.thinkingLevel ?? 'medium',
     /**
-     * Pi 0.72 changed `tools: []` semantics to "allowlist of size zero", which
-     * filters out customTools too AND extension-registered tools. Allowlist
-     * custom tool names plus EXTENSION_TOOL_NAMES so the built-in
-     * read/write/edit/bash stay disabled while our VFS-backed versions and
-     * extension tools (todo_write / validate_*) are visible to the model.
+     * Pi 0.72's `tools: string[]` is a name-based allowlist that filters BOTH
+     * customTools AND extension-registered tools. The allowlist is the union
+     * of every sandboxed-pi name and every auto-designer-extension name in
+     * the surface above.
      */
-    tools: [...customTools.map((t) => t.name), ...EXTENSION_TOOL_NAMES],
-    customTools,
+    tools: [...built.allowlist],
+    customTools: [...built.customTools],
     sessionManager: SessionManager.inMemory(),
     cwd: SANDBOX_PROJECT_ROOT,
     resourceLoader: scopedLoader,

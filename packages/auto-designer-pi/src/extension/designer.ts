@@ -18,14 +18,6 @@ import {
 } from './designer-tools.ts';
 import type { TodoItem } from '../types.ts';
 
-/**
- * Names of every tool the designer extension registers via `pi.registerTool`.
- * Pi 0.72's `tools:` allowlist filters extension tools by name, so the host
- * MUST include these alongside its custom-tool names. Single source of truth —
- * if you add a `pi.registerTool(...)` call below, add its name here too.
- */
-export const EXTENSION_TOOL_NAMES = ['todo_write', 'validate_js', 'validate_html'] as const;
-
 export interface DesignerExtensionOptions {
   /** Per-session bash handle (just-bash). The extension closes over it. */
   bash: Bash;

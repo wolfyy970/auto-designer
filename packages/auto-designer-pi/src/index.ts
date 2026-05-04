@@ -24,8 +24,18 @@ export {
 // ────────────────────────────────────────────────────────────────────────────
 // Tools
 
-export { createVirtualPiCodingTools } from './tools/virtual-tools.ts';
-export { createSandboxBashTool } from './tools/bash-tool.ts';
+export {
+  createSandboxToolContext,
+  createVirtualPiCodingTools,
+  buildSandboxedReadTool,
+  buildSandboxedWriteTool,
+  buildSandboxedEditTool,
+  buildSandboxedLsTool,
+  buildSandboxedFindTool,
+  buildSandboxedGrepTool,
+  type SandboxToolContext,
+} from './tools/virtual-tools.ts';
+export { buildSandboxedBashTool, createSandboxBashTool } from './tools/bash-tool.ts';
 export { SANDBOX_TOOL_OVERRIDES } from './tools/sandbox-overrides.ts';
 export {
   attemptMatchCascade,
@@ -92,10 +102,17 @@ export {
 // Designer extension (todo_write, validate_js, validate_html, compaction hook)
 
 export {
-  EXTENSION_TOOL_NAMES,
   createDesignerExtensionFactory,
   type DesignerExtensionOptions,
 } from './extension/designer.ts';
+export {
+  ToolSurface,
+  ToolSurfaceError,
+  type BuiltToolSurface,
+  type PiBuiltinToolName,
+  type ToolHandler,
+  _resetUpstreamPiBuiltinNamesCacheForTesting,
+} from './internal/pi-tool-surface.ts';
 export {
   createTodoWriteTool,
   createValidateJsTool,

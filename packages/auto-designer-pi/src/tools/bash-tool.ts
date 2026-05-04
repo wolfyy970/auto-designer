@@ -10,6 +10,7 @@ import type { Bash } from 'just-bash';
 import type { ExtensionContext, ToolDefinition } from '../internal/pi-types.ts';
 import { SANDBOX_LIMITS } from '../internal/limits.ts';
 import { SANDBOX_PROJECT_ROOT, snapshotDesignFiles } from '../sandbox/virtual-workspace.ts';
+import type { SandboxToolContext } from './virtual-tools.ts';
 
 const bashParams = Type.Object({
   command: Type.String({
@@ -17,6 +18,10 @@ const bashParams = Type.Object({
       'Shell command in the just-bash sandbox (cwd is the project root). No package managers or host binaries — only built-in commands (e.g. rg, grep, sed, awk, jq, cat, find). Prefer read/write/edit tools for files; use bash for text pipelines or when no dedicated tool fits.',
   }),
 });
+
+export function buildSandboxedBashTool(ctx: SandboxToolContext): ToolDefinition {
+  return createSandboxBashTool(ctx.bash, ctx.onDesignFile);
+}
 
 export function createSandboxBashTool(
   bash: Bash,

@@ -214,14 +214,36 @@ function resolveSandboxPathForSession(relativeOrAbsolute: string | undefined, cw
   return resolveVirtualPath(relativeOrAbsolute, cwd);
 }
 
-export function createVirtualPiCodingTools(
+/**
+ * Per-session state shared across the seven sandboxed Pi tools. `read`, `write`
+ * and `edit` cooperate via `pathsSeenBeforeEdit` to enforce the read-before-edit
+ * invariant; the bash tool also bumps it when commands modify files. Builders
+ * take a `SandboxToolContext` so each builder is independently constructible
+ * and the cooperation is explicit, not hidden in a closure scope.
+ */
+export interface SandboxToolContext {
+  readonly bash: Bash;
+  readonly sessionCwd: string;
+  /** Absolute VFS paths the model has read or written this session (FileTime-style guard). */
+  readonly pathsSeenBeforeEdit: Set<string>;
+  /** Called with every file the model writes/edits inside the project root. */
+  readonly onDesignFile: (rel: string, content: string) => void;
+}
+
+export function createSandboxToolContext(
   bash: Bash,
   onDesignFile: (rel: string, content: string) => void,
-) {
-  const sessionCwd = SANDBOX_PROJECT_ROOT;
-  /** Absolute paths the model has read or written this session — read-before-edit (FileTime-style). */
-  const pathsSeenBeforeEdit = new Set<string>();
+): SandboxToolContext {
+  return {
+    bash,
+    sessionCwd: SANDBOX_PROJECT_ROOT,
+    pathsSeenBeforeEdit: new Set<string>(),
+    onDesignFile,
+  };
+}
 
+export function buildSandboxedReadTool(ctx: SandboxToolContext): ToolDefinition {
+  const { bash, sessionCwd, pathsSeenBeforeEdit } = ctx;
   const readInner = createReadToolDefinition(sessionCwd, {
     autoResizeImages: false,
     operations: {
@@ -260,7 +282,11 @@ export function createVirtualPiCodingTools(
       return result;
     },
   } as (typeof readInner);
+  return read as unknown as ToolDefinition;
+}
 
+export function buildSandboxedWriteTool(ctx: SandboxToolContext): ToolDefinition {
+  const { bash, sessionCwd, pathsSeenBeforeEdit, onDesignFile } = ctx;
   const writeInner = createWriteToolDefinition(sessionCwd, {
     operations: {
       mkdir: async (dir) => {
@@ -298,7 +324,11 @@ export function createVirtualPiCodingTools(
       return result;
     },
   } as (typeof writeInner);
+  return write as unknown as ToolDefinition;
+}
 
+export function buildSandboxedEditTool(ctx: SandboxToolContext): ToolDefinition {
+  const { bash, sessionCwd, pathsSeenBeforeEdit, onDesignFile } = ctx;
   const editInner = createEditToolDefinition(sessionCwd, {
     operations: {
       readFile: async (absolutePath) => {
@@ -372,7 +402,11 @@ export function createVirtualPiCodingTools(
       }
     },
   } as (typeof editInner);
+  return edit as unknown as ToolDefinition;
+}
 
+export function buildSandboxedLsTool(ctx: SandboxToolContext): ToolDefinition {
+  const { bash, sessionCwd } = ctx;
   const lsInner = createLsToolDefinition(sessionCwd, {
     operations: {
       exists: (absolutePath) => bash.fs.exists(absolutePath),
@@ -384,7 +418,11 @@ export function createVirtualPiCodingTools(
     },
   });
   const ls = { ...lsInner, ...SANDBOX_TOOL_OVERRIDES.ls };
+  return ls as unknown as ToolDefinition;
+}
 
+export function buildSandboxedFindTool(ctx: SandboxToolContext): ToolDefinition {
+  const { bash, sessionCwd } = ctx;
   const findInner = createFindToolDefinition(sessionCwd, {
     operations: {
       exists: (absolutePath) => bash.fs.exists(absolutePath),
@@ -419,8 +457,30 @@ export function createVirtualPiCodingTools(
     },
   });
   const find = { ...findInner, ...SANDBOX_TOOL_OVERRIDES.find };
+  return find as unknown as ToolDefinition;
+}
 
-  const grep = createVirtualGrepTool(bash, sessionCwd);
+export function buildSandboxedGrepTool(ctx: SandboxToolContext): ToolDefinition {
+  return createVirtualGrepTool(ctx.bash, ctx.sessionCwd) as unknown as ToolDefinition;
+}
 
-  return [read, write, edit, ls, find, grep];
+/**
+ * Convenience wrapper retained for legacy callers/tests: build the six VFS-backed
+ * Pi tools (`read`, `write`, `edit`, `ls`, `find`, `grep`) sharing one
+ * SandboxToolContext. New code should declare each tool through `ToolSurface`
+ * in host.ts using the per-tool builders directly.
+ */
+export function createVirtualPiCodingTools(
+  bash: Bash,
+  onDesignFile: (rel: string, content: string) => void,
+): ToolDefinition[] {
+  const ctx = createSandboxToolContext(bash, onDesignFile);
+  return [
+    buildSandboxedReadTool(ctx),
+    buildSandboxedWriteTool(ctx),
+    buildSandboxedEditTool(ctx),
+    buildSandboxedLsTool(ctx),
+    buildSandboxedFindTool(ctx),
+    buildSandboxedGrepTool(ctx),
+  ];
 }
