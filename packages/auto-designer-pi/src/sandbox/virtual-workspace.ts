@@ -47,11 +47,30 @@ export function createAgentBashSandbox(options: AgentBashSandboxOptions = {}): B
   });
 }
 
+/**
+ * Subdirectory under the sandbox project root reserved for workspace concerns
+ * (today: seeded SKILL.md files). Anything under here is excluded from
+ * `extractDesignFiles` and `computeDesignFilesBeyondSeed` so it never appears
+ * as user-visible design output.
+ */
+export const SANDBOX_INTERNAL_SUBDIRS: readonly string[] = ['.skills'];
+
+function isInternalWorkspacePath(absPath: string): boolean {
+  for (const sub of SANDBOX_INTERNAL_SUBDIRS) {
+    const prefix = `${SANDBOX_PROJECT_ROOT}/${sub}/`;
+    if (absPath === `${SANDBOX_PROJECT_ROOT}/${sub}` || absPath.startsWith(prefix)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Collect design artifacts as relative paths from project root. */
 export async function extractDesignFiles(bash: Bash): Promise<Record<string, string>> {
   const paths = bash.fs.getAllPaths().filter((p) => {
     if (!p.startsWith(`${SANDBOX_PROJECT_ROOT}/`) && p !== SANDBOX_PROJECT_ROOT) return false;
     if (p === SANDBOX_PROJECT_ROOT) return false;
+    if (isInternalWorkspacePath(p)) return false;
     return true;
   });
 

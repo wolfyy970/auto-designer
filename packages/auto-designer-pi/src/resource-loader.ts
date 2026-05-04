@@ -147,6 +147,38 @@ export class SessionScopedResourceLoader implements ResourceLoader {
     this.cachedSkills = { skills: kept, diagnostics };
   }
 
+  /**
+   * Replace each cached skill's `filePath` and `baseDir` with VFS-relative
+   * paths so Pi's `formatSkillsForPrompt` prints sandbox-resolvable
+   * `<location>` values. Call this after `refreshSkills()` and after
+   * seeding the skills into the just-bash VFS.
+   *
+   * Skills not present in the remapping are left unchanged (their original
+   * paths remain real-disk and `read` against them will fail inside the
+   * sandbox by design).
+   */
+  applyPathRemapping(remapping: {
+    filePathByOriginalFilePath: ReadonlyMap<string, string>;
+    baseDirByOriginalBaseDir: ReadonlyMap<string, string>;
+  }): void {
+    if (!this.cachedSkills) {
+      throw new Error(
+        'applyPathRemapping called before refreshSkills() — call refreshSkills first to populate the cached skill list.',
+      );
+    }
+    const remapped = this.cachedSkills.skills.map((skill) => {
+      const newFilePath = remapping.filePathByOriginalFilePath.get(skill.filePath);
+      const newBaseDir = remapping.baseDirByOriginalBaseDir.get(skill.baseDir);
+      if (!newFilePath && !newBaseDir) return skill;
+      return {
+        ...skill,
+        ...(newFilePath ? { filePath: newFilePath } : {}),
+        ...(newBaseDir ? { baseDir: newBaseDir } : {}),
+      };
+    });
+    this.cachedSkills = { skills: remapped, diagnostics: this.cachedSkills.diagnostics };
+  }
+
   getSkills(): ReturnType<ResourceLoader['getSkills']> {
     return this.cachedSkills ?? this.base.getSkills();
   }

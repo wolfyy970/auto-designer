@@ -84,23 +84,40 @@ describe('ToolSurface contract', () => {
         'validate_js',
         'validate_html',
       ]);
-      expect(built.customTools).toHaveLength(7);
       expect(typeof built.extensionFactory).toBe('function');
     });
 
-    it('every produced tool definition has the same name as its registry entry', () => {
-      const built = buildHostSurface().build();
-      const names = built.customTools.map((t) => t.name);
-      expect(names.sort()).toEqual(['bash', 'edit', 'find', 'grep', 'ls', 'read', 'write']);
-    });
-
-    it('the extension factory registers exactly the three auto-designer extension tools', () => {
-      const registered: string[] = [];
+    it('the extension factory registers all 10 tools through pi.registerTool', () => {
+      const registered: Array<{ name: string }> = [];
       const { extensionFactory } = buildHostSurface().build();
       extensionFactory({
-        registerTool: (tool: { name: string }) => registered.push(tool.name),
+        registerTool: (tool: { name: string }) => registered.push(tool),
       } as Parameters<typeof extensionFactory>[0]);
-      expect(registered.sort()).toEqual(['todo_write', 'validate_html', 'validate_js']);
+      // Sandboxed Pi overrides + auto-designer extensions = 10 names total.
+      expect(registered.map((t) => t.name).sort()).toEqual([
+        'bash',
+        'edit',
+        'find',
+        'grep',
+        'ls',
+        'read',
+        'todo_write',
+        'validate_html',
+        'validate_js',
+        'write',
+      ]);
+    });
+
+    it('every sandboxed Pi tool definition matches its registry entry name', () => {
+      // Pi resolves override-by-name; mismatched names would silently drop the override.
+      const registered: Array<{ name: string }> = [];
+      const { extensionFactory } = buildHostSurface().build();
+      extensionFactory({
+        registerTool: (tool: { name: string }) => registered.push(tool),
+      } as Parameters<typeof extensionFactory>[0]);
+      const piBuiltinNames = new Set(['read', 'write', 'edit', 'ls', 'find', 'grep', 'bash']);
+      const piOverrides = registered.filter((t) => piBuiltinNames.has(t.name));
+      expect(piOverrides.length).toBe(7);
     });
   });
 

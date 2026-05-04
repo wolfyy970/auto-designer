@@ -20,6 +20,7 @@ import {
   extractDesignFiles,
   SANDBOX_PROJECT_ROOT,
 } from './sandbox/virtual-workspace.ts';
+import { seedSkillsIntoSandbox } from './sandbox/seed-skills.ts';
 import { buildSandboxedBashTool } from './tools/bash-tool.ts';
 import {
   buildSandboxedEditTool,
@@ -207,6 +208,16 @@ export async function createSession(opts: SessionRunnerOptions): Promise<Session
   });
   await scopedLoader.refreshSkills();
 
+  /**
+   * Seed each filtered skill's SKILL.md into the VFS and remap the cached
+   * skills' filePath/baseDir to the VFS paths. Pi's `formatSkillsForPrompt`
+   * prints VFS paths in `<location>`; the sandboxed `read` tool resolves
+   * them. No `use_skill` tool, no real-FS escape — Pi's stock skill flow
+   * end-to-end through the sandbox.
+   */
+  const seededRemapping = await seedSkillsIntoSandbox(bash, scopedLoader.getSkills().skills);
+  scopedLoader.applyPathRemapping(seededRemapping);
+
   const authStorage = AuthStorage.inMemory();
   if (opts.provider.id === 'openrouter') {
     authStorage.setRuntimeApiKey('openrouter', opts.provider.apiKey);
@@ -226,13 +237,16 @@ export async function createSession(opts: SessionRunnerOptions): Promise<Session
     model,
     thinkingLevel: opts.thinkingLevel ?? 'medium',
     /**
-     * Pi 0.72's `tools: string[]` is a name-based allowlist that filters BOTH
-     * customTools AND extension-registered tools. The allowlist is the union
-     * of every sandboxed-pi name and every auto-designer-extension name in
-     * the surface above.
+     * `tools:` is the explicit allowlist of names the model can call. Every
+     * tool — sandboxed Pi overrides AND auto-designer extensions — was
+     * registered through `pi.registerTool` in the extension factory above
+     * (the canonical pattern documented in extensions.md "Overriding
+     * Built-in Tools" and SDK example 06-extensions.ts). Pi resolves
+     * override-by-name in agent-session.js:_refreshToolRegistry, so the
+     * built-in `read`/`write`/etc. that touch the real disk are replaced
+     * by our VFS-backed versions before the model ever sees them.
      */
     tools: [...built.allowlist],
-    customTools: [...built.customTools],
     sessionManager: SessionManager.inMemory(),
     cwd: SANDBOX_PROJECT_ROOT,
     resourceLoader: scopedLoader,

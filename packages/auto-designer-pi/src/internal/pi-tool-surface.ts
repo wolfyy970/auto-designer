@@ -3,15 +3,22 @@
  * upstream Pi.
  *
  * Pi 0.72 ships seven model-callable built-ins (`read`, `write`, `edit`, `ls`,
- * `find`, `grep`, `bash`) and exposes an `*Operations` injection point on each
- * factory so callers can plug in a virtual filesystem. The model's tool
- * surface IS Pi's tool surface — every Pi built-in must be sandboxed (wrapped
- * to talk to the just-bash VFS) before it's allowed to reach the model. None
- * of the model-callable tools may touch the real disk.
+ * `find`, `grep`, `bash`). Pi's documented mechanism for sandboxing or
+ * customising any of them is to register a tool with the same name through
+ * the extension API — `pi.registerTool({ name: 'read', ... })` overrides the
+ * built-in by name (extensions.md "Overriding Built-in Tools"). We use this
+ * for every Pi built-in, each one wrapped to talk to the just-bash VFS. The
+ * model's tool surface IS Pi's tool surface; no model-callable tool touches
+ * the real disk.
  *
- * On top of Pi's seven, auto-designer registers a small number of *extension
- * tools* (today: `todo_write`, `validate_js`, `validate_html`) — domain
- * helpers that are not Pi tools but are sandboxed to the same VFS.
+ * On top of Pi's seven we also register *auto-designer extension tools*
+ * (today: `todo_write`, `validate_js`, `validate_html`) — domain helpers
+ * that are not Pi tools but are sandboxed to the same VFS through the same
+ * `pi.registerTool` API.
+ *
+ * `ToolSurface.build()` returns one `ExtensionFactory` that registers every
+ * handler in the surface (sandboxed Pi overrides + auto-designer extensions),
+ * plus an `allowlist` of names ready to feed `createAgentSession({ tools })`.
  *
  * The contract is enforced at runtime by `ToolSurface.build()`:
  *
@@ -75,14 +82,18 @@ export type ToolHandler =
     };
 
 export interface BuiltToolSurface {
-  /** Tool definitions to pass to `createAgentSession({ customTools })`. */
-  readonly customTools: readonly ToolDefinition[];
-  /** Single extension factory to pass to the resource loader's `extensionFactories`. */
+  /**
+   * Single extension factory to pass to the resource loader's
+   * `extensionFactories`. Calls `pi.registerTool` once per surface entry
+   * — sandboxed-pi handlers override the built-in by name; auto-designer
+   * extension handlers register a new tool.
+   */
   readonly extensionFactory: ExtensionFactory;
   /**
-   * Allowlist of tool names. Pi 0.72's `tools: string[]` filters BOTH custom
-   * tools AND extension-registered tools by name; this list is the union of
-   * sandboxed-pi names + extension names.
+   * Allowlist of tool names ready to feed `createAgentSession({ tools })`.
+   * The list is the union of every sandboxed-pi name and every
+   * auto-designer-extension name in the surface — i.e. exactly the tools
+   * the model should see.
    */
   readonly allowlist: readonly string[];
 }
@@ -129,41 +140,49 @@ export class ToolSurface {
     const upstreamPiNames = readUpstreamPiBuiltinNames();
     this.assertPiHandlersMatchUpstream(upstreamPiNames);
 
-    const customTools: ToolDefinition[] = [];
-    const extensionRegistrations: Array<(api: ExtensionAPI) => void> = [];
+    /**
+     * Convert each handler into one `pi.registerTool` call. Sandboxed-pi
+     * handlers override the named built-in (Pi resolves the override by
+     * name in `_refreshToolRegistry`, agent-session.js:1832-1835).
+     * Auto-designer-extension handlers register a brand-new tool. Excluded
+     * built-ins register nothing — they're absent from the allowlist and
+     * unreachable to the model.
+     */
+    const registrations: Array<(api: ExtensionAPI) => void> = [];
     const allowlist: string[] = [];
 
     for (const handler of this.handlers) {
       switch (handler.kind) {
         case 'sandboxed-pi': {
           const tool = handler.build();
-          customTools.push(tool);
-          allowlist.push(handler.name);
           if (tool.name !== handler.name) {
             throw new ToolSurfaceError(
               `Sandboxed Pi handler for '${handler.name}' produced a tool whose definition name is '${tool.name}'. ` +
-                `Names must match — the allowlist key and the tool's own name are both used by Pi 0.72.`,
+                `Names must match — Pi resolves the override by name and the allowlist filters by name.`,
             );
           }
+          registrations.push((api) => api.registerTool(tool));
+          allowlist.push(handler.name);
           break;
         }
         case 'excluded-pi':
-          // Intentionally absent from the allowlist and customTools. The disposition
-          // exists so the runtime check (every Pi built-in dispositioned) doesn't
-          // throw, but the model never sees this tool.
+          // Intentionally absent from the allowlist; no tool registered. The
+          // disposition exists so the runtime check (every Pi built-in
+          // dispositioned) doesn't throw, but the model never sees this
+          // tool.
           break;
         case 'auto-designer-extension':
-          extensionRegistrations.push(handler.register);
+          registrations.push(handler.register);
           allowlist.push(handler.name);
           break;
       }
     }
 
     const extensionFactory: ExtensionFactory = (api) => {
-      for (const register of extensionRegistrations) register(api);
+      for (const register of registrations) register(api);
     };
 
-    return { customTools, extensionFactory, allowlist };
+    return { extensionFactory, allowlist };
   }
 
   private assertUniqueNames(): void {
