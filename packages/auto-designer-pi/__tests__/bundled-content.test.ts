@@ -57,7 +57,7 @@ describe('bundled skills/', () => {
     }
   });
 
-  it.each(EXPECTED_SKILLS)('skill %s has SKILL.md with name + description + tags', (skill) => {
+  it.each(EXPECTED_SKILLS)('skill %s has SKILL.md with name + description + tags', (skill: string) => {
     const path = join(SKILLS_DIR, skill, 'SKILL.md');
     const body = readFileSync(path, 'utf8');
     const fm = readFrontmatter(body);
@@ -79,7 +79,7 @@ describe('bundled prompts/', () => {
     }
   });
 
-  it.each(EXPECTED_PROMPTS)('prompt %s has frontmatter with description', (filename) => {
+  it.each(EXPECTED_PROMPTS)('prompt %s has frontmatter with description', (filename: string) => {
     const path = join(PROMPTS_DIR, filename);
     const body = readFileSync(path, 'utf8');
     if (filename === '_designer-system.md') {
