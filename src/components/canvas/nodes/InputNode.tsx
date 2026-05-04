@@ -169,7 +169,7 @@ function InputNode({ id, type, selected }: NodeProps<InputNodeFlowType>) {
           <div className={`${RF_INTERACTIVE} mt-2 flex flex-col gap-2`}>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {!generating && !hasModel && (
-                <span className="text-nano text-fg-muted">Add a Model node on the canvas</span>
+                <span className="text-nano text-fg-muted">Choose an Inputs model in Settings</span>
               )}
               {!generating && hasModel && !designBriefContent.trim() && (
                 <Badge shape="pill" tone="warning">fill design brief first</Badge>

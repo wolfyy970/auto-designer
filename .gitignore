@@ -1,6 +1,3 @@
-# Meta-harness outer-loop run artifacts
-meta-harness/history/
-
 # Logs (keep agent snapshot readable by AI tools in workspace)
 logs/
 !logs/agent-snapshot.json

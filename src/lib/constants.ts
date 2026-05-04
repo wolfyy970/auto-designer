@@ -39,7 +39,7 @@ export const SPEC_SECTIONS: SpecSectionMeta[] = [
   },
 ];
 
-// Default provider / model for auto-created Model nodes.
+// Legacy provider / model defaults for migration and compatibility helpers.
 // Sourced from config/provider-defaults.json (validated at module load).
 export const DEFAULT_INCUBATOR_PROVIDER = PROVIDER_FROM_CONFIG;
 /** @deprecated Use {@link DEFAULT_INCUBATOR_PROVIDER} */

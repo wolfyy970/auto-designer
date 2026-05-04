@@ -5,8 +5,9 @@
  * (how to interpret inputs, what to prioritize, quality expectations) lives
  * in the corresponding skill or system prompt:
  *
- * - Incubator nuance → skills/hypotheses-generator-system/SKILL.md
- * - Hypothesis nuance → skills/design-generation/SKILL.md + prompts/designer-agentic-system/PROMPT.md
+ * - Incubator nuance → packages/auto-designer-pi/prompts/gen-hypotheses.md
+ * - Hypothesis nuance → packages/auto-designer-pi/skills/design-generation/SKILL.md
+ *   + packages/auto-designer-pi/prompts/_designer-system.md
  *
  * If you need to add guidance about how inputs are interpreted, put it in the
  * skill, not here.

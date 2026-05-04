@@ -411,7 +411,7 @@ export function DesignTokensKitchenSinkContent({ embedded = false }: { embedded?
         <Section title="Selects and dropdowns">
           <div className="space-y-6 rounded-lg border border-border bg-surface p-4">
             <div>
-              <p className="label mb-2">Native select — full-width (ProviderSelector-style)</p>
+              <p className="label mb-2">Native select — full-width</p>
               <select
                 className="w-full max-w-md rounded-md border border-border bg-bg px-3 py-2 text-xs text-fg-secondary input-focus"
                 defaultValue="b"
@@ -433,10 +433,9 @@ export function DesignTokensKitchenSinkContent({ embedded = false }: { embedded?
               </select>
             </div>
             <div>
-              <p className="label mb-2">Custom searchable list (ModelSelector pattern — static mock)</p>
+              <p className="label mb-2">Custom searchable list (static mock)</p>
               <p className="mb-2 text-nano text-fg-muted">
-                Trigger is an input; options are an absolutely positioned list. Real component:{' '}
-                <code className="font-mono">ModelSelector.tsx</code>.
+                Trigger is an input; options are an absolutely positioned list.
               </p>
               <div className="relative max-w-md">
                 <input

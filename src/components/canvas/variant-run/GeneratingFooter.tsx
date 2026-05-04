@@ -177,8 +177,7 @@ export function GeneratingFooter({
               )}
               {skillCatalogEmpty && isBuilding && (
                 <span className="pl-[18px] text-nano leading-snug text-fg-faint">
-                  Skills: no catalog entries (configure under <code>skills/</code> or all are{' '}
-                  <code>manual</code>)
+                  Skills: no catalog entries (configure package skills or all are <code>manual</code>)
                 </span>
               )}
               {(activeToolName || activeToolPath) && !toolLineRedundant && !isStreamingToolArgs && (

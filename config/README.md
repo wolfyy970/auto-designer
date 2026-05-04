@@ -11,7 +11,8 @@ No TypeScript knowledge required. If you type the wrong thing (e.g. a string whe
 | File | Controls | Changing it affects |
 |---|---|---|
 | [`feature-flags.json`](feature-flags.json) | On/off switches for major product features | Which features are available in the UI and enforced server-side |
-| [`provider-defaults.json`](provider-defaults.json) | Provider + model preselected for auto-created Model nodes | Which option is highlighted in the UI dropdowns (when lockdown is off) |
+| [`task-defaults.json`](task-defaults.json) | Provider + model defaults per LLM task | Which provider/model each task uses before user overrides, and lockdown pins |
+| [`provider-defaults.json`](provider-defaults.json) | Legacy provider/model defaults for old Model-node migrations | Backward-compatible defaults for persisted snapshots and helper constants |
 | [`thinking-defaults.json`](thinking-defaults.json) | Reasoning effort (level + budget tokens) per LLM task | How hard the model thinks before answering; cost per call |
 | [`rubric-weights.json`](rubric-weights.json) | Per-rubric scoring weights for the evaluator | Weighted overall score in every eval run |
 | [`evaluation-thresholds.json`](evaluation-thresholds.json) | Score thresholds that trigger revision rounds; max revision cap | How aggressively the agentic loop retries a poor result |
@@ -23,14 +24,14 @@ No TypeScript knowledge required. If you type the wrong thing (e.g. a string whe
 
 ## `feature-flags.json`
 
-Two product-level on/off switches. Use `1` to enable, `0` to disable.
+Two product-level switches. Use `1` to enable, `0` to disable, or `"auto"` to enable only in production builds.
 
 | Flag | Default | What it controls |
 |---|---|---|
-| `lockdown` | `1` | When on, all LLM routes clamp to OpenRouter + MiniMax M2.5. No provider/model selection in the UI. When off, users can pick any provider and model. |
-| `autoImprove` | `1` | When on, the evaluator-driven revision loop (Auto-improve) is exposed on hypothesis nodes. When off, the UI is hidden and designs are always single-pass. |
+| `lockdown` | `"auto"` | When on, all LLM routes clamp to the per-task provider/model pins in `task-defaults.json`. No provider/model selection in the UI. When off, users can pick any provider and model per task. |
+| `autoImprove` | `0` | When on, the evaluator-driven revision loop (Auto-improve) is exposed on hypothesis nodes and in Settings. When off, that UI is hidden and designs are always single-pass. |
 
-Both flags are read at server boot (Zod-validated). Changes take effect on the next app start.
+Both flags are read at server boot (Zod-validated). `"auto"` resolves to on in production and off in development. Changes take effect on the next app start.
 
 These flags do not control canvas node availability. The retired Existing Design node is not configurable, and the Design System node is canonical and always available. `thinking-defaults.json` controls the Design System extraction model budget only; it does not toggle the node.
 
@@ -38,14 +39,18 @@ These flags do not control canvas node availability. The retired Existing Design
 
 ## `provider-defaults.json`
 
-Two keys controlling which provider and model are preselected in the UI dropdowns for auto-created Model nodes. Only consulted when `lockdown` is **off** — when lockdown is on, these values are ignored and every run is pinned to the lockdown provider/model.
+Two legacy keys retained for old Model-node migrations and helper constants. Current per-task model defaults live in [`task-defaults.json`](task-defaults.json); when `lockdown` is on, every task is pinned through those task defaults.
 
 | Key | Values | Default |
 |---|---|---|
 | `compilerProvider` | `openrouter` \| `lmstudio` | `openrouter` |
 | `modelId` | any OpenRouter model slug (or an LM Studio local id) | `minimax/minimax-m2.5` |
 
-Changing these only affects the highlighted dropdown option — users can still pick anything else at runtime (when lockdown is off). Validated by Zod at boot; unknown providers or an empty `modelId` fail fast.
+Validated by Zod at boot; unknown providers or an empty `modelId` fail fast.
+
+## `task-defaults.json`
+
+Provider/model defaults for each LLM task: `design`, `incubate`, `inputs`, `design-system`, and `evaluator`. Settings -> Reasoning can override them when lockdown is off; lockdown uses these task defaults as the server-enforced pins.
 
 ---
 
@@ -78,7 +83,6 @@ Both apply only when the chosen model **supports reasoning**. The capability gat
 | `design` | Agentic build pipeline (hypothesis → generate → evaluate) | high / 20000 |
 | `incubate` | `/api/incubate` and hypothesis auto-generation | high / 20000 |
 | `inputs` | `/api/inputs/generate` (spec facets from a brief) | medium / 5000 |
-| `internal-context` | `/api/internal-context/generate` (design specification from connected inputs) | high / 20000 |
 | `design-system` | `/api/design-system/extract` (text/Markdown/images → DESIGN.md) | high / 20000 |
 | `evaluator` | Per-rubric eval workers (design, strategy, implementation, browser) | low / 2048 |
 
@@ -185,6 +189,4 @@ Some settings belong in `.env.local` (gitignored) rather than `config/`:
 
 - **Secrets** — `OPENROUTER_API_KEY`, `OPENROUTER_API_KEY_TESTS`. JSON is checked into git.
 - **Environment-specific values** — `PORT`, `VITE_PORT`, `VITE_LMSTUDIO_URL`. Each developer's machine / deploy target differs.
-- **Test-only flags** — `RUN_SANDBOX_LLM_TESTS`, `RUN_META_HARNESS_LIVE_TESTS`, legacy aliases, and `MODEL_SELECTOR`. These gate opt-in live integration tests; they're not product config.
-
-The meta-harness CLI has its own config at [`../meta-harness/config.json`](../meta-harness/config.json) — separate surface, different lifecycle.
+- **Test-only flags** — `RUN_SANDBOX_LLM_TESTS`, legacy aliases, and `MODEL_SELECTOR`. These gate opt-in live integration tests; they're not product config.

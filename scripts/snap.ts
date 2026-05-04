@@ -12,10 +12,11 @@ import {
   enumerateVersionedFiles,
   listVersions,
   restoreVersion,
+  RUBRIC_WEIGHTS_REL_PATH,
   snapAll,
   snapshotBeforeWrite,
   snapshotDirForRelPath,
-} from '../meta-harness/version-store.ts';
+} from './version-store.ts';
 
 function usage(): never {
   console.error(`Usage:
@@ -37,7 +38,7 @@ function normalizeRepoRel(raw: string): string {
 function isVersionedPath(rel: string): boolean {
   const n = normalizeRepoRel(rel);
   if (n.includes('..')) return false;
-  if (n === 'src/lib/rubric-weights.json') return true;
+  if (n === RUBRIC_WEIGHTS_REL_PATH) return true;
   if (/^packages\/auto-designer-pi\/skills\/[^/]+\/SKILL\.md$/.test(n)) return true;
   /** Top-level prompt templates only — `_versions/<name>/<ts>.md` snapshots have an extra `/` segment so they don't match. */
   if (/^packages\/auto-designer-pi\/prompts\/[^/]+\.md$/.test(n)) return true;
@@ -79,7 +80,7 @@ async function main(): Promise<void> {
     const tracked = await enumerateVersionedFiles(repoRoot);
     if (tracked.length === 0) {
       console.warn(
-        'No versioned files found (packages/auto-designer-pi/skills/*/SKILL.md, packages/auto-designer-pi/prompts/*.md, src/lib/rubric-weights.json).',
+        `No versioned files found (packages/auto-designer-pi/skills/*/SKILL.md, packages/auto-designer-pi/prompts/*.md, ${RUBRIC_WEIGHTS_REL_PATH}).`,
       );
       return;
     }

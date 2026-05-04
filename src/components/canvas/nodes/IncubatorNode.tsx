@@ -160,7 +160,7 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
 
   /** Lowercase copy to match input-node “needs input” pill convention. */
   const readinessBlockReason = !modelId
-    ? 'connect a model node'
+    ? 'choose an Incubator model in Settings'
     : !hasDesignBrief
       ? 'add a design brief first'
       : undefined;

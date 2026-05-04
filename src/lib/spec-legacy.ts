@@ -4,7 +4,7 @@ export const LEGACY_EXISTING_DESIGN_SECTION_ID = 'existing-design';
 
 /**
  * Normalise a `DesignSpec` arriving from outside the active store: saved-canvas
- * snapshots, meta-harness imports, future "Import from JSON" paths. Strips
+ * snapshots and future "Import from JSON" paths. Strips
  * fields that are no longer part of the canonical shape so they cannot sneak
  * back into the store and survive until the next persist hydrate.
  *
@@ -36,4 +36,3 @@ function stripLegacyInternalContextDocument(spec: DesignSpec): DesignSpec {
   void _removed;
   return rest as DesignSpec;
 }
-

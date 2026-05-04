@@ -27,6 +27,14 @@
       "project": [
         "**/*.{ts,tsx,js,mjs}"
       ]
+    },
+    "packages/auto-designer-pi": {
+      "entry": [
+        "__tests__/**/*.test.ts"
+      ],
+      "project": [
+        "**/*.{ts,tsx,js,mjs}"
+      ]
     }
   }
 }

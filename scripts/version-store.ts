@@ -8,7 +8,7 @@
  *   snapshot to `packages/auto-designer-pi/prompts/_versions/<name>/<timestamp>.md`
  *   — kept in a single `_versions/` dir since prompts are flat files. Pi's
  *   prompt loader does NOT recurse, so `_versions/` is invisible to it.
- * - Rubric weights (`src/lib/rubric-weights.json`) snapshot to the legacy
+ * - Rubric weights (`config/rubric-weights.json`) snapshot to the legacy
  *   `.prompt-versions/snapshots/...` location to preserve history continuity.
  *
  * Manifest: `.prompt-versions/manifest.jsonl`.
@@ -19,6 +19,7 @@ import { createHash } from 'node:crypto';
 import { appendFile, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+export const RUBRIC_WEIGHTS_REL_PATH = 'config/rubric-weights.json';
 export const VERSION_STORE_DIR = '.prompt-versions';
 export const SNAPSHOTS_SUBDIR = 'snapshots';
 export const MANIFEST_FILE = 'manifest.jsonl';
@@ -27,7 +28,7 @@ export type SnapshotAction = 'update' | 'delete' | 'snapshot';
 
 export type SnapshotBeforeWriteOptions = {
   repoRoot: string;
-  /** Repo-relative path with forward slashes (e.g. skills/foo/SKILL.md). */
+  /** Repo-relative path with forward slashes (e.g. packages/auto-designer-pi/skills/foo/SKILL.md). */
   relPath: string;
   source: string;
   /** Default `update`. Use `delete` before removing a file; `snapshot` for manual-only backup. */
@@ -111,7 +112,7 @@ export function legacySnapshotDirForRelPath(repoRoot: string, relPath: string): 
  */
 export function snapshotDirForRelPath(repoRoot: string, relPath: string): string {
   const norm = normalizeRelPath(relPath);
-  if (norm === 'src/lib/rubric-weights.json') {
+  if (norm === RUBRIC_WEIGHTS_REL_PATH) {
     return legacySnapshotDirForRelPath(repoRoot, norm);
   }
   const skillMatch = /^packages\/auto-designer-pi\/skills\/([^/]+)\/SKILL\.md$/u.exec(norm);
@@ -295,7 +296,7 @@ function snapshotFileAbs(repoRoot: string, relPath: string, safeTs: string): str
 
 export async function restoreVersion(opts: RestoreVersionOptions): Promise<{ ok: true } | { ok: false; error: string }> {
   const relPath = normalizeRelPath(opts.relPath);
-  const source = opts.source ?? 'meta-harness:version-store:restore';
+  const source = opts.source ?? 'version-store:restore';
   const absSnap = snapshotFileAbs(opts.repoRoot, relPath, opts.ts);
   try {
     await stat(absSnap);
@@ -377,7 +378,7 @@ export async function enumerateVersionedFiles(repoRoot: string): Promise<string[
   }
 
   // Rubric weights stay at their existing path; snapshot directory remains the legacy location.
-  const fixed = ['src/lib/rubric-weights.json'] as const;
+  const fixed = [RUBRIC_WEIGHTS_REL_PATH] as const;
   for (const rel of fixed) {
     try {
       const st = await stat(path.join(repoRoot, ...rel.split('/')));

@@ -9,6 +9,7 @@ import {
   enumerateVersionedFiles,
   listVersions,
   restoreVersion,
+  RUBRIC_WEIGHTS_REL_PATH,
   snapAll,
   snapshotBeforeWrite,
   snapshotDirForRelPath,
@@ -176,14 +177,14 @@ describe('version-store', () => {
     // _versions/ subdir should be ignored.
     await mkdir(path.join(pkgPrompts, '_versions', 'gen-foo'), { recursive: true });
     await writeFile(path.join(pkgPrompts, '_versions', 'gen-foo', '2026-01-01T00-00-00-000Z.md'), 'old', 'utf8');
-    await mkdir(path.join(root, 'src', 'lib'), { recursive: true });
-    await writeFile(path.join(root, 'src', 'lib', 'rubric-weights.json'), '{}', 'utf8');
+    await mkdir(path.join(root, 'config'), { recursive: true });
+    await writeFile(path.join(root, 'config', 'rubric-weights.json'), '{}', 'utf8');
 
     const paths = await enumerateVersionedFiles(root);
     expect(paths).toContain('packages/auto-designer-pi/skills/a/SKILL.md');
     expect(paths).toContain('packages/auto-designer-pi/prompts/gen-foo.md');
     expect(paths).toContain('packages/auto-designer-pi/prompts/_designer-system.md');
-    expect(paths).toContain('src/lib/rubric-weights.json');
+    expect(paths).toContain('config/rubric-weights.json');
     expect(paths.some((p) => p.includes('_versions'))).toBe(false);
   });
 
@@ -217,7 +218,7 @@ describe('version-store', () => {
     expect(files.filter((f) => f.endsWith('.md')).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('snapshotDirForRelPath maps package skills + prompts to their _versions dirs', () => {
+  it('snapshotDirForRelPath maps package content and rubric weights to their snapshot dirs', () => {
     const root = '/repo';
     expect(
       snapshotDirForRelPath(root, 'packages/auto-designer-pi/skills/foo/SKILL.md'),
@@ -233,6 +234,9 @@ describe('version-store', () => {
       snapshotDirForRelPath(root, 'packages/auto-designer-pi/prompts/_designer-system.md'),
     ).toBe(
       path.join('/repo', 'packages', 'auto-designer-pi', 'prompts', '_versions', '_designer-system'),
+    );
+    expect(snapshotDirForRelPath(root, RUBRIC_WEIGHTS_REL_PATH)).toBe(
+      path.join('/repo', '.prompt-versions', 'snapshots', 'config', 'rubric-weights.json'),
     );
   });
 });

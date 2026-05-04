@@ -157,7 +157,7 @@ export const THINKING_BUDGET_BY_LEVEL: Record<ThinkingLevel, number> = CONFIG.bu
 
 /**
  * Per-task defaults. Heuristic:
- *  - creative / long tasks (design, incubate, internal-context) → deeper reasoning
+ *  - creative / long tasks (design, incubate, design-system) → deeper reasoning
  *  - structured extraction (inputs, design-system, evaluator) → just enough to
  *    reduce format mistakes without wasting tokens.
  * Tune values in `config/thinking-defaults.json`; call sites never hardcode.

@@ -4,10 +4,6 @@
 
 **Stack:** Tailwind CSS v4 reads `@theme inline { … }` custom properties in `globals.css` as utilities (e.g. `bg-warning-subtle`, `text-file-html`, `font-display`). Body/UI sans, display serif, and monospace are wired in `@theme inline` (see **Typefaces**). React atoms live under `packages/design-system/components/ui/` and import as `@ds/components/ui/<name>` (TS path alias).
 
-**Canonical visual reference:** [`Designer Indigo Reference.html`](Designer%20Indigo%20Reference.html) — pixel-accurate spec for every atom/molecule/organism in both themes. Open side-by-side when building or reviewing canvas chrome.
-
----
-
 ## Typefaces — Indigo triad
 
 | Role | `@theme` token / utility | Family | Used for |
@@ -132,8 +128,9 @@ Run with `pnpm test` (chained) or `pnpm -F @auto-designer/design-system test`.
 | **`build-tokens-idempotent.test.ts`** | `build-tokens.mjs` is non-deterministic (two runs produce different output). Wraps in try/finally so a failing test leaves the working tree clean. |
 | **`token-parity.test.ts`** | A fixed-value `--color-*` in `:root` that has no `.dark` counterpart (bug class: pink hover that stays pink in dark mode). Also flags **var + literal hex** color-mix tokens (bug class: `color-mix(var(--color-accent) 8%, #ffffff)` — the var flips with theme but the hex doesn't). Intentionally-shared colors go in `SHARED_COLOR_TOKENS` (e.g. `--color-overlay`, preview-canvas, fixed-white media-chrome alphas). |
 | **`theme-inline-coverage.test.ts`** | A token declared in `:root` that isn't exposed as a Tailwind utility via `@theme inline`. Uses a brace-counting extractor so multiple `:root` scopes or nested at-rules don't silently truncate. |
+| **`tailwind-drift.test.ts`** | Product source that still uses disallowed one-off Tailwind utility classes instead of design-system atoms or semantic tokens. |
 
-These are the DS-side counterpart to the wider drift guards in the [blueprint](DESIGN-SYSTEM-BLUEPRINT.md); the blueprint's `check-tailwind-drift` / `check-kitchen-sink-integrity` / `check-no-oklch-in-src` guards are **not yet wired**.
+These are the DS-side counterpart to the wider drift guards in the [blueprint](DESIGN-SYSTEM-BLUEPRINT.md). Tailwind drift is wired as a Vitest guard in the package test suite; the blueprint's kitchen-sink integrity and no-OKLCH source guards remain future hardening items.
 
 ---
 
@@ -149,6 +146,5 @@ These are the DS-side counterpart to the wider drift guards in the [blueprint](D
 ## Related docs
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — System layout, stores, API; links here for UI tokens.
-- [Designer Indigo Reference.html](Designer%20Indigo%20Reference.html) — canonical visual reference; every atom/state rendered pixel-accurate.
 - [DESIGN-SYSTEM-BLUEPRINT.md](DESIGN-SYSTEM-BLUEPRINT.md) — portable DS blueprint (full spec; Phases 1–5 + hardening + Badge landed, remaining phases queued — atoms sweep, patterns, studio tier, kitchen-sink restructure, full drift guards, CI).
 - [DOCUMENTATION.md](DOCUMENTATION.md) — How documentation is organized (this file is in the README hub).

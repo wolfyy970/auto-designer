@@ -151,7 +151,7 @@ export const InputsGenerateResponseSchema = z.object({
   result: z.string(),
 });
 
-/** GET /api/config - default rubric blend (repo: src/lib/rubric-weights.json) */
+/** GET /api/config - default rubric blend (repo: config/rubric-weights.json) */
 export const DefaultRubricWeightsSchema = z.object({
   design: z.number(),
   strategy: z.number(),

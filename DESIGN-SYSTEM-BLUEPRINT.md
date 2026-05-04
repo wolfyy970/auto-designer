@@ -546,13 +546,13 @@ A complete implementation has all of these:
 
 The working reference implementation is Org Chart Studio (`github.com/wolfyy970/org-chart-app`). Worth browsing:
 
-- [`packages/design-system/`](packages/design-system/) — the full DS package
-- [`packages/design-system/tokens.json`](packages/design-system/tokens.json) — token structure
-- [`packages/design-system/build-tokens.mjs`](packages/design-system/build-tokens.mjs) — the 57-line generator
-- [`packages/design-system/lib/utils.ts`](packages/design-system/lib/utils.ts) — cn() with classGroups
-- [`packages/design-system/components/patterns/icon-badge.tsx`](packages/design-system/components/patterns/icon-badge.tsx) — reference pattern
-- [`scripts/check-kitchen-sink-integrity.mjs`](scripts/check-kitchen-sink-integrity.mjs) — AST drift script
-- [`scripts/check-tailwind-drift.mjs`](scripts/check-tailwind-drift.mjs) — class drift script
-- [`src/app/(site)/(app)/kitchen-sink/`](<src/app/(site)/(app)/kitchen-sink/>) — live catalog
+- `packages/design-system/` — the full DS package
+- `packages/design-system/tokens.json` — token structure
+- `packages/design-system/build-tokens.mjs` — token generator
+- `packages/design-system/lib/utils.ts` — `cn()` with class groups
+- `packages/design-system/components/patterns/icon-badge.tsx` — reference pattern
+- `scripts/check-kitchen-sink-integrity.mjs` — AST drift script
+- `scripts/check-tailwind-drift.mjs` — class drift script
+- `src/app/(site)/(app)/kitchen-sink/` — live catalog
 
-The project's internal design doc ([`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md)) describes the tokens and rules specific to that brand; this blueprint describes the *pattern* that doc sits on top of.
+The project's internal design doc ([`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md)) describes the tokens and rules specific to that brand; this blueprint describes the *pattern* that doc sits on top of.

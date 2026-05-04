@@ -4,7 +4,7 @@
 
 **Picking up after a break (humans and AI):** Prior chats are not retained—treat **this repository** as the source of truth. Start with **[AGENTS.md](AGENTS.md)** (commands and gotchas), **[PRODUCT.md](PRODUCT.md)** (product intent), and **[ARCHITECTURE.md](ARCHITECTURE.md)** for implementation depth. Optional: `git log -10 --oneline` for the latest merged work.
 
-Designer opens on a public home page, then the working canvas lives at `/canvas`. A design brief feeds the **Incubator**, which produces hypothesis strategies that systematically explore the solution space. Each hypothesis **Design** run uses the **agentic** pipeline (multi-file Pi sandbox). By default that is a **single** agent build with **no** evaluator. Turn **Auto-improve** on the node to run **evaluation** and optional **revision** loops (round cap and target score; rubric weights under Settings). Everything connects on a visual node-graph canvas.
+Designer opens on a public home page, then the working canvas lives at `/canvas`. A design brief feeds the **Incubator**, which produces hypothesis strategies that systematically explore the solution space; each hypothesis then generates a rendered design. Product behavior lives in [PRODUCT.md](PRODUCT.md); day-to-day workflow lives in [USER_GUIDE.md](USER_GUIDE.md).
 
 ## Quick Start
 
@@ -34,20 +34,11 @@ Both processes are required for local development. The Vite dev server proxies `
 | `VITE_LOGROCKET_APP_ID`       | [logrocket.com](https://app.logrocket.com)     | Optional       | Enables [LogRocket](https://logrocket.com) session replay (e.g. `org/app`). Production builds default to `qbwhsc/designer-6dify` when unset; dev builds stay off unless this is set. Detail: [AGENTS.md § Errors and optional telemetry](AGENTS.md#errors-and-optional-telemetry).                                  |
 
 
-Product flags such as lockdown and Auto-improve now live in [config/feature-flags.json](config/feature-flags.json). With lockdown disabled, you can mix providers — e.g. OpenRouter for one node and LM Studio for another. See `.env.example` for env-only keys and [config/README.md](config/README.md) for checked-in defaults.
+Product flags live in [config/feature-flags.json](config/feature-flags.json). See `.env.example` for env-only keys and [config/README.md](config/README.md) for checked-in defaults.
 
 ## Canvas Workflow
 
-The primary working interface is a visual node-graph canvas (`/canvas`):
-
-1. **Input/source nodes** (left) — Design Brief, Research Context, Objectives & Metrics, Design Constraints, and Design System. On a fresh canvas, optional spec inputs may appear as **ghost placeholders**; opening **Canvas Manager** → **Load** restores a full canvas snapshot and materializes real **input nodes** when a legacy saved spec already has text or images for those **facets**. **Research Context**, **Objectives & Metrics**, and **Design Constraints** offer an optional **auto-generate** control (from the Design Brief and other filled facets) using `POST /api/inputs/generate` — details in [USER_GUIDE.md](USER_GUIDE.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
-2. **Incubator** — Connect input nodes, then click Generate to produce hypothesis strategies. Model + effort come from **Settings → Reasoning → Incubator**.
-3. **Hypotheses** — Editable strategy cards. Use **Design** to run the **agentic** Pi build (**Auto-improve** off = one build with no evaluator; **on** = evaluation + optional revision rounds). Model + effort come from **Settings → Reasoning → Hypothesis design**.
-5. **Previews** — Rendered design previews with zoom, version navigation, full-screen (hypothesis-scoped design stepping when domain preview slots exist), and optional **mark as best** vs evaluator ranking. Agentic results include a file explorer, zip download, **run workspace** overlay (timeline, tasks, tabs) with multi-round eval preview when applicable, and (when the run finishes) an evaluation scorecard plus optional headless-browser thumbnail.
-
-Nodes connect left-to-right. Auto-layout arranges everything based on connections. Previews can connect back to the Incubator as reference designs for iterative feedback loops.
-
-The header also opens **Settings**, where every task gets its own **model picker** and a five-position **effort** slider (Off / Quick / Balanced / Thorough / Maximum). The picker is disabled and clamps to OpenRouter + MiniMax M2.5 when **lockdown** is on. In **development**, a **design tokens kitchen sink** modal is on the General tab. Token semantics live in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
+The primary working interface is a visual node-graph canvas (`/canvas`): source inputs feed the Incubator, hypothesis cards generate designs, and preview nodes show the results. For actual usage, use [USER_GUIDE.md](USER_GUIDE.md). For feature semantics, use [PRODUCT.md](PRODUCT.md). For routes, stores, and data flow, use [ARCHITECTURE.md](ARCHITECTURE.md). Token semantics live only in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
 
 ## Scripts
 
@@ -62,8 +53,7 @@ The header also opens **Settings**, where every task gets its own **model picker
 | `pnpm test`         | Vitest unit tests (Playwright merge test excluded in config; **`pnpm test:playwright-eval`** runs it — see [AGENTS.md](AGENTS.md))                                                       |
 | `pnpm lint`         | Run ESLint                                                                                                                                                                               |
 | `pnpm knip`         | Optional unused **files** and **dependencies** report via Knip (`--include files,dependencies`; not run in CI by default)                                                                |
-| `pnpm meta-harness` | Optional **meta-harness** CLI: benchmark/proposer harness against the local API ([meta-harness/README.md](meta-harness/README.md), [RUNBOOK](meta-harness/RUNBOOK.md))                   |
-| `pnpm snap`         | Checkpoint prompt/skill/rubric versions (changed files only); list/diff/restore subcommands ([USER_GUIDE.md](USER_GUIDE.md#version-history), [skills/README.md](skills/README.md)) |
+| `pnpm snap`         | Checkpoint prompt/skill/rubric versions (changed files only); list/diff/restore subcommands ([USER_GUIDE.md](USER_GUIDE.md#version-history)) |
 
 
 ## Documentation
@@ -73,15 +63,14 @@ The header also opens **Settings**, where every task gets its own **model picker
 
 | Document                                         | Purpose                                                                                                                                                                                               |
 | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [AGENTS.md](AGENTS.md)                           | **Canonical** agent instructions: commands, architecture **pointers**, skill-based prompts, gotchas ([Pi sandbox detail](ARCHITECTURE.md#pi-design-sandbox-three-layer-contract) in **ARCHITECTURE**) |
+| [AGENTS.md](AGENTS.md)                           | **Canonical** agent instructions: commands, architecture **pointers**, skill-based prompts, gotchas ([Pi sandbox detail](ARCHITECTURE.md#pi-design-sandbox) in **ARCHITECTURE**) |
 | [CLAUDE.md](CLAUDE.md)                           | Stub for Claude Code → links **AGENTS.md**                                                                                                                                                            |
 | [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md)         | Narrative: canvas, prompts, agentic loop, evaluation                                                                                                                                                  |
 | [PRODUCT.md](PRODUCT.md)                         | **North Star** + feature-level description: modes, nodes, providers                                                                                                                                   |
 | [USER_GUIDE.md](USER_GUIDE.md)                   | Setup and day-to-day canvas workflow                                                                                                                                                                  |
 | [config/README.md](config/README.md)             | Human-editable JSON knobs for feature flags, defaults, evaluator thresholds, browser scoring, and content limits                                                                                       |
-| [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)             | SPA design tokens (Indigo palette, light + dark via `.dark` class): atoms (`Button`, `Badge`), typography triad, file-role colors. Package shell at `packages/design-system/` (`tokens.json` → `pnpm tokens:build` → generated `:root`/`.dark` CSS; drift guards). Visual reference: [Designer Indigo Reference.html](Designer%20Indigo%20Reference.html)                                                                                                        |
+| [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)             | Canonical SPA design-system reference: token semantics, atoms, typography, themes, and package workflow                                                                                 |
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Technical reference: routes, stores, data flow, Pi adapter boundary, **Pi sandbox** (layers, tool inventory, edit cascade)                                                                            |
-| [meta-harness/README.md](meta-harness/README.md) | Optional **meta-harness** CLI (separate from the designer app): benchmarks, proposer ([RUNBOOK.md](meta-harness/RUNBOOK.md), [VERSIONING.md](meta-harness/VERSIONING.md))                             |
 | [DOCUMENTATION.md](DOCUMENTATION.md)             | How this doc set is organized (hub = this README)                                                                                                                                                     |
 
 
@@ -93,4 +82,4 @@ Ephemeral **preview sessions** may not persist across separate serverless invoca
 
 ## Tech Stack
 
-Vite + React 19 + TypeScript, Zustand (state), Tailwind CSS v4 (styling; UI typefaces in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)), @xyflow/react v12 (canvas), react-router-dom v7 (routing), @tanstack/react-query (async state), Zod (schema validation), Vitest (testing). Agentic mode: `@mariozechner/pi-coding-agent` with **just-bash**, packaged inside the [`@auto-designer/pi`](packages/auto-designer-pi/) workspace package — that package owns every Pi import (skills, prompt templates, virtual filesystem, tool builders, designer extension). The host calls it through one entry point in `server/services/pi-agent-runtime.ts`. See [ARCHITECTURE.md](ARCHITECTURE.md).
+Vite + React 19 + TypeScript, Zustand, Tailwind CSS v4, @xyflow/react v12, react-router-dom v7, @tanstack/react-query, Zod, and Vitest. Agentic mode uses the package-owned Pi integration described in [ARCHITECTURE.md](ARCHITECTURE.md).

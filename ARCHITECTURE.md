@@ -34,7 +34,7 @@ flowchart TB
 
 ## Design system (frontend)
 
-UI color and typography tokens: **[DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)** (Indigo brand + sage/amber status + pacific info; bone/ivory/white surface stack; Inter Tight + Fraunces + JetBrains Mono triad; light + dark themes via the `.dark` class on `<html>`, toggled by `src/hooks/useThemeEffect.ts`). Package shell at `packages/design-system/`: `tokens.json` → `build-tokens.mjs` (`pnpm tokens:build`, wired as `prebuild`) → `_generated-tokens.css` (`:root` + `.dark` base tokens) → `globals.css` (derived tokens, `@theme inline` utility registration, component layer). Atoms (`Button`, `Badge`) import via `@ds/components/ui/<name>`. Drift guards in `packages/design-system/__tests__/` chain into root `pnpm test`.
+Canonical design-system documentation lives in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md). Architecture references the design system only where it affects system boundaries, such as the canvas Design System node and the dev-only `/dev/design-tokens` API-gate bypass.
 
 ## Layered architecture (diagram)
 
@@ -57,13 +57,11 @@ flowchart TB
   subgraph server [Hono API]
     routes[Hono routes — incubate, hypothesis, generate, models, …]
     genExec[executeGenerateStream]
-    singleShot[Single-shot LLM generateChat]
     providers[Provider registry]
     agentOrch[agenticOrchestrator]
     routes --> genExec
-    genExec --> singleShot
     genExec --> agentOrch
-    singleShot --> providers
+    genExec --> providers
   end
 
   subgraph evaluation [Post-build evaluation]
@@ -110,7 +108,7 @@ The host owns:
 - **LLM logging** — `server/services/pi-llm-log.ts` wraps the package's `streamFn` to record each model turn into the dev `/api/logs` ring; `server/lib/pi-stream-budget.ts` chooses a per-turn `max_tokens` from prompt-token estimates.
 - **Skill catalog for UI** — `server/lib/build-agentic-system-context.ts` reads `packages/auto-designer-pi/skills/` via `discoverSkills` to emit the `skills_loaded` SSE; the agent's actual catalog comes from Pi's resource loader inside the package.
 
-**System message** = body from `packages/auto-designer-pi/prompts/_designer-system.md` (resolved via `loadDesignerSystemPrompt()`) + `Current date` and `Current working directory` appended by Pi's `buildSystemPrompt`, plus Pi's stock `<available_skills>` block emitted by `formatSkillsForPrompt` listing each filtered skill's `name`, `description`, and (after VFS remapping) the VFS `<location>` path. **User message** = hypothesis/spec + the relevant per-task guidance body inlined by the route (e.g. `gen-hypotheses.md` for incubation, `revise.md` for revision rounds). Skills are seeded into the VFS at session start (`/home/user/project/.skills/<name>/SKILL.md`); the agent loads each one through the regular `read` tool when the description matches its task. The Incubator's user message is assembled deterministically: `buildInternalContext(spec)` in [src/lib/prompts/internal-context.ts](src/lib/prompts/internal-context.ts) wraps each spec section verbatim in XML tags. There is no LLM-synthesised "internal context" or "design specification" intermediate.
+**System message** = body from `packages/auto-designer-pi/prompts/_designer-system.md` (resolved via `loadDesignerSystemPrompt()`) + `Current date` and `Current working directory` appended by Pi's `buildSystemPrompt`, plus Pi's stock `<available_skills>` block emitted by `formatSkillsForPrompt` listing each filtered skill's `name`, `description`, and (after VFS remapping) the VFS `<location>` path. **User message** = hypothesis/spec + the relevant per-task guidance body inlined by the route (e.g. `gen-hypotheses.md` for incubation, `revise.md` for revision rounds). Skills are seeded into the VFS at session start (`/home/user/project/.skills/<name>/SKILL.md`); the agent loads each one through the regular `read` tool when the description matches its task. The Incubator's user message is assembled deterministically by `buildInternalContext(spec)` in [src/lib/prompts/internal-context.ts](src/lib/prompts/internal-context.ts), then wrapped by `buildIncubatorUserPrompt()` in [src/lib/prompts/incubator-user.ts](src/lib/prompts/incubator-user.ts). There is no LLM-synthesised "internal context" or "design specification" intermediate, and the old `internal-context` task slot is removed from persisted task settings during migration.
 
 ### Tool inventory
 
@@ -140,7 +138,7 @@ If all edits get a corrected `oldText` that differs from the model’s version, 
 
 **How descriptions reach the model:** For `read` / `write` / `edit` / `ls` / `find` / `grep`, `SANDBOX_TOOL_OVERRIDES` replaces the Pi SDK default `description` with sandbox-accurate text. `promptSnippet` / `promptGuidelines` are **not** injected when a `customPrompt` is set (`designer-agentic-system`). Only the `description` field is reliably visible via the OpenAI-format tool JSON.
 
-**Scope:** Virtual file tools and just-bash apply during **design** **agentic Pi sessions** (initial build + each revision round in `agentic-orchestrator.ts`). Incubation, inputs-gen, design-system extraction, and evaluator steps run through the same package-backed pipeline with **session-scoped** skill catalogs; **meta-harness** hits the same API routes. Keep `packages/auto-designer-pi/prompts/_designer-system.md`, `server/lib/prompt-templates.ts` placeholders, and tool descriptions aligned with this doc.
+**Scope:** Virtual file tools and just-bash apply during **design** **agentic Pi sessions** (initial build + each revision round in `agentic-orchestrator.ts`). Incubation, inputs-gen, design-system extraction, and evaluator steps run through the same package-backed pipeline with **session-scoped** skill catalogs. Keep `packages/auto-designer-pi/prompts/_designer-system.md`, `server/lib/prompt-templates.ts` placeholders, and tool descriptions aligned with this doc.
 
 **Multi-file persistence:** Agentic file maps go to IndexedDB via client `saveFiles()`; provenance can include evaluation rounds + checkpoint.
 
@@ -150,7 +148,7 @@ If all edits get a corrected `oldText` that differs from the model’s version, 
 flowchart TB
   ui["UI Layer — React components, Canvas"]
   spec["1. Spec Model — DesignSpec, active input facets, images, types/spec.ts"]
-  api["2. API client — per-hypothesis prompt assembly via compileVariantPrompts() (code name); incubate + hypothesis generate on server"]
+  api["2. API client + server prompt bundle — workspace DTOs go to /api/hypothesis/*; prompt text resolves server-side"]
   storage["3. Storage Abstraction — StoragePort interface, BrowserStorage, IndexedDB"]
   output["4. Output Rendering — iframe preview (URL-backed VFS or bundled fallback); preview node (React: VariantNode.tsx)"]
 
@@ -161,9 +159,9 @@ flowchart TB
 
 ## Domain model, canvas projection, and session DTOs
 
-**Canonical client model** — `src/stores/workspace-domain-store.ts` (persisted) holds workflow semantics without requiring a graph: incubator input wiring (input / preview node ids), model assignments per incubator and per hypothesis, design-system attachments, hypothesis ↔ incubator ↔ hypothesis-strategy links, preview slots (active result / pins), and mirrors for model/design-system payloads synced from the canvas. `src/types/workspace-domain.ts` defines the shapes.
+**Canonical client model** — `src/stores/workspace-domain-store.ts` (persisted) holds workflow semantics without requiring a graph: incubator input wiring (input / preview node ids), design-system attachments, hypothesis ↔ incubator ↔ hypothesis-strategy links, preview slots (active result / pins), and mirrored design-system payloads synced from the canvas. `src/types/workspace-domain.ts` defines the shapes.
 
-**Model + effort live in Settings.** Phase 7 D removed the canvas Model node entirely. Each task — `design`, `incubate`, `inputs`, `design-system`, `evaluator` — has its own `(providerId, modelId, effort)` slot in `src/stores/thinking-defaults-store.ts`, persisted alongside other Settings state. Generate paths read the effective values via `useThinkingDefaultsStore.getState().getEffective(task)` (with lockdown clamping the result). The legacy `modelNodeIds` / `incubatorModelNodeIds` slots in workspace-domain are inert dead weight kept for shape stability across persist versions; canvas-migration **v32** strips Model nodes from saved snapshots after the one-shot `migrateModelNodeToSettings()` boot step has copied each Model node's `(providerId, modelId)` into Settings.
+**Model + reasoning live in Settings.** The rendered canvas Model node is retired. Each task — `design`, `incubate`, `inputs`, `design-system`, `evaluator` — has its own `(providerId, modelId, level)` override in `src/stores/task-config-store.ts`, with model defaults from `config/task-defaults.json` and reasoning budget defaults from `config/thinking-defaults.json`. Generate paths read effective settings via `useTaskConfigStore.getState().getEffective(task)`; `useTaskModel(task)` applies lockdown pins and model capability metadata for UI affordances. Persist migrations drop the old `internal-context` task slot and workspace-domain version 12 removes legacy `modelNodeIds` / `incubatorModelNodeIds` / `modelProfiles`; `migrateModelNodeToSettings()` still copies pre-Phase-7-D saved Model node selections into Settings before canvas migration strips those nodes from active snapshots.
 
 **Canvas as projection** — `src/stores/canvas-store.ts` still persists React Flow–backed **nodes and edges** for layout and interaction. Graph edits call `src/workspace/domain-commands.ts` so domain relations stay the source of truth for incubate/generate. Pure graph helpers live in `src/workspace/graph-queries.ts`; mutation planning lives in `src/workspace/canvas-mutation-planner.ts`, and `src/stores/canvas/canvas-graph-transaction.ts` applies planned graph/domain/spec/layout effects so Zustand slices stay thin.
 
@@ -175,7 +173,7 @@ flowchart TB
 
 **Graph queries** (`src/workspace/graph-queries.ts`) remain pure helpers over `WorkspaceNode[]` + `WorkspaceEdge[]` for legacy paths and visualization (e.g. lineage).
 
-**Session DTOs** (`src/workspace/workspace-session.ts`) — contexts such as `HypothesisGenerationContext` prefer domain-backed model credentials and design-system text when a hypothesis exists in the domain store, with graph snapshot fallback.
+**Session DTOs** (`src/workspace/workspace-session.ts`) — contexts such as `HypothesisGenerationContext` use the Settings-backed model credential plus domain-backed design-system text when a hypothesis exists in the domain store, with graph snapshot fallback for design-system edges.
 
 **Provenance** for `/api/generate` lives in `src/types/provenance-context.ts`.
 
@@ -187,29 +185,25 @@ The **server** LLM engine stays UI-agnostic; client-only modules under `src/work
 flowchart TB
   designSpec[DesignSpec text and images]
   incubationPlan[IncubationPlan dimensions and hypothesis strategies]
-  compiledPrompt["CompiledPrompt[] — one stored user prompt per hypothesis (browser)"]
-  generate[POST /api/generate SSE stream]
+  workspaceDto["Workspace DTO — spec, graph snapshot, domain hypothesis, design-system payloads, settings credential"]
+  compiledPrompt["CompiledPrompt[] — server-built prompt bundle, optionally mirrored into browser state"]
+  generate[POST /api/generate or /api/hypothesis/generate SSE stream]
 
   designSpec -->|POST /api/incubate| incubationPlan
-  incubationPlan -->|user edits on canvas| compiledPrompt
-  compiledPrompt -->|merge strategy + template: compileVariantPrompts()| generate
+  incubationPlan -->|user edits on canvas| workspaceDto
+  workspaceDto -->|POST /api/hypothesis/prompt-bundle| compiledPrompt
+  compiledPrompt -->|POST /api/hypothesis/generate| generate
 
-  generate --> singleMode
   generate --> agenticMode
 
-  subgraph singleMode [mode=single]
-    singleLLM[provider.generateChat → raw HTML]
-    singleStore[code → StoragePort, meta → Zustand]
-    singleLLM --> singleStore
-  end
-
-  subgraph agenticMode [mode=agentic]
+  subgraph agenticMode [agentic pipeline]
     piLoop["Pi agent: virtual read/write/edit/ls/find/grep + bash"]
+    optionalEval[optional evaluator + browser QA + revision]
     agenticStore[files → StoragePort, meta → Zustand]
-    piLoop --> agenticStore
+    piLoop --> optionalEval
+    optionalEval --> agenticStore
   end
 
-  singleStore --> iframe[Rendered iframe srcdoc]
   agenticStore --> iframe
   iframe -->|optional screenshot| nextIteration[Next iteration cycle]
 ```
@@ -241,7 +235,7 @@ flowchart TB
 | `/api/preview/sessions/:id`     | DELETE | Drop session from memory                                                                                                                                                                        | JSON                       |
 
 
-`**/api/generate` request fields:** `prompt`, `providerId`, `modelId`, `supportsVision`, `mode` (optional; defaults to agentic; `single` is a deprecated alias), `thinkingLevel` (`off` | `minimal` | `low` | `medium` | `high`), `evaluationContext` (object, `**null`**, or omit — `**null**` skips all evaluation; omit runs eval workers as before).
+`**/api/generate` request fields:** `prompt`, `providerId`, `modelId`, optional `correlationId`, `supportsVision`, `mode` (optional; defaults to agentic; `single` is accepted only as a deprecated alias and normalized to agentic), legacy `thinkingLevel`, preferred `thinking` (`{ level, budgetTokens }`), `evaluationContext` (object, `**null**`, or omit — `**null**` skips all evaluation; omit preserves legacy eval behavior), optional evaluator model fields, `agenticMaxRevisionRounds`, `agenticMinOverallScore`, and partial `rubricWeights`.
 
 **SSE events:** `progress` (status label), `activity` (streaming agent text), `file` (path + content), `plan` (declared file list), `skills_loaded` (non-manual skill catalog for this Pi session; may repeat on revision rounds), `skill_activated` (fires when the agent reads a seeded SKILL.md from the VFS), `evaluation_worker_done` (one per rubric worker in an eval round; payload includes `round`, `rubric`, `report` snapshot for live UI), `error`, `done`.
 
@@ -286,7 +280,7 @@ POST endpoints validate bodies with Zod (typically via `**parse-request**` / `sa
 | `lib/prompt-resolution.ts`                 | Resolve prompt bodies by `PromptKey` to package prompts (`packages/auto-designer-pi/prompts/<name>.md`), `loadDesignerSystemPrompt()` for the system prompt, or glue templates                                                                          |
 | `lib/prompt-templates.ts`                  | Structural placeholder / template-variable glue (incubator user inputs, designer hypothesis inputs)                                                                                                                                                     |
 | `lib/safe-emit.ts`                         | Fire-and-log async event emission used by the host bridge and direct emission sites                                                                                                                                                                     |
-| `lib/pi-stream-budget.ts`                  | Per-turn `max_tokens` heuristic from prompt-token estimates; named constants for per-image and tokenizer-fudge multipliers                                                                                                                              |
+| `lib/pi-stream-budget.ts`                  | Per-turn `max_tokens` heuristic from prompt-token estimates; completion and truncation knobs are validated from `config/completion-budget.json` and `config/content-limits.json`                                                                         |
 | `lib/pi-bridge-narrowing.ts`               | Canonical Pi-message inspector — discriminated predicates (`isTextPart`, `isThinkingPart`, `isImagePart`, `isToolCallPart`) and `unknown`-shape narrowers used at every host boundary that touches Pi SDK content                                       |
 | `lib/inline-guidance.ts`                   | `inlineGuidance(key, tag)` — single source of truth for the "load body → wrap in `<tag>…</tag>` → splice into agent user prompt" convention used by incubate, inputs-generate, and design-system routes                                                |
 | `lib/session-types.ts`                     | `SessionType` source of truth for non-Pi consumers (task-agent, log-store, agent-runtime, observability)                                                                                                                                                |
@@ -295,28 +289,28 @@ POST endpoints validate bodies with Zod (typically via `**parse-request**` / `sa
 | `services/pi-session-event-bridge.ts`      | Thin subscriber: maps `AgentSession` subscribe events → app `AgentRunEvent` stream; helpers in **`pi-bridge-core.ts`**, **`pi-bridge-tool-streaming.ts`**, **`pi-bridge-compaction-agent.ts`**; uses **`pi-bridge-narrowing`** on SDK shapes.          |
 | `services/pi-llm-log.ts`                   | Wraps the package's `streamFn` so each model turn lands in `/api/logs` (dev only). Uses `pi-stream-budget.ts` for the per-turn budget.                                                                                                                  |
 | `services/agentic-orchestrator.ts`         | Re-exports **`runAgenticWithEvaluation`**; implementation in **`services/agentic-orchestrator/`** (build session rounds, eval rounds, revision loop, checkpoint assembly)                                                                                                                                                                                                         |
-| `services/design-evaluation-service.ts`    | Design evaluation payload handling                                                                                                                                                                                                                      |
+| `services/design-evaluation-service.ts` + evaluator helpers | Evaluation payload handling, prompt assembly, worker dispatch, degraded-worker handling, and aggregate score/revision recommendations                                                                                                       |
 | `services/browser-qa-evaluator.ts`         | Deterministic browser QA preflight (HTML + VM)                                                                                                                                                                                                          |
-| `services/browser-playwright-evaluator.ts` | Playwright headless render + DOM/console checks                                                                                                                                                                                                         |
+| `services/browser-playwright-evaluator.ts` | Playwright headless render + DOM/console checks; prefers URL-backed preview sessions and falls back to bundled HTML when no preview URL is supplied                                                                                                      |
 | `services/incubator.ts`                    | LLM incubation — Zod-validates request/response boundaries                                                                                                                                                                                              |
 | `services/providers/openrouter.ts`         | OpenRouter provider (direct API, auth header)                                                                                                                                                                                                           |
 | `services/openrouter-budget-status.ts`     | OpenRouter key status lookup and reset-time normalization for daily/weekly/monthly key limits                                                                                                                                                            |
 | `services/providers/lmstudio.ts`           | LM Studio provider (direct URL)                                                                                                                                                                                                                         |
 | `services/providers/registry.ts`           | Provider registration and lookup                                                                                                                                                                                                                        |
+| `services/provider-model-context.ts`        | Model metadata lookup and reasoning/vision capability context for provider-backed calls                                                                                                                                                                  |
 | `lib/provider-helpers.ts`                  | Re-exports from `src/lib/provider-fetch.ts` + server-specific `buildChatRequestFromMessages`                                                                                                                                                            |
 | `lib/prompts/*`                            | Re-exports from `src/lib/prompts/` — no server-side duplication                                                                                                                                                                                         |
 | `lib/api-json-error.ts`                    | `apiJsonError` — consistent JSON error bodies + Hono-typed status literals                                                                                                                                                                              |
 | `lib/parse-request.ts`                     | Shared JSON parse + Zod validation helpers for routes                                                                                                                                                                                                   |
 | `lib/sse-write-gate.ts`                    | `createWriteGate` — serializes SSE writes                                                                                                                                                                                                               |
 | `lib/agentic-sse-map.ts`                   | Maps agentic/orchestrator events to SSE `event` + payload                                                                                                                                                                                               |
-| `lib/build-agentic-system-context.ts`      | Composes the agentic system context: `loadDesignerSystemPrompt()` body + `skillCatalog` entries discovered from the package's `skills/` dir + empty `sandboxSeedFiles` (orchestrator may add caller seeds only); skills are **not** copied into the VFS |
+| `lib/build-agentic-system-context.ts`      | Composes the agentic system context DTO: `loadDesignerSystemPrompt()` body + UI-facing `skillCatalog` entries discovered from the package's `skills/` dir + optional caller seed files. Actual skill seeding happens inside `@auto-designer/pi` session creation |
 | `lib/skill-discovery.ts`                   | Reads `packages/auto-designer-pi/skills/*/SKILL.md` for the `skills_loaded` SSE catalog only; filters by session-type tags. The agent's runtime skill list is the union of (a) Pi's stock `<available_skills>` system-prompt block and (b) the VFS-seeded SKILL.md files the model loads via `read`.                  |
 | `lib/skill-schema.ts`                      | Zod: skill YAML frontmatter                                                                                                                                                                                                                             |
 | `lib/frontmatter.ts` / `lib/frontmatter-split.ts` | Shared `---` YAML frontmatter split (split implementation + re-export)                                                                                                                                                                             |
 | `lib/sse-task-route.ts`                    | Shared SSE wrapper for task-agent routes (`incubate`, `inputs-generate`, `design-system`) — owns terminal task SSE (`phase: complete` + `done` on success, `error` + `done` on throw), write gate, dev write-count summary                                                                                                 |
 | `services/task-agent-execution.ts`         | `executeTaskAgentStream` facade for Pi build-only task sessions; forwards non-terminal agentic SSE and throws typed task errors for route serialization. Slot lifecycle, Pi session invocation, result-file resolution, and observability live in the focused `task-agent-*` helper modules. |
 | `services/task-agent-session.ts` / `task-agent-slot.ts` / `task-agent-result-files.ts` / `task-agent-observability.ts` | Task-agent internals split by responsibility: Pi session invocation, concurrency slot ownership, expected/fallback result-file policy, and NDJSON + `log-store` task entries. |
-| `lib/pi-bridge-narrowing.ts`               | Runtime guards for Pi SDK message slices at the NPM boundary (`pi-session-event-bridge`)                                                                                                                                                                |
 | `lib/agentic-skills-emission.ts`           | Shared `skills_loaded` trace + SSE for orchestrator and task-agent execution                                                                                                                                                                            |
 
 
@@ -331,15 +325,15 @@ Hypothesis and `/api/generate` traffic use the **agentic** orchestrator. `mode` 
 1. **Build:** `runDesignAgentSession` via `agent-runtime.ts` → `pi-agent-runtime.ts` (single entry point into `@auto-designer/pi`). The package's virtual FS starts empty except optional caller `seedFiles`; the agent writes design artifacts. Each Pi session boundary re-discovers the package's skill catalog (revision rounds use a fresh session and a fresh catalog).
 2. **Evaluate + revise** *(skipped when `**evaluationContext`** is `**null**`, e.g. hypothesis **Auto-improve** off):* `runEvaluationWorkers` in `design-evaluation-service.ts` runs design / strategy / implementation LLM rubrics plus **browser** checks:
   - **Preflight:** `browser-qa-evaluator.ts` — HTML/VM heuristics (fast).
-  - **Grounded:** `browser-playwright-evaluator.ts` — headless Chromium via Playwright (`setContent` on bundled HTML), console/page errors, visible text, layout box, broken images. Disabled when `VITEST=true` or `BROWSER_PLAYWRIGHT_EVAL=0`.
-   Then the **revision loop** runs until `isEvalSatisfied` — with **no** target score, stop when `!shouldRevise` after `enforceRevisionGate`; with **Settings / per-hypothesis target score** (`agenticMinOverallScore`), stop only when **no hard fails** and **overall score ≥ target** (even if the rubric model sets `shouldRevise: false`). Otherwise continue until `**maxRevisionRounds`** or abort. Each revision re-seeds **prior design files** into the sandbox so the agent can edit them; skills remain available through the host-backed skill tools.
+  - **Grounded:** `browser-playwright-evaluator.ts` — headless Chromium via Playwright. It prefers `page.goto(previewPageUrl)` against the URL-backed preview session; if no URL is provided it falls back to `setContent` on bundled HTML. It captures console/page errors, visible text, layout box, broken images, and a bounded JPEG screenshot. Disabled when `VITEST=true` or `BROWSER_PLAYWRIGHT_EVAL=0`.
+   Then the **revision loop** runs until `isEvalSatisfied` — with **no** target score, stop when `!shouldRevise` after `enforceRevisionGate`; with **Settings / per-hypothesis target score** (`agenticMinOverallScore`), stop only when **no hard fails** and **overall score >= target** (even if the rubric model sets `shouldRevise: false`). Otherwise continue until `**maxRevisionRounds`** or abort. Each revision re-seeds **prior design files** into a fresh sandbox session so the agent can edit them; skills remain available through the seeded VFS skill flow.
 3. **Checkpoint:** `AgenticCheckpoint` includes `stopReason` (`satisfied` | `max_revisions` | `aborted` | `revision_failed` | `**build_only`**) and `revisionAttempts`. `**build_only**` means the Pi build finished and evaluation was not requested.
 
 **Env defaults** (`server/env.ts`): `AGENTIC_MAX_REVISION_ROUNDS` (default `5`, clamped 0–20), optional `AGENTIC_MIN_OVERALL_SCORE`. Request body may pass `agenticMaxRevisionRounds` / `agenticMinOverallScore`. For Playwright in production: install browsers once (`pnpm exec playwright install chromium`).
 
 [`packages/auto-designer-pi/`](packages/auto-designer-pi/) is the **NPM import boundary** for Pi packages: every `@mariozechner/pi-ai` and `@mariozechner/pi-coding-agent` import lives there. Orchestrators import `agent-runtime.ts`, which re-exports the package-backed `runPiAgentSession` from `pi-agent-runtime.ts`. The package owns session factories, tool builders, the designer extension, the just-bash virtual workspace, the resource loader, and bundled prompt content. Agentic system context (system prompt + `skillCatalog`) is built in `server/lib/build-agentic-system-context.ts` from the package's `_designer-system.md` and `skills/` dir.
 
-**Google Fonts (agentic HTML):** Agent output may reference **only** `https://fonts.googleapis.com/...` (stylesheet API) and `**https://fonts.gstatic.com/...`** (font files referenced from that CSS). Allowlist logic lives in `[src/lib/google-fonts-allowlist.ts](src/lib/google-fonts-allowlist.ts)`; Pi `**validate_html`** permits those URLs in `<link rel="stylesheet">`, and allowed `@import` inside `<style>` blocks; other external stylesheets and any external `<script src>` remain invalid. The preview iframe can load allowlisted URLs when the **user’s browser** has network access; the `**browser-qa-evaluator`** VM does not fetch the network, so typography there is not ground-truth for CDN fonts.
+**Google Fonts (agentic HTML):** Agent output may reference **only** `https://fonts.googleapis.com/...` (stylesheet API) and `**https://fonts.gstatic.com/...`** (font files referenced from that CSS). Allowlist logic lives in [src/lib/google-fonts-allowlist.ts](src/lib/google-fonts-allowlist.ts) and the Pi package mirror [packages/auto-designer-pi/src/internal/google-fonts-allowlist.ts](packages/auto-designer-pi/src/internal/google-fonts-allowlist.ts); Pi `**validate_html`** permits those URLs in `<link rel="stylesheet">`, and allowed `@import` inside `<style>` blocks; other external stylesheets and any external `<script src>` remain invalid. The preview iframe can load allowlisted URLs when the **user's browser** has network access; the `**browser-qa-evaluator`** VM does not fetch the network, so typography there is not ground-truth for CDN fonts.
 
 ### Generation Cancellation
 
@@ -351,11 +345,11 @@ The primary interface is a node-graph canvas built on `@xyflow/react` v12.
 
 ### Node Types
 
-9 node types in 3 categories: 5 source/input nodes (4 spec facets rendered by shared `InputNode.tsx`, plus `DesignSystemNode`), `ModelNode`, `IncubatorNode`, `HypothesisNode`, and **preview** nodes (canvas type `preview`; React component still named `VariantNode.tsx` for history). `ModelNode` centralizes provider/model selection for Incubator/Hypothesis work; Design System has no direct model edge and is self-contained source data in `node.data`, not the spec store. Each node uses a typed data interface from `types/canvas-data.ts`.
+9 rendered node types in 3 categories: source/input nodes (4 spec facets rendered by shared `InputNode.tsx`, `InputGhostNode` placeholders, plus `DesignSystemNode`), `IncubatorNode`, `HypothesisNode`, and **preview** nodes (canvas type `preview`; React component still named `VariantNode.tsx` for history). `NODE_TYPES.MODEL` remains as a legacy string constant and migration target, but there is no current `ModelNode` component; provider/model selection is per task in Settings. Design System has no model edge and is self-contained source data in `node.data`, not the spec store. Each persisted node uses a typed data interface from `types/canvas-data.ts`.
 
 ### HypothesisNode — Generation Controls
 
-**Auto-improve**, **max revision rounds**, and **target score** for a hypothesis live in `**workspace-domain-store`** (`DomainHypothesis`), with defaults from **Settings → Evaluator defaults**; `[resolveEvaluatorSettings](src/hooks/resolveEvaluatorSettings.ts)` merges them per run. **Thinking** is configured on **Model** nodes. At generation time, `[useHypothesisGeneration](src/hooks/useHypothesisGeneration.ts)` reads the workspace snapshot and drives the multiplexed hypothesis SSE stream (`/api/hypothesis/prompt-bundle` + `/api/hypothesis/generate` via `[src/api/client.ts](src/api/client.ts)`). Lane orchestration lives in `[hypothesis-generation-run.ts](src/hooks/hypothesis-generation-run.ts)`; per-lane SSE callbacks and post-stream persistence are in `[placeholder-generation-session.ts](src/hooks/placeholder-generation-session.ts)` and `[placeholder-*](src/hooks/placeholder-stream-handlers.ts)` helpers.
+**Auto-improve**, **max revision rounds**, and **target score** for a hypothesis live in `**workspace-domain-store`** (`DomainHypothesis`), with defaults from **Settings -> Evaluator defaults**; [resolveEvaluatorSettings](src/hooks/resolveEvaluatorSettings.ts) merges them per run. Provider/model/reasoning for the design task come from [src/stores/task-config-store.ts](src/stores/task-config-store.ts), surfaced through [useTaskModel](src/hooks/useTaskModel.ts) for capability hints. At generation time, [useHypothesisGeneration](src/hooks/useHypothesisGeneration.ts) reads the workspace snapshot and drives the multiplexed hypothesis SSE stream (`/api/hypothesis/prompt-bundle` + `/api/hypothesis/generate` via [src/api/client.ts](src/api/client.ts)). Lane orchestration lives in [hypothesis-generate-flow.ts](src/hooks/hypothesis-generate-flow.ts) and [hypothesis-generation-run.ts](src/hooks/hypothesis-generation-run.ts); per-lane SSE callbacks and post-stream persistence are in [placeholder-generation-session.ts](src/hooks/placeholder-generation-session.ts) and [placeholder-*](src/hooks/placeholder-stream-handlers.ts) helpers.
 
 ### Preview Node — Multi-File Display
 
@@ -369,15 +363,15 @@ When a result has files (agentic output), the preview UI (`VariantNode` / canvas
 
 `runInspectorPreviewNodeId` in `canvas-store` selects which preview’s workspace to show. `CanvasWorkspace` mounts `VariantRunInspector` as an **overlay** on the canvas column (not a layout sibling). A dim backdrop uses **`pointer-events-none`** so pan/zoom still hit React Flow. **`src/lib/canvas-fit-view.ts`** owns shared camera commands: starter-canvas framing, single-node focus, subset fit, full fit, and inspector-dock padding. The starter command uses the actual React Flow pane size to keep the Design Brief + Design System readable while leaving the Incubator visible; hypothesis **Design** syncs use subset fit for the **hypothesis + its preview node(s)** instead of the whole graph.
 
-### Auto-Connection Logic (`canvas-connections.ts`)
+### Auto-Connection Logic (`src/lib/canvas-connections.ts`)
 
 Centralized rules for what connects to what when nodes are added or generated:
 
 - `**buildAutoConnectEdges`** — Structural connections only: input nodes→incubator, design system→hypothesis.
 
-Model wiring is no longer a canvas concern. Each task reads `(providerId, modelId, effort)` from `thinkingDefaultsStore.getEffective(task)`; the canvas is a graph of intent, not a graph of plumbing.
+Model wiring is no longer a canvas concern. Each task reads `(providerId, modelId, level)` from `useTaskConfigStore.getState().getEffective(task)`; the canvas is a graph of intent, not a graph of plumbing.
 
-### Lineage & incubate topology (`canvas-graph.ts`)
+### Lineage & incubate topology (`src/lib/canvas-graph.ts`)
 
 `computeLineage` performs a full connected-component walk (bidirectional BFS). Selecting a node highlights every node reachable through any chain of edges — including sibling inputs to shared targets. Unconnected nodes dim to 40%.
 
@@ -385,13 +379,13 @@ Model wiring is no longer a canvas concern. Each task reads `(providerId, modelI
 
 ### Version Stacking
 
-Results accumulate across generation runs. Each result has a `runId` (UUID) and `runNumber` (sequential per hypothesis). Preview nodes reuse the same canvas node across runs, with version navigation. `**userBestOverrides`** in `generation-store` pins which complete `GenerationResult` is treated as “best” for a `strategyId` ahead of evaluator scores; see `getBestCompleteResult` / `setUserBest`. `**domain-preview-selectors.ts`** maps a preview node id → hypothesis and lists sibling preview node ids for **hypothesis-scoped** full-screen stepping.
+Results accumulate across generation runs. Each result has a `runId` (UUID) and `runNumber` (sequential per hypothesis). Preview nodes reuse the same canvas node across runs, with version navigation. `**userBestOverrides`** in `generation-store` pins which complete `GenerationResult` is treated as “best” for a `strategyId`; without an override, `getBestCompleteResult` uses evaluator scores when present and otherwise falls back to the newest complete run. `**domain-preview-selectors.ts`** maps a preview node id → hypothesis and lists sibling preview node ids for **hypothesis-scoped** full-screen stepping.
 
 **Agentic eval-round files:** Each `EvaluationRoundSnapshot` may carry a `files` map; the orchestrator attaches the tree that was scored that round. The client persists those blobs under IndexedDB keys `{resultId}:round:{round}` and strips `files` from persisted `evaluationRounds` / provenance to save space (`StoragePort.saveRoundFiles` / `loadRoundFiles`).
 
 ### Parallel Generation
 
-Multiple hypotheses generate simultaneously via `Promise.all`. Within a single hypothesis, multiple connected Models also generate in parallel. The global `isGenerating` flag only clears when all in-flight results reach a terminal status, preventing premature UI resets. Note: LM Studio runs sequentially — sending concurrent requests returns HTTP 500.
+Multiple hypotheses can generate simultaneously. Within a single hypothesis the current Settings model produces one lane; older multi-model lane plumbing remains in the hypothesis API and SSE router for compatibility, but the active canvas no longer wires multiple Model nodes into a hypothesis. The global `isGenerating` flag only clears when in-flight results reach a terminal status, preventing premature UI resets. Note: LM Studio runs sequentially — sending concurrent requests returns HTTP 500.
 
 ## Client Module Boundaries
 
@@ -442,8 +436,10 @@ Multiple hypotheses generate simultaneously via `Promise.all`. Within a single h
 | `spec-store`             | localStorage               | Active `DesignSpec`, section/image CRUD                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `incubator-store`        | localStorage               | `IncubationPlan` per **incubator id** (same id as the Incubator canvas node today), `CompiledPrompt[]`, hypothesis editing                                                                                                                                                                                                                                                                                                                           |
 | `generation-store`       | localStorage + StoragePort | `GenerationResult[]` metadata in localStorage (persist v5; v4 adds `userBestOverrides`, v5 renames `variantStrategyId` → `strategyId`; `evaluationRounds[].files` stripped in `partialize`), code in IndexedDB (`code` store), multi-file in IndexedDB (`files` store), optional per-eval-round file snapshots (`{resultId}:round:{n}` in the same files DB). `liveCode`, `liveFiles`, `liveFilesPlan` are in-memory only, stripped by `partialize`. |
-| `workspace-domain-store` | localStorage               | Domain-first relations and payloads (hypotheses, incubator wiring, model assignments, preview slots, mirrored node content). Prefer this for workflow semantics.                                                                                                                                                                                                                                                                                     |
-| `canvas-store`           | localStorage               | React Flow nodes/edges, viewport, auto-layout, transient UI (lineage, edge status, `previewNodeIdMap`). Kept in sync with domain on connect/disconnect and incubate/generate lifecycle.                                                                                                                                                                                                                                                              |
+| `workspace-domain-store` | localStorage               | Domain-first relations and payloads (hypotheses, incubator wiring, design-system attachments/content, preview slots). Prefer this for workflow semantics. Legacy model fields are migrated away.                                                                                                                                                                                                                                                       |
+| `task-config-store`      | localStorage               | Per-task provider/model/reasoning-level overrides for `design`, `incubate`, `inputs`, `design-system`, and `evaluator`; defaults merge from `config/task-defaults.json` and `config/thinking-defaults.json`. The localStorage key keeps the historical thinking-defaults name for migration compatibility.                                                                                                                                                 |
+| `evaluator-defaults-store` | localStorage             | User defaults for Auto-improve max rounds, optional target score, and rubric weights. Seeded from `/api/config` before user customization.                                                                                                                                                                                                                                                                                                             |
+| `canvas-store`           | localStorage               | React Flow nodes/edges, viewport, auto-layout, transient UI (lineage, edge status, `previewNodeIdMap`, run inspector selection). The root module composes slices under `src/stores/canvas/` for graph, layout, sync, and UI behavior; it is kept in sync with domain on connect/disconnect and incubate/generate lifecycle.                                                                                                                              |
 
 **Canvas Manager snapshots.** The saved canvas library uses `src/services/persistence.ts` as the compatibility layer: localStorage keeps only list metadata for fast manager rendering, while IndexedDB stores versioned `SavedCanvasSnapshot` payloads (`src/types/saved-canvas.ts`) plus generated artifacts. `canvas-snapshots.ts` captures and restores graph state, viewport, domain wiring, incubator plans, generation metadata, selected versions, best-pick overrides, and code/files/provenance/eval-round artifacts. `canvas-library-session.ts` checkpoints before replacing the active session (load, import, duplicate, new, header reset), while explicit reload-from-saved skips that checkpoint by design. Legacy spec-only entries still restore through the spec materialization path.
 
@@ -453,14 +449,14 @@ Multiple hypotheses generate simultaneously via `Promise.all`. Within a single h
 
 | File                         | Purpose                                                                                                                                                                                                                                                                                  |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useHypothesisGeneration.ts` | Canvas **Design**: reads `thinkingLevel` from model wiring + evaluator resolution from domain; calls hypothesis prompt bundle + multiplexed SSE generate; uses `createPlaceholderGenerationSession` for callbacks, RAF-batched activity/thinking, trace forward, and IndexedDB finalize. |
+| `useHypothesisGeneration.ts` | Canvas **Design**: reads task model/capabilities from Settings, evaluator resolution from domain/settings, then calls hypothesis prompt bundle + multiplexed SSE generate; uses `createPlaceholderGenerationSession` for callbacks, RAF-batched activity/thinking, trace forward, and IndexedDB finalize. |
 | `use-generation-stall-hints.ts` | Footer stall / stream-quiet hints during agentic generation (`computeGenerationStallHints` + tick); pure copy helpers in `**src/lib/generating-footer-primary.ts**`.                                                                                                                      |
 | `useResultCode.ts`           | Loads generated code from StoragePort (single-file results)                                                                                                                                                                                                                              |
 | `useResultFiles.ts`          | Loads multi-file result from StoragePort (agentic results)                                                                                                                                                                                                                               |
 | `useProviderModels.ts`       | React Query hook — calls `apiClient.listModels()`                                                                                                                                                                                                                                        |
-| `useConnectedModel.ts`       | Resolves provider/model: prefers domain (`incubatorModelNodeIds` / hypothesis `modelNodeIds`), then first upstream model edge                                                                                                                                                            |
+| `useTaskModel.ts`            | Resolves provider/model + vision/reasoning support for a task from Settings, applying lockdown pins from `/api/config` when enabled. Replaces the legacy connected-model hooks.                                                                                                          |
 | `useIncubatorDocumentPreparation.ts` | Refreshes generated design specification and DESIGN.md documents before incubation; owns task-stream monitor state patches for those document jobs.                                                                                                                                 |
-| `useIncubatorRun.ts`         | Incubator **Generate** orchestration: placeholder hypotheses, document refresh prerequisites, `/api/incubate` task stream, domain/canvas sync, edge status, and post-run fitView.                                                                                                                                 |
+| `useIncubatorRun.ts`         | Incubator **Generate** orchestration: placeholder hypotheses, DESIGN.md refresh prerequisites, `/api/incubate` task stream, domain/canvas sync, edge status, and post-run fitView.                                                                                                        |
 | `useNodeRemoval.ts`          | Shared node + associated-edges removal logic                                                                                                                                                                                                                                             |
 
 
@@ -500,9 +496,9 @@ Single source of truth for string literals shared across the codebase. Eliminate
 
 **Why the server resolves prompts from the package.** Prompt bodies ship with `@auto-designer/pi` under `packages/auto-designer-pi/{skills,prompts}/`. `server/lib/prompt-resolution.ts` resolves them per request through `loadDesignerSystemPrompt()` and `loadPackagePromptBody()`. The SPA sends workspace/spec payloads and model settings; prompt text is never client-editable.
 
-**Why `.prompt-versions/` and `_versions/` exist.** Tunable copies (package skills, package prompt templates, `src/lib/rubric-weights.json`) get **shadow snapshots** before automated overwrites: [meta-harness/version-store.ts](meta-harness/version-store.ts) implements `snapshotBeforeWrite` and `snapAll`, wired from meta-harness and `scripts/snap.ts`. Package skill snapshots live under `packages/auto-designer-pi/skills/<key>/_versions/`; prompt-template snapshots under `packages/auto-designer-pi/prompts/_versions/<name>/` (single shared dir, one subdir per template); rubric JSON stays under `.prompt-versions/snapshots/`; `manifest.jsonl` is the append-only log. `_versions/` is not read by skill discovery (history stays out of the agent catalog). Operators run `pnpm snap` (changed files only) or rely on the pre-commit hook — see [USER_GUIDE.md § Version history](USER_GUIDE.md#version-history). Meta-harness write paths: [meta-harness/VERSIONING.md](meta-harness/VERSIONING.md).
+**Why prompt snapshots exist.** Prompt, skill, and rubric edits are tunable content, so they keep committed history through `pnpm snap` and the pre-commit hook. Snapshot workflow and storage locations live in [USER_GUIDE.md § Version history](USER_GUIDE.md#version-history).
 
-**Why `src/lib/prompts/defaults.ts` (no `shared-defaults.ts`).** It defines `**PromptKey`** and `**PROMPT_KEYS**` only; `**tsconfig.server.json**` includes it so server and SPA share identifiers. **Bodies** are on disk in skills and `**PROMPT.md`**, not in a shared TypeScript defaults module.
+**Why `src/lib/prompts/defaults.ts` (no `shared-defaults.ts`).** It defines `**PromptKey`** and `**PROMPT_KEYS**` only; `**tsconfig.server.json**` includes it so server and SPA share identifiers. **Bodies** are on disk in `packages/auto-designer-pi/skills/<key>/SKILL.md` and `packages/auto-designer-pi/prompts/*.md`, not in a shared TypeScript defaults module.
 
 **Why `@auto-designer/pi` exists.** `@mariozechner/pi-coding-agent` / `pi-ai` can ship breaking changes. All direct imports live inside the package (`packages/auto-designer-pi/src/internal/pi-types.ts` re-exports the SDK surface). Pi upgrades start there; host code imports only from `@auto-designer/pi`.
 
@@ -526,27 +522,12 @@ Single source of truth for string literals shared across the codebase. Eliminate
 
 **Why sandboxed iframes.** Generated code is untrusted. Previews use `**allow-scripts`**; URL-backed previews also use `**allow-same-origin`** so the document can load sibling paths from the same preview origin. Tighten if the threat model changes.
 
-## Meta-harness (optional CLI)
-
-The `meta-harness/` package is a repo-local **Node CLI** (`pnpm meta-harness`) that exercises the same `/api/*` flows as the canvas (incubate, hypothesis generate + eval, inputs-generate) using JSON fixtures, an OpenRouter-based **proposer**, and gitignored `meta-harness/history/session-<mode>-*/` artifacts (folder name includes `incubate` | `e2e` | `design` | `inputs` before the timestamp; per-session `PROMOTION_REPORT.md` at the session root). **Four modes:** `--mode=incubate` (hypothesis rubric), `--mode=inputs` (inputs auto-fill quality rubric), `--mode=design` (agentic build + eval), `--mode=e2e` (inputs-gen → incubate → build → eval). Before the run loop it can **preflight** the most recent completed session: compare `skills-snapshot/` to `packages/auto-designer-pi/skills/` and `candidate-*/rubric-weights.json` to `src/lib/rubric-weights.json`, showing unified diffs in Ink (or stdout in `--plain`) unless `--skip-promotion-check` or `--improve`. In a TTY, `P` applies drift to the package skills and `src/lib/rubric-weights.json`. The designer system prompt lives in `packages/auto-designer-pi/prompts/_designer-system.md` — promote it via normal git, not harness `P`. `--promote` is preflight-only (plus health); `--plain --promote` prints diffs without auto-apply. It is not bundled in the SPA build. Operator runbook: [meta-harness/README.md](meta-harness/README.md) and [meta-harness/META_HARNESS_OUTER_LOOP.md](meta-harness/META_HARNESS_OUTER_LOOP.md).
-
-**Two promotion surfaces** (repo source → what preflight compares → `**P`** promotion target):
-
-
-| Surface            | Repo source of truth               | Compared in preflight                         | After `**P`**                                                                                      |
-| ------------------ | ---------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| **Skills**         | `skills/` (per-package `SKILL.md`) | `**skills-snapshot/`** vs `**skills/`**       | Copy / delete files under `**skills/**`                                                            |
-| **Rubric weights** | `src/lib/rubric-weights.json`      | Winner `**rubric-weights.json`** vs repo file | Overwrite `**rubric-weights.json`**; **restart API** so `**GET /api/config`** exposes new defaults |
-
-
-During a meta-harness **run**, repo `**skills/`** is **restored** from per-session `**skills-baseline/`** between candidates and in `**finally`**, so only promotion (`**P**`) or manual steps persist skill edits to the app tree.
-
 ## Adding a New Provider
 
 1. Create `server/services/providers/yourprovider.ts`
 2. Implement the `GenerationProvider` interface from `src/types/provider.ts`
 3. Register it in `server/services/providers/registry.ts`
-4. Add any server env defaults or lockdown mappings needed for the new provider id (see `server/lib/lockdown-model.ts` and provider `listModels` registration)
+4. Add any task defaults or lockdown pins needed for the new provider id in `config/task-defaults.json` (server clamping flows through `server/lib/lockdown-model.ts` and provider `listModels` registration)
 
 ## Deployment
 

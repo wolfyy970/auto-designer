@@ -173,7 +173,7 @@ export default function VariantToolbar({
             onClearUserBest();
           }}
           className="nodrag rounded p-0.5 text-warning transition-colors hover:text-warning-text-soft"
-          title="Clear your best pick (use evaluator ranking)"
+          title="Clear your best pick (use computed best result)"
         >
           <Star size={10} className="fill-current" />
         </button>

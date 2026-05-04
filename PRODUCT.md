@@ -19,9 +19,9 @@ Every subsystem — the incubator, the agentic builder, the evaluator, the revis
 
 ## What Exists Today
 
-**Status:** Canvas interface complete. Single-shot and agentic generation operational with post-build evaluation, bounded revision rounds, and optional headless browser QA. Vision support implemented. Repo **Agent Skills** under **`skills/`** are discovered per Pi session, surfaced in Pi's stock `<available_skills>` system-prompt block (all non-`manual`), and shown in the preview run UI; SKILL.md content is seeded into the just-bash VFS at session start so the model can load each skill body through the regular `read` tool when its description matches the task.
+**Status:** Canvas interface complete. Hypothesis design uses the agentic Pi pipeline. With the checked-in `autoImprove: 0` flag, runs are single-pass builds; when that flag is enabled, the same pipeline adds post-build evaluation and bounded revision rounds. Vision support implemented. Technical prompt, skill, and sandbox mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## Canvas Interface (`/canvas` — default route)
+## Canvas Interface (`/canvas` — working route)
 
 A visual node-graph workspace built on @xyflow/react v12. Nodes connect left-to-right representing the design exploration pipeline.
 
@@ -34,26 +34,26 @@ A visual node-graph workspace built on @xyflow/react v12. Nodes connect left-to-
 | Research Context     | Input      | User research, behavioral insights                                                                                                                                                                                                                                                                                                                             |
 | Objectives & Metrics | Input      | Success criteria and evaluation measures                                                                                                                                                                                                                                                                                                                       |
 | Design Constraints   | Input      | Non-negotiable boundaries + exploration ranges                                                                                                                                                                                                                                                                                                                 |
-| Design System        | Input      | Required visual-system source. Defaults to Designer's built-in Wireframe DESIGN.md source, can switch to Custom text, DESIGN.md files, and images, or None. Source material stays in node data; the Incubator prepares a linted Google DESIGN.md document for downstream prompts when connected sources are missing or stale. Model + effort come from **Settings → Reasoning → Design system**. |
-| Incubator            | Processing | **Incubates** connected inputs into hypothesis strategies via LLM. It can synthesize a design specification from connected inputs and refresh connected DESIGN.md docs before generation. **Generate** (batch count) and **blank hypothesis** both require a non-empty **Design Brief**; blank adds an empty strategy card without calling the LLM. Model + effort come from **Settings → Reasoning → Incubator**. |
-| Hypothesis           | Processing | Editable strategy card with **Design** (always **agentic** Pi). **Auto-improve** off: single build, no evaluator. **On:** rubric + browser evaluation and optional revision rounds. Model + effort come from **Settings → Reasoning → Hypothesis design**. |
-| Preview              | Output     | Rendered design preview. Single-file results show an HTML iframe. Multi-file (agentic) results show a file explorer + preview/code tabs + zip download. Completed agentic runs show an **evaluation scorecard** (aggregate score, prioritized fixes, runtime QA) and, when available, a **headless browser thumbnail**. Version navigation across all results. |
+| Design System        | Input      | Required visual-system source. Defaults to Designer's built-in Wireframe DESIGN.md source, can switch to Custom text, DESIGN.md files, and images, or None. Source material stays in node data; the Incubator prepares a linted Google DESIGN.md document for downstream prompts when connected sources are missing or stale. |
+| Incubator            | Processing | **Incubates** connected inputs into hypothesis strategies via LLM. It assembles connected spec inputs deterministically and can refresh connected DESIGN.md docs before generation. **Generate** (batch count) and **blank hypothesis** both require a non-empty **Design Brief**; blank adds an empty strategy card without calling the LLM. |
+| Hypothesis           | Processing | Editable strategy card with **Design** (always **agentic** Pi). **Auto-improve** disabled/off: single build, no evaluator. **On:** evaluation and optional revision rounds. |
+| Preview              | Output     | Rendered design preview. Single-file results show an HTML iframe. Multi-file (agentic) results show a file explorer + preview/code tabs + zip download. When Auto-improve ran, completed agentic runs show an **evaluation scorecard**. Version navigation across all results. |
 
 
 ### Canvas Features
 
 - **Desktop viewport gate** — Viewports under **1024px** width show a full-screen fallback (design-system styled) explaining the canvas workspace requires a larger display.
 - **Auto-layout** — Edge-driven Sugiyama-style layout runs as implicit canvas behavior. Column spacing remains adjustable; layout itself is no longer a persisted toggle.
-- **Auto-connect** — Fresh canvases start from the core pipeline, and graph/domain rules keep structural edges consistent (inputs/design systems/previews→incubator, design systems→hypotheses, scoped model wiring).
+- **Auto-connect** — Fresh canvases start from the core pipeline, and graph/domain rules keep structural edges consistent (inputs/design systems/previews→incubator, design systems→hypotheses).
 - **Lineage highlighting** — Select a node to highlight its full connected component (siblings, ancestors, descendants). Unconnected nodes dim to 40% opacity.
 - **Edge animations** — Custom DataFlowEdge with status indicators (idle/processing/complete/error)
-- **Full-screen preview** — Expand any preview to full-screen overlay: primary arrows step **other preview nodes on the same hypothesis** (domain `previewSlots`; falls back to canvas-wide if no slot). Inner control steps **version stack** (v1, v2, …) for that hypothesis strategy. **Mark as best** / **Clear best pick** lets the user override evaluator-ranked “best” for that lane (persisted in `generation-store`).
-- **Reset canvas** — Reset button in header checkpoints the current canvas, then re-initializes with the default template (Design Brief + Design System + Model + Incubator) and frames the starter workflow at a readable zoom.
+- **Full-screen preview** — Expand any preview to full-screen overlay: primary arrows step **other preview nodes on the same hypothesis** (domain `previewSlots`; falls back to canvas-wide if no slot). Inner control steps **version stack** (v1, v2, …) for that hypothesis strategy. **Mark as best** / **Clear best pick** lets the user override the computed best result for that lane (persisted in `generation-store`).
+- **Reset canvas** — Reset button in header checkpoints the current canvas, then re-initializes with the default template (Design Brief + Design System + Incubator, plus optional-input ghost cards) and frames the starter workflow at a readable zoom.
 - **Stop generation** — Aborts the active SSE / agent session for a hypothesis strategy lane (**Stop** on the hypothesis card while a run is in flight).
-- **Permanent node delete** — Backspace/Delete with confirmation removes selected removable nodes from the canvas graph and keeps domain/incubator state consistent. Design Brief, Design System, Model, Incubator, and input ghost nodes are protected.
+- **Permanent node delete** — Backspace/Delete with confirmation removes selected removable nodes from the canvas graph and keeps domain/incubator state consistent. Design Brief, Design System, Incubator, and input ghost nodes are protected.
 - **Version stacking** — Results accumulate across generation runs. Each preview shows version badges (v1, v2, ...) with ChevronLeft/Right navigation to browse previous versions.
 - **Agentic eval rounds (workspace)** — When a run has multiple evaluation rounds (build + revisions), the **preview run workspace** (overlay dock) can show **Eval round** on **Design** and **Evaluation** tabs; per-round file trees are stored in IndexedDB (`{resultId}:round:{n}`) so earlier revisions remain viewable without bloating localStorage metadata.
-- **Inputs auto-generate** — On **Research Context**, **Objectives & Metrics**, and **Design Constraints**, optional **LLM-assisted drafting** from the Design Brief (and other filled **spec** facets) via **`POST /api/inputs/generate`**, using credentials from the **first Model** node when lockdown is off.
+- **Inputs auto-generate** — On **Research Context**, **Objectives & Metrics**, and **Design Constraints**, optional **LLM-assisted drafting** from the Design Brief and other filled **spec** facets.
 - **Optional input slots** — Fresh canvases can show **ghost** placeholders for inputs not in the minimal default. Ghosts are persistent affordances, not dismissible state. Loading a **Canvas Manager** entry **materializes** optional **input nodes** when the persisted spec has non-empty text or images for those facets (see `src/lib/spec-materialize-sections.ts`).
 - **Design tokens kitchen sink** (development only) — Settings → General opens a modal reference for `@theme` tokens and patterns; full-page route `/dev/design-tokens`. Documented in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
 
@@ -70,43 +70,23 @@ Structured critique on **Auto-improve** runs comes from the **evaluator** (score
 
 ## Generation Engine
 
-Each hypothesis-model pair produces a design through the **agentic** pipeline (Pi sandbox and tools). **Evaluation** and **revision** run only when **Auto-improve** is on. Server routes, SSE events, and store boundaries are summarized in [ARCHITECTURE.md](ARCHITECTURE.md); this section is the product-facing behavior.
+Each hypothesis produces a design through the **agentic** pipeline. **Evaluation** and **revision** run only when **Auto-improve** is enabled and on for that hypothesis. Server routes, SSE events, prompt loading, skills, and store boundaries are documented in [ARCHITECTURE.md](ARCHITECTURE.md); day-to-day controls are documented in [USER_GUIDE.md](USER_GUIDE.md).
 
 **Parallel generation.** Multiple hypotheses generate simultaneously. Progress and completion update independently per preview.
 
 ### Agentic design (and optional evaluation + revision)
 
-Start a run with **Design** on the Hypothesis node. With **Auto-improve** **off** (default), the server runs **one** Pi **build** and returns—**no** evaluator workers. With **Auto-improve** **on**, it runs **build → evaluate → optional revise loop**. Powered by `@mariozechner/pi-coding-agent` with a **just-bash** in-memory project shell.
+Start a run with **Design** on the Hypothesis node. With **Auto-improve** disabled or off, the server runs one build and returns with no evaluator workers. With **Auto-improve** enabled and on, it runs **build → evaluate → optional revise loop**.
 
-**Server pipeline (not a single LLM call when Auto-improve is on):**
+**User-visible phases:**
 
 1. **Build** — PI multi-turn tool loop produces the file tree (streaming events: plan, files, activity, todos). Always runs.
-2. **Evaluate** — *(Auto-improve on only.)* Four workers run: **design**, **strategy**, and **implementation** rubrics (structured JSON from the LLM) plus **browser QA**. The eval harness registers the same **virtual file tree** the agent wrote and passes a **`preview_page_url`** into LLM evaluators; Playwright **`goto`** visits that URL for a real render when enabled. Browser **preflight** still uses a **bundled** HTML view for fast VM checks (structure, assets, inline scripts) and scans **all `.html` files** for broken relative references. When Playwright browsers are installed, **headless Chromium** adds console/page errors, layout/text heuristics, and may attach a **viewport screenshot** on the scorecard. If Chromium is unavailable, the merge keeps preflight only and records a note — setup gaps do not hard-fail the whole evaluation.
-3. **Revise** — *(Auto-improve on only.)* When the merged scores trip the revision gate, the server can run additional PI sessions seeded with the current files and an evaluation brief, until satisfied or until **max revision rounds** (Settings defaults, per-hypothesis override, env, or API). Provenance stores **checkpoint** metadata (e.g. stop reason, revision attempt count). Single-pass runs record **`build_only`** with no evaluation rounds.
-
-**Tools:** Pi-native **`read`**, **`write`**, **`edit`** (search/replace), **`ls`**, **`find`**, **`grep`** against the **virtual** project tree (not the host disk); plus **`bash`** for shell utilities; **`todo_write`**, **`validate_js`**, **`validate_html`**.
-
-**Typical flow:** plan milestones → create or edit files with `write` / `edit` → validate → optional bash for edge cases. Live **`file`** events update the preview as design artifacts change.
-
-**Skills.** Agent Skills live under **`skills/<key>/SKILL.md`** (YAML frontmatter: `name`, `description`, `tags`, `when`: `auto` | `always` | `manual`). On each agentic **build** and **revision** round, the server filters skills by session-type tags, seeds each filtered SKILL.md into the just-bash VFS at **`/home/user/project/.skills/<name>/SKILL.md`**, and Pi's stock `formatSkillsForPrompt` appends an `<available_skills>` block to the system prompt with each skill's name, description, and the seeded VFS path as `<location>`. The agent loads relevant skills through the regular **`read`** tool against the printed location — no special skill tool, no real-FS escape. Streamed **`skills_loaded`** lists the catalog; **`skill_activated`** fires when the agent reads a seeded SKILL.md.
-
-**Preview uses the real file tree.** The UI **POSTs** the current map to **`/api/preview/sessions`** (debounced while files stream) and loads the canonical HTML entry in an iframe via **`src`** (relative links and multi-page navigation work). If registration fails, **`bundleVirtualFS()`** falls back to a single **`srcDoc`**. Original paths stay available in the code tab and zip export.
+2. **Evaluate** — *(Auto-improve on only.)* The scorecard appears on the preview.
+3. **Revise** — *(Auto-improve on only.)* The system can apply bounded revision passes from the evaluation feedback.
 
 **Live evaluation status.** When evaluation runs, SSE **`evaluation_worker_done`** updates the preview run workspace **Evaluation** tab (and tab affordance) with per-worker progress before the merged report.
 
-**Headless eval URL** — Set **`PREVIEW_PUBLIC_URL`** if the API isn’t reachable at `http://127.0.0.1:$PORT` from the Playwright process (defaults assume same machine).
-
 **Multi-file output.** Agentic previews show a file explorer sidebar, Preview/Code tab bar, and a download button that produces a `.zip` file.
-
-**Context compaction.** For long agent runs (turn count threshold), the context is compacted: the first message (full hypothesis/spec context), a fresh **LLM summary** of the middle turns, and the most recent turns are kept, with file paths and todos surfaced in the summary so work is not lost.
-
-**Effort.** Each task in **Settings → Reasoning** has a five-position effort slider — `Off / Quick / Balanced / Thorough / Maximum` — that maps to the SDK's reasoning levels (`off / low / medium / high / xhigh`) and a per-level token budget shipped in `config/thinking-defaults.json`. When the chosen model does not advertise reasoning support, the slider stays editable but the chip beside the picker flips to ↓ — the resolver returns `level: 'off'` for that row.
-
-**Prompts.** Incubate, hypothesis, agentic design/revision, evaluators, design-system extract, and inputs-gen use text shipped in the [`@auto-designer/pi`](packages/auto-designer-pi/) package — three real skills under `packages/auto-designer-pi/skills/<key>/SKILL.md` (YAML frontmatter + body) and per-task prompt templates under `packages/auto-designer-pi/prompts/<name>.md` (including the designer system prompt `_designer-system.md`), resolved per request by `server/lib/prompt-resolution.ts` (see [ARCHITECTURE.md](ARCHITECTURE.md)). `src/lib/prompts/defaults.ts` holds shared **prompt key** identifiers and labels, not bodies. The Incubator's own context is built deterministically by `buildInternalContext(spec)` (no LLM synthesis, no `internal-context` task). Revision loop limits default from **Settings → Evaluator defaults** and can be overridden per hypothesis (**Auto-improve**, max rounds, target score on the node) or via API/env.
-
-## Prompt keys (catalog)
-
-Do not duplicate the full prompt catalog here — keys and labels live in `src/lib/prompts/defaults.ts`; bodies live next to those keys under `packages/auto-designer-pi/skills/` and `packages/auto-designer-pi/prompts/` as described in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Providers
 
@@ -117,7 +97,7 @@ Do not duplicate the full prompt catalog here — keys and labels live in `src/l
 | LM Studio  | Yes         | Yes        | Configurable via `VITE_LMSTUDIO_VISION_MODELS` env var |
 
 
-- Each task carries its own provider + model + effort selection via **Settings → Reasoning** **when lockdown is off** in `config/feature-flags.json`. Default / locked deployments pin **OpenRouter + MiniMax M2.5** for all LLM calls and disable changing provider/model in the UI.
+- Each task can carry its own provider, model, and effort selection when lockdown is off.
 - Models fetched dynamically via each provider's API
 - Vision-capable models show an eye icon in the model selector
 - When vision is available, reference images are sent as multimodal content alongside text

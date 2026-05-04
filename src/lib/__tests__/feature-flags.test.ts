@@ -3,22 +3,32 @@ import { z } from 'zod';
 import rawFlags from '../../../config/feature-flags.json';
 import { FeatureFlagsFileSchema, FEATURE_LOCKDOWN, FEATURE_AUTO_IMPROVE } from '../feature-flags';
 
+function expectedFlag(value: 0 | 1 | 'auto'): boolean {
+  if (value === 1) return true;
+  if (value === 0) return false;
+  return import.meta.env.PROD;
+}
+
 describe('feature-flags.json', () => {
   it('round-trips through FeatureFlagsFileSchema', () => {
     expect(FeatureFlagsFileSchema.safeParse(rawFlags).success).toBe(true);
   });
 
-  it('exported booleans match JSON values', () => {
-    expect(FEATURE_LOCKDOWN).toBe(rawFlags.lockdown === 1);
-    expect(FEATURE_AUTO_IMPROVE).toBe(rawFlags.autoImprove === 1);
+  it('exported booleans match resolved JSON values', () => {
+    expect(FEATURE_LOCKDOWN).toBe(expectedFlag(rawFlags.lockdown));
+    expect(FEATURE_AUTO_IMPROVE).toBe(expectedFlag(rawFlags.autoImprove));
   });
 
-  it('rejects a value outside 0 or 1', () => {
+  it('accepts auto as an environment-resolved flag value', () => {
+    expect(() => FeatureFlagsFileSchema.parse({ ...rawFlags, lockdown: 'auto' })).not.toThrow();
+  });
+
+  it('rejects a value outside 0, 1, or auto', () => {
     const bad = { ...rawFlags, lockdown: 2 };
     expect(() => FeatureFlagsFileSchema.parse(bad)).toThrow(z.ZodError);
   });
 
-  it('rejects a boolean value (must be 0 or 1 integer)', () => {
+  it('rejects a boolean value (must be 0, 1, or auto)', () => {
     const bad = { ...rawFlags, autoImprove: true };
     expect(() => FeatureFlagsFileSchema.parse(bad)).toThrow(z.ZodError);
   });

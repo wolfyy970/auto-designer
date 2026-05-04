@@ -336,7 +336,7 @@ export default function VariantPreviewOverlay() {
                     type="button"
                     onClick={() => setUserBest(strategyId, null)}
                     className="flex items-center gap-1.5 rounded-md border border-preview-overlay-control-border px-3 py-1.5 text-xs text-warning transition-colors hover:border-preview-overlay-control-border-hover hover:text-fg"
-                    title="Use evaluator ranking again"
+                    title="Use computed best result again"
                   >
                     <Star size={14} className="fill-current" />
                     Clear best pick
@@ -347,7 +347,7 @@ export default function VariantPreviewOverlay() {
                     type="button"
                     onClick={() => setUserBest(strategyId, result.id)}
                     className="flex items-center gap-1.5 rounded-md border border-preview-overlay-control-border px-3 py-1.5 text-xs text-preview-overlay-text-soft transition-colors hover:border-preview-overlay-control-border-hover hover:text-white"
-                    title="Prefer this version over evaluator ranking"
+                    title="Prefer this version over the computed best result"
                   >
                     <Star size={14} />
                     Mark as best

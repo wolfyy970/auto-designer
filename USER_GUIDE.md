@@ -44,18 +44,18 @@ In **development** only, the API keeps an in-memory `**/api/logs`** ring (LLM ro
 
 ## Prompts and skills (editing the repo)
 
-All LLM-facing prompt **bodies** ship inside the [`@auto-designer/pi`](packages/auto-designer-pi/) workspace package — three real skills under `packages/auto-designer-pi/skills/<key>/SKILL.md` (YAML frontmatter + markdown body) and per-task prompt templates under `packages/auto-designer-pi/prompts/<name>.md` (including the designer system prompt `_designer-system.md`). The server loads them per request via `server/lib/prompt-resolution.ts`; prompt keys (`PromptKey`, `PROMPT_KEYS`) live in `src/lib/prompts/defaults.ts`. There is no in-app prompt editor—change files, restart the API if needed, and run tests. See [ARCHITECTURE.md](ARCHITECTURE.md) and [PRODUCT.md](PRODUCT.md).
+There is no in-app prompt editor. Change prompt and skill files in the repo, restart the API if needed, run tests, and snapshot the tuned content with `pnpm snap`. Exact prompt locations and server resolution mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ### Version history
 
-If you edit a **skill** (`packages/auto-designer-pi/skills/<key>/SKILL.md`), a **prompt template** (`packages/auto-designer-pi/prompts/<name>.md`, including `_designer-system.md` and `artifact-conventions.md`), or **`src/lib/rubric-weights.json`** yourself (this app's prompts live in the repo — there is no in-app editor), you can keep a history without snapshotting *before* every edit.
+If you edit a **skill** (`packages/auto-designer-pi/skills/<key>/SKILL.md`), a **prompt template** (`packages/auto-designer-pi/prompts/<name>.md`, including `_designer-system.md` and `artifact-conventions.md`), or **`config/rubric-weights.json`** yourself (this app's prompts live in the repo — there is no in-app editor), you can keep a history without snapshotting *before* every edit.
 
 **What gets saved**
 
 - **Skills:** Timestamped copies under **`packages/auto-designer-pi/skills/<key>/_versions/`** next to each `SKILL.md`.
 - **Prompt templates:** **`packages/auto-designer-pi/prompts/_versions/<name>/`** — single shared `_versions/` dir under prompts, with one subdir per template file. Pi's loader does NOT recurse, so `_versions/` is invisible to slash-command discovery.
 - **Rubric weights:** Still under **`.prompt-versions/snapshots/`** (so `src/lib/` stays clean).
-- **Manifest:** **`.prompt-versions/manifest.jsonl`** records every snapshot (manual + meta-harness).
+- **Manifest:** **`.prompt-versions/manifest.jsonl`** records every snapshot.
 
 **What to do**
 
@@ -84,19 +84,17 @@ That still snapshots the **current on-disk** contents of that path (legacy “sa
 
 The **`safeTs`** id is the first column from `--list`.
 
-**Note — meta-harness:** The separate **`pnpm meta-harness`** app snapshots those paths **automatically** when its proposer or promotion **`P`** writes files. You **do not** run **`pnpm snap`** for that flow. See **[meta-harness/VERSIONING.md](meta-harness/VERSIONING.md)**.
-
 ## Evaluator defaults (Settings → Evaluator defaults)
 
-**Settings** (gear) → **Evaluator defaults** sets **global defaults** for **maximum revision rounds**, optional **target quality score**, and **rubric weights**—used only when **Auto-improve** is **on** (that path runs evaluators and may loop). **Auto-improve** **off** = one **agentic** build with **no** evaluator (faster). Each Hypothesis node can override max rounds and target score when Auto-improve is on. When the target score is set, a revising run can stop early when the **weighted overall score** meets the threshold with **no hard fails**—otherwise stopping follows the revision gate and the round cap. Env defaults (`AGENTIC_MAX_REVISION_ROUNDS`, `AGENTIC_MIN_OVERALL_SCORE`) are served in `**GET /api/config`** and seed the UI once before you customize; see [ARCHITECTURE.md](ARCHITECTURE.md).
+When `config/feature-flags.json` enables **Auto-improve**, **Settings** (gear) → **Evaluator defaults** sets **global defaults** for **maximum revision rounds**, optional **target quality score**, and **rubric weights**. Those defaults apply only when a hypothesis run uses Auto-improve. With the checked-in `autoImprove: 0` flag, the tab and per-node toggle are hidden and every design run is a single agentic build with no evaluator. Env defaults (`AGENTIC_MAX_REVISION_ROUNDS`, `AGENTIC_MIN_OVERALL_SCORE`) are served in `**GET /api/config`** and seed the UI once before you customize; see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Canvas Workflow
 
-The canvas (`/canvas`) is the default interface. Nodes connect left-to-right. You need a **viewport at least 1024px wide**; narrower screens show a desktop-only message instead of the canvas (see [README.md](README.md)). The **build stamp** in the header (version · Eastern time) and Husky **patch** bumps are documented in [AGENTS.md](AGENTS.md) — including restarting Vite to refresh the stamp after commits.
+The working canvas lives at `/canvas`. Nodes connect left-to-right. You need a **viewport at least 1024px wide**; narrower screens show a desktop-only message instead of the canvas (see [README.md](README.md)). The **build stamp** in the header (version · Eastern time) and Husky **patch** bumps are documented in [AGENTS.md](AGENTS.md) — including restarting Vite to refresh the stamp after commits.
 
 ### 1. Fill in Input Nodes
 
-The canvas starts with a **Design Brief**, a **Design System**, a **Model**, and an **Incubator**. Source nodes connect into the Incubator; the Model is connected to the Incubator, not to each input. Optional input facets appear as ghost cards; use the circular **Add to canvas** control on a ghost to materialize that input node.
+The canvas starts with a **Design Brief**, a **Design System**, and an **Incubator**. Source nodes connect into the Incubator. Optional input facets appear as ghost cards; use the circular **Add to canvas** control on a ghost to materialize that input node.
 
 - **Design Brief** — The primary directive. What are you designing and why?
 - **Research Context** — User research, behavioral insights, qualitative findings.
@@ -112,7 +110,7 @@ Write in prose, not bullets. Precision is the product.
 
 ### 2. Pick model + effort in Settings
 
-Open **Settings → Reasoning** to choose, per task, the **provider + model** and the **effort** you want (a five-position slider: Off / Quick / Balanced / Thorough / Maximum). Each task — Hypothesis design, Incubator, Inputs, Design system, Evaluator — keeps its own choice. When **lockdown** is enabled in `config/feature-flags.json`, every run uses **OpenRouter + MiniMax M2.5** and the pickers are disabled (the slider stays editable but is honestly a no-op for non-reasoning models — a chip beside the picker tells you).
+Open **Settings → Reasoning** to choose, per task, the **provider + model** and the **effort** you want (a five-position slider: Off / Quick / Balanced / Thorough / Maximum). Each task — Hypothesis design, Incubator, Inputs, Design system, and, when Auto-improve is enabled, Evaluator — keeps its own choice. When **lockdown** is enabled in `config/feature-flags.json`, every run uses the per-task pins from `config/task-defaults.json` and the pickers are disabled (the slider stays editable but is honestly a no-op for non-reasoning models — a chip beside the picker tells you).
 
 ### 3. Incubate
 
@@ -143,7 +141,7 @@ The **Design System** node is a required source input. It starts in **Wireframe*
 
 Each hypothesis has built-in generation controls at the bottom. Click **Design** to run the **agentic** engine: the agent plans files, writes/edits/validates them, and streams progress to the preview. The provider + model + effort for the design run come from **Settings → Reasoning → Hypothesis design**; the slider's five positions (Off / Quick / Balanced / Thorough / Maximum) replace the older None/Light/Deep knob.
 
-**Auto-improve** (on the hypothesis card): when **off** (default for fast runs), the run stops after that **single** agent build—**no** evaluator, no scorecard. When **on**, the server runs **evaluation** (LLM rubrics plus browser QA) and can apply **revision passes** from that feedback, up to the max rounds and optional target score (overridable per node; **Settings → Evaluator defaults** sets the baseline) — see **[PRODUCT.md](PRODUCT.md)** for the full pipeline.
+**Auto-improve** (when enabled by `config/feature-flags.json`): when **off**, the run stops after that **single** agent build—**no** evaluator, no scorecard. When **on**, the server runs **evaluation** (LLM rubrics plus browser QA) and can apply **revision passes** from that feedback, up to the max rounds and optional target score (overridable per node; **Settings → Evaluator defaults** sets the baseline). With the checked-in `autoImprove: 0` flag, this control is hidden and all runs are single-pass. See **[PRODUCT.md](PRODUCT.md)** for the full pipeline.
 
 Runs often take several minutes (shorter when Auto-improve is off). **Server at capacity:** the API enforces a cap of `MAX_CONCURRENT_AGENTIC_RUNS` (default 5) parallel agentic runs; when every slot is busy, **Design** turns into a greyed **“Server busy (N/M)”** hint — wait for a run to finish instead of retrying. When Auto-improve was on, the preview includes an **evaluation summary** and, if Playwright is installed, a small **browser capture** under Runtime QA. Generated HTML may use **Google Fonts** only via `fonts.googleapis.com` / `fonts.gstatic.com` (needs network in your browser for preview); other CDNs stay disallowed — see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -161,7 +159,7 @@ Running generation again adds new versions — use the version navigation arrows
 
 Preview nodes render the generated code in sandboxed iframes. Open the **run workspace** (panel icon or **Watch agent** while generating) for the full timeline, tasks, **Design**/**Evaluation** tabs (when evaluation ran), and—when a run had several evaluator rounds—a shared **Eval round** control on Design and Evaluation to preview that round’s files and scores.
 
-**Best pick:** If you disagree with the evaluator’s ranking, use **Mark as best** (star on the preview toolbar or “Mark as best” in full-screen). **Clear best pick** restores score-based default for that strategy lane. Full-screen **prev/next design** moves between preview nodes **for the same hypothesis** when domain slots are present.
+**Best pick:** Use **Mark as best** (star on the preview toolbar or “Mark as best” in full-screen) to pin a preferred result. **Clear best pick** restores the computed default for that strategy lane (highest evaluator score when available, otherwise newest complete run). Full-screen **prev/next design** moves between preview nodes **for the same hypothesis** when domain slots are present.
 
 **Single-file results:**
 
@@ -174,7 +172,7 @@ Preview nodes render the generated code in sandboxed iframes. Open the **run wor
 - **Preview tab** — Serves the virtual tree from `**/api/preview/sessions`** in the iframe (relative links work). If registration fails, falls back to a bundled `**srcDoc`**. See [PRODUCT.md](PRODUCT.md).
 - **Code tab** — File explorer on the left, raw file content on the right
 - **Download** — Zip button downloads all files as a `.zip` archive
-- **Eval strip** — Aggregate score, suggested fixes, and runtime QA (including optional headless screenshot)
+- **Eval strip** — When Auto-improve ran, aggregate score, suggested fixes, and runtime QA (including optional headless screenshot)
 - **Full-screen** — Same as single-file
 
 **Version badges** — v1, v2, etc. with ChevronLeft/Right to browse accumulated versions across runs.
@@ -184,17 +182,11 @@ Preview nodes render the generated code in sandboxed iframes. Open the **run wor
 To iterate on results:
 
 - **Reference code** — Connect a preview to an Incubator to pass the prior design into the next **incubate** run as a **reference design** in the prompt.
-- **Re-incubate** — The Incubator reads **reference designs** (and input-node facets from the spec) from its connected nodes, producing improved hypotheses. In **agentic** mode, evaluator feedback and revision passes are built into the generation run (see the preview run workspace scorecard).
+- **Re-incubate** — The Incubator reads **reference designs** (and input-node facets from the spec) from its connected nodes, producing improved hypotheses. When Auto-improve is enabled and on for a generation run, evaluator feedback and revision passes appear in the preview run workspace scorecard.
 
-### Auto-Layout
+### Layout
 
-Open **Settings** (gear) → **General** and toggle **Auto layout**. When on:
-
-- All nodes are positioned automatically based on their connections
-- Nodes are not draggable (prevents accidental misalignment)
-- Layout updates after incubation, generation, adding/removing nodes, or new connections
-
-When off, drag nodes freely.
+Auto-layout is implicit canvas behavior. The graph repositions after structural changes such as adding/removing nodes, connecting nodes, incubation, generation, and measured node-size changes. The left canvas toolbar controls zoom, fit view, minimap visibility, and **Column spacing**; there is no persisted Auto layout toggle.
 
 ## Managing Canvases
 
@@ -209,4 +201,4 @@ Click **Canvas Manager** in the header:
 - **Reload saved** — Explicitly discards unsaved active changes and reloads the saved copy
 - **Delete** — Remove a saved canvas from the browser library
 
-Saved canvases include the graph, viewport, inputs, model/settings nodes, domain wiring, incubator state, generated preview metadata, version selections, best-pick overrides, and generated artifacts. Purely transient UI state such as open modals, hover/focus, and live stream internals is not saved. Replacing actions stop active runs before checkpointing so late stream callbacks cannot mutate the newly loaded canvas.
+Saved canvases include the graph, viewport, inputs, per-task settings, domain wiring, incubator state, generated preview metadata, version selections, best-pick overrides, and generated artifacts. Purely transient UI state such as open modals, hover/focus, and live stream internals is not saved. Replacing actions stop active runs before checkpointing so late stream callbacks cannot mutate the newly loaded canvas.
