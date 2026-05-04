@@ -16,7 +16,7 @@ const EXPECTED_SKILLS = [
   'accessibility',
   'design-generation',
   'design-quality',
-];
+] as const;
 
 const EXPECTED_PROMPTS = [
   'ds-extract-input.md',
@@ -32,7 +32,7 @@ const EXPECTED_PROMPTS = [
   'revise.md',
   'artifact-conventions.md',
   '_designer-system.md',
-];
+] as const;
 
 function readFrontmatter(text: string): Record<string, string> {
   const out: Record<string, string> = {};

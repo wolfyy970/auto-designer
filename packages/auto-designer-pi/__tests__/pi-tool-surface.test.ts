@@ -92,7 +92,7 @@ describe('ToolSurface contract', () => {
       const { extensionFactory } = buildHostSurface().build();
       extensionFactory({
         registerTool: (tool: { name: string }) => registered.push(tool),
-      } as Parameters<typeof extensionFactory>[0]);
+      } as unknown as Parameters<typeof extensionFactory>[0]);
       // Sandboxed Pi overrides + auto-designer extensions = 10 names total.
       expect(registered.map((t) => t.name).sort()).toEqual([
         'bash',
@@ -114,7 +114,7 @@ describe('ToolSurface contract', () => {
       const { extensionFactory } = buildHostSurface().build();
       extensionFactory({
         registerTool: (tool: { name: string }) => registered.push(tool),
-      } as Parameters<typeof extensionFactory>[0]);
+      } as unknown as Parameters<typeof extensionFactory>[0]);
       const piBuiltinNames = new Set(['read', 'write', 'edit', 'ls', 'find', 'grep', 'bash']);
       const piOverrides = registered.filter((t) => piBuiltinNames.has(t.name));
       expect(piOverrides.length).toBe(7);
