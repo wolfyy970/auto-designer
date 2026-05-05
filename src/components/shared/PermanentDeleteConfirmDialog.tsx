@@ -57,7 +57,7 @@ export function PermanentDeleteConfirmDialog({
         aria-modal="true"
         aria-labelledby="permanent-delete-title"
         aria-describedby={DESCRIPTION_ID}
-        className="relative z-10 w-full max-w-sm rounded-lg border border-border bg-surface-floating shadow-lg"
+        className="relative z-10 w-full max-w-sm rounded-lg border border-border bg-surface-raised shadow-lg"
       >
         <div className="flex items-start gap-2.5 px-3 py-3">
           <div

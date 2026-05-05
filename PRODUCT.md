@@ -35,7 +35,7 @@ A visual node-graph workspace built on @xyflow/react v12. Nodes connect left-to-
 | Objectives & Metrics | Input      | Success criteria and evaluation measures                                                                                                                                                                                                                                                                                                                       |
 | Design Constraints   | Input      | Non-negotiable boundaries + exploration ranges                                                                                                                                                                                                                                                                                                                 |
 | Design System        | Input      | Required visual-system source. Defaults to Designer's built-in Wireframe DESIGN.md source, can switch to Custom text, DESIGN.md files, and images, or None. Source material stays in node data; the Incubator prepares a linted Google DESIGN.md document for downstream prompts when connected sources are missing or stale. |
-| Incubator            | Processing | **Incubates** connected inputs into hypothesis strategies via LLM. It assembles connected spec inputs deterministically and can refresh connected DESIGN.md docs before generation. **Generate** (batch count) and **blank hypothesis** both require a non-empty **Design Brief**; blank adds an empty strategy card without calling the LLM. |
+| Incubator            | Processing | **Incubates** active sources into hypothesis strategies via LLM: filled spec inputs, connected preview references, and connected active Design System context. It assembles those sources deterministically and can refresh connected DESIGN.md docs before generation. **Generate** (batch count) and **blank hypothesis** both require a non-empty **Design Brief**; blank adds an empty strategy card without calling the LLM. |
 | Hypothesis           | Processing | Editable strategy card with **Design** (always **agentic** Pi). **Auto-improve** disabled/off: single build, no evaluator. **On:** evaluation and optional revision rounds. |
 | Preview              | Output     | Rendered design preview. Single-file results show an HTML iframe. Multi-file (agentic) results show a file explorer + preview/code tabs + zip download. When Auto-improve ran, completed agentic runs show an **evaluation scorecard**. Version navigation across all results. |
 
@@ -47,7 +47,7 @@ A visual node-graph workspace built on @xyflow/react v12. Nodes connect left-to-
 - **Auto-connect** — Fresh canvases start from the core pipeline, and graph/domain rules keep structural edges consistent (inputs/design systems/previews→incubator, design systems→hypotheses).
 - **Lineage highlighting** — Select a node to highlight its full connected component (siblings, ancestors, descendants). Unconnected nodes dim to 40% opacity.
 - **Edge animations** — Custom DataFlowEdge with status indicators (idle/processing/complete/error)
-- **Full-screen preview** — Expand any preview to full-screen overlay: primary arrows step **other preview nodes on the same hypothesis** (domain `previewSlots`; falls back to canvas-wide if no slot). Inner control steps **version stack** (v1, v2, …) for that hypothesis strategy. **Mark as best** / **Clear best pick** lets the user override the computed best result for that lane (persisted in `generation-store`).
+- **Full-screen preview** — Expand any preview to full-screen overlay: primary arrows step **other preview nodes on the same hypothesis** (domain `previewSlots`; falls back to canvas-wide if no slot). Inner control steps **version stack** (v1, v2, …) for that hypothesis strategy. When **Auto-improve** is enabled, **Mark as best** / **Clear best pick** lets the user override the computed best result for that lane (persisted in `generation-store`).
 - **Reset canvas** — Reset button in header checkpoints the current canvas, then re-initializes with the default template (Design Brief + Design System + Incubator, plus optional-input ghost cards) and frames the starter workflow at a readable zoom.
 - **Stop generation** — Aborts the active SSE / agent session for a hypothesis strategy lane (**Stop** on the hypothesis card while a run is in flight).
 - **Permanent node delete** — Backspace/Delete with confirmation removes selected removable nodes from the canvas graph and keeps domain/incubator state consistent. Design Brief, Design System, Incubator, and input ghost nodes are protected.
@@ -97,7 +97,7 @@ Start a run with **Design** on the Hypothesis node. With **Auto-improve** disabl
 | LM Studio  | Yes         | Yes        | Configurable via `VITE_LMSTUDIO_VISION_MODELS` env var |
 
 
-- Each task can carry its own provider, model, and effort selection when lockdown is off.
+- Each task can carry its own provider, model, and thinking-level selection when lockdown is off.
 - Models fetched dynamically via each provider's API
 - Vision-capable models show an eye icon in the model selector
 - When vision is available, reference images are sent as multimodal content alongside text

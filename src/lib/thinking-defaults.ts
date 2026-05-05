@@ -53,7 +53,7 @@ export const UI_LEVELS = [
  * `design` covers the hypothesis-design build (initial + revision rounds).
  * `incubate` covers the incubator's hypothesis-strategy generation.
  * `inputs` covers all three input-section auto-fills (research, objectives,
- * constraints) — per-section granularity is achieved via the model + effort
+ * constraints) — per-section granularity is achieved via the model + level
  * the user picks, not via separate task slots.
  */
 export type ThinkingTask =
@@ -150,8 +150,8 @@ export const THINKING_BUDGET_MIN_TOKENS = CONFIG.budgetBounds.minTokens;
 export const THINKING_BUDGET_MAX_TOKENS = CONFIG.budgetBounds.maxTokens;
 
 /**
- * Baseline budget per level — the ladder the UI shows as a placeholder when
- * a user picks a level but leaves the budget field blank. `off` is always 0.
+ * Baseline budget per level — the ladder used when the UI sends a level
+ * override. `off` is always 0.
  */
 export const THINKING_BUDGET_BY_LEVEL: Record<ThinkingLevel, number> = CONFIG.budgetByLevel;
 

@@ -22,6 +22,7 @@ import { previewNodeStatus } from '../../../lib/node-status';
 import { GENERATION_STATUS } from '../../../constants/generation';
 import { abortGenerationForStrategy } from '../../../lib/generation-abort-registry';
 import { downloadFilesAsZip } from '../../../lib/zip-utils';
+import { useAppConfig } from '../../../hooks/useAppConfig';
 import NodeShell from './NodeShell';
 import VariantToolbar from './VariantToolbar';
 import VariantFooter from './VariantFooter';
@@ -58,6 +59,8 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
   } = useVersionStack(strategyId, pinnedRunId);
 
   const hasUserBestOverride = !!(strategyId && userBestOverrides[strategyId]);
+  const { data: appConfig } = useAppConfig();
+  const bestUiEnabled = appConfig?.autoImprove === true;
 
   const legacyResult = useMemo(
     () =>
@@ -215,7 +218,9 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
       <VariantToolbar
         variantName={variantName}
         isArchived={isArchived}
-        isBestCurrent={isActiveBest && result?.status !== GENERATION_STATUS.GENERATING}
+        isBestCurrent={
+          bestUiEnabled && isActiveBest && result?.status !== GENERATION_STATUS.GENERATING
+        }
         hasCode={hasCode}
         nodeId={id}
         showStopGeneration={
@@ -243,8 +248,10 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
         }
         isWorkspaceOpen={isWorkspaceOpen}
         onRemove={onRemove}
-        showClearUserBest={!isArchived && hasUserBestOverride}
+        showBestUi={bestUiEnabled}
+        showClearUserBest={bestUiEnabled && !isArchived && hasUserBestOverride}
         showMarkUserBest={
+          bestUiEnabled &&
           !isArchived &&
           !!strategyId &&
           result?.status === GENERATION_STATUS.COMPLETE &&

@@ -36,6 +36,8 @@ interface VariantToolbarProps {
   onToggleWorkspace: () => void;
   isWorkspaceOpen: boolean;
   onRemove: () => void;
+  /** Gate best-result labels and manual best-pick controls behind Auto-improve. */
+  showBestUi?: boolean;
   /** User “best” override (same hypothesis lane) */
   showMarkUserBest?: boolean;
   showClearUserBest?: boolean;
@@ -66,6 +68,7 @@ export default function VariantToolbar({
   onToggleWorkspace,
   isWorkspaceOpen,
   onRemove,
+  showBestUi = false,
   showMarkUserBest = false,
   showClearUserBest = false,
   onMarkUserBest,
@@ -81,7 +84,7 @@ export default function VariantToolbar({
       {isArchived && (
         <Badge shape="tab" tone="neutral">Archived</Badge>
       )}
-      {!isArchived && isBestCurrent && (
+      {showBestUi && !isArchived && isBestCurrent && (
         <Badge shape="tab" tone="success">Best</Badge>
       )}
       {showStopGeneration && onStopGeneration ? (
@@ -164,7 +167,7 @@ export default function VariantToolbar({
 
       {/* Actions */}
       <div className="h-3 w-px bg-border-subtle" />
-      {showClearUserBest && onClearUserBest ? (
+      {showBestUi && showClearUserBest && onClearUserBest ? (
         <button
           type="button"
           onPointerDown={(e) => {
@@ -178,7 +181,7 @@ export default function VariantToolbar({
           <Star size={10} className="fill-current" />
         </button>
       ) : null}
-      {showMarkUserBest && onMarkUserBest ? (
+      {showBestUi && showMarkUserBest && onMarkUserBest ? (
         <button
           type="button"
           onPointerDown={(e) => {

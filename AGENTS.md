@@ -33,11 +33,11 @@ pnpm dev             # Vite frontend at http://localhost:${VITE_PORT:-4732} (str
 pnpm dev:server      # Hono API server at http://localhost:${PORT:-4731}
 
 # Build & lint
-pnpm build           # tsc -b && vite build
+pnpm build           # tokens:build, tsc -b, then vite build
 pnpm lint            # eslint
 
 # Tests
-pnpm test            # vitest run (one-shot)
+pnpm test            # root Vitest suite + design-system and Pi package tests
 pnpm test:watch      # vitest (watch mode)
 pnpm vitest run src/hooks/__tests__/resolve-evaluator-settings.test.ts  # single test file
 ```

@@ -1,5 +1,8 @@
-import { INPUT_NODE_TYPES } from '../constants/canvas';
-import type { CanvasNodeType } from '../stores/canvas-store';
+import { INPUT_NODE_TYPES, NODE_TYPES } from '../constants/canvas';
+import { getDesignSystemEffectiveState } from './design-md';
+import type { DesignSystemNodeData } from '../types/canvas-data';
+import type { DesignSpec, SpecSectionId } from '../types/spec';
+import { NODE_TYPE_TO_SECTION, type CanvasNodeType } from '../types/workspace-graph';
 import type { DomainIncubatorWiring } from '../types/workspace-domain';
 
 /**
@@ -9,55 +12,158 @@ import type { DomainIncubatorWiring } from '../types/workspace-domain';
 interface CountableNode {
   id: string;
   type?: string;
+  data?: Record<string, unknown>;
 }
 interface CountableEdge {
+  id?: string;
   source: string;
   target: string;
 }
 
+export interface IncubatorSpecInputSource {
+  kind: 'spec-input';
+  nodeId: string;
+  sectionId: SpecSectionId;
+  structurallyConnected: boolean;
+  active: boolean;
+}
+
+export interface IncubatorDesignSystemSource {
+  kind: 'design-system';
+  nodeId: string;
+  structurallyConnected: boolean;
+  active: boolean;
+}
+
+export interface IncubatorPreviewSource {
+  kind: 'preview';
+  nodeId: string;
+  structurallyConnected: true;
+  active: true;
+}
+
+export interface IncubatorSourceState {
+  specInputs: IncubatorSpecInputSource[];
+  designSystems: IncubatorDesignSystemSource[];
+  previews: IncubatorPreviewSource[];
+  activeSpecInputNodeIds: string[];
+  activePreviewNodeIds: string[];
+  activeDesignSystemNodeIds: string[];
+  activeSpecSectionIds: SpecSectionId[];
+  connectedSourceCount: number;
+}
+
+function sectionHasMaterial(spec: DesignSpec | undefined, sectionId: SpecSectionId): boolean {
+  const section = spec?.sections[sectionId];
+  if (!section) return false;
+  return section.content.trim().length > 0 || section.images.length > 0;
+}
+
+function liveScopedSourceIds(
+  nodes: CountableNode[],
+  edges: CountableEdge[],
+  incubatorId: string,
+  wiring?: DomainIncubatorWiring | null,
+): Set<string> {
+  const liveIds = new Set(nodes.map((n) => n.id));
+  const sourceIds = new Set<string>();
+  for (const edge of edges) {
+    if (edge.target === incubatorId && liveIds.has(edge.source)) {
+      sourceIds.add(edge.source);
+    }
+  }
+  if (wiring) {
+    for (const id of wiring.inputNodeIds ?? []) if (liveIds.has(id)) sourceIds.add(id);
+    for (const id of wiring.previewNodeIds ?? []) if (liveIds.has(id)) sourceIds.add(id);
+    for (const id of wiring.designSystemNodeIds ?? []) if (liveIds.has(id)) sourceIds.add(id);
+  }
+  return sourceIds;
+}
+
+export function resolveIncubatorSourceState(
+  nodes: CountableNode[],
+  edges: CountableEdge[],
+  incubatorId: string,
+  spec?: DesignSpec,
+  wiring?: DomainIncubatorWiring | null,
+): IncubatorSourceState {
+  const scopedIds = liveScopedSourceIds(nodes, edges, incubatorId, wiring);
+  const specInputs: IncubatorSpecInputSource[] = [];
+  const designSystems: IncubatorDesignSystemSource[] = [];
+  const previews: IncubatorPreviewSource[] = [];
+
+  for (const node of nodes) {
+    if (!node.type) continue;
+    const nodeType = node.type as CanvasNodeType;
+    const structurallyConnected = scopedIds.has(node.id);
+
+    if (INPUT_NODE_TYPES.has(nodeType)) {
+      const sectionId = NODE_TYPE_TO_SECTION[nodeType];
+      if (!sectionId) continue;
+      const active = sectionHasMaterial(spec, sectionId);
+      if (structurallyConnected || active) {
+        specInputs.push({
+          kind: 'spec-input',
+          nodeId: node.id,
+          sectionId,
+          structurallyConnected,
+          active,
+        });
+      }
+      continue;
+    }
+
+    if (nodeType === NODE_TYPES.DESIGN_SYSTEM) {
+      const data = (node.data ?? {}) as DesignSystemNodeData;
+      if (structurallyConnected) {
+        designSystems.push({
+          kind: 'design-system',
+          nodeId: node.id,
+          structurallyConnected,
+          active: getDesignSystemEffectiveState(data).hasEffectiveSourceInput,
+        });
+      }
+      continue;
+    }
+
+    if (nodeType === NODE_TYPES.PREVIEW && structurallyConnected) {
+      previews.push({
+        kind: 'preview',
+        nodeId: node.id,
+        structurallyConnected: true,
+        active: true,
+      });
+    }
+  }
+
+  const activeSpecInputNodeIds = specInputs.filter((source) => source.active).map((source) => source.nodeId);
+  const activePreviewNodeIds = previews.map((source) => source.nodeId);
+  const activeDesignSystemNodeIds = designSystems.filter((source) => source.active).map((source) => source.nodeId);
+  const activeSpecSectionIds = specInputs.filter((source) => source.active).map((source) => source.sectionId);
+
+  return {
+    specInputs,
+    designSystems,
+    previews,
+    activeSpecInputNodeIds,
+    activePreviewNodeIds,
+    activeDesignSystemNodeIds,
+    activeSpecSectionIds,
+    connectedSourceCount:
+      activeSpecInputNodeIds.length + activePreviewNodeIds.length + activeDesignSystemNodeIds.length,
+  };
+}
+
 /**
- * Count the input + preview sources that will actually feed into
- * `buildIncubateInputs` for the given incubator.
- *
- * Mirrors the priority in `buildIncubateInputs`:
- *   1. If domain wiring has any entries, it is authoritative — but
- *      stale IDs (referring to deleted nodes) must be filtered out
- *      against the live canvas, since `buildIncubateInputs` drops
- *      them silently via `nodes.filter(n => idSet.has(n.id))`.
- *   2. Otherwise fall back to incoming edges, deduped by source node id
- *      so multi-edge pairs do not inflate the count.
- *
- * Returning the *effective* count (what actually flows into incubation)
- * prevents the UI from claiming "5 inputs connected" while the server
- * only sees 1 because 4 of those IDs point to deleted nodes.
+ * Compatibility wrapper for older callers. Prefer `resolveIncubatorSourceState`
+ * when a caller needs to distinguish spec inputs, Design System, and previews.
  */
 export function countConnectedIncubatorInputs(
   nodes: CountableNode[],
   edges: CountableEdge[],
   incubatorId: string,
+  spec?: DesignSpec,
   wiring?: DomainIncubatorWiring | null,
 ): number {
-  if (
-    wiring &&
-    (wiring.inputNodeIds.length > 0 || wiring.previewNodeIds.length > 0)
-  ) {
-    const liveIds = new Set(nodes.map((n) => n.id));
-    let count = 0;
-    for (const nid of wiring.inputNodeIds) if (liveIds.has(nid)) count += 1;
-    for (const nid of wiring.previewNodeIds) if (liveIds.has(nid)) count += 1;
-    if (count > 0) return count;
-    // Fall through to edge fallback when every wired id is stale.
-  }
-
-  const uniqueSources = new Set<string>();
-  const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
-  for (const e of edges) {
-    if (e.target !== incubatorId) continue;
-    const src = nodeById.get(e.source);
-    if (!src?.type) continue;
-    if (INPUT_NODE_TYPES.has(src.type as CanvasNodeType) || src.type === 'preview') {
-      uniqueSources.add(e.source);
-    }
-  }
-  return uniqueSources.size;
+  return resolveIncubatorSourceState(nodes, edges, incubatorId, spec, wiring).connectedSourceCount;
 }

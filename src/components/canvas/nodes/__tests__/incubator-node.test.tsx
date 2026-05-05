@@ -101,6 +101,25 @@ describe('IncubatorNode', () => {
     expect(blank.disabled).toBe(false);
   });
 
+  it('counts active Incubator sources including the default Wireframe Design System', () => {
+    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
+    useCanvasStore.setState({
+      nodes: [
+        { id: 'inc-1', type: 'incubator', position: { x: 0, y: 0 }, data: {} },
+        { id: 'brief-1', type: 'designBrief', position: { x: 0, y: 0 }, data: {} },
+        { id: 'ds-1', type: 'designSystem', position: { x: 0, y: 0 }, data: { sourceMode: 'wireframe' } },
+      ],
+      edges: [
+        { id: 'e-brief-inc', source: 'brief-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } },
+        { id: 'e-ds-inc', source: 'ds-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } },
+      ],
+    });
+
+    render(<IncubatorNode {...minimalIncubatorProps()} />);
+
+    expect(screen.getByText('2 sources connected')).toBeTruthy();
+  });
+
   it('shows connected DESIGN.md as needing generation before a document exists', () => {
     useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
     useCanvasStore.setState({
@@ -219,7 +238,7 @@ describe('IncubatorNode', () => {
     render(<IncubatorNode {...minimalIncubatorProps()} />);
 
     expect(screen.queryByText('stale')).toBeNull();
-    expect(screen.getByText('none')).toBeTruthy();
+    expect(screen.getByText('optional')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'View DESIGN.md' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Regenerate DESIGN.md' })).toBeNull();
   });

@@ -1,10 +1,10 @@
-import type { DesignSpec } from '../types/spec';
+import type { DesignSpec, SpecSectionId } from '../types/spec';
 import type { GenerationResult } from '../types/provider';
 import { getPreviewNodeData } from './canvas-node-data';
 import { loadCode } from '../services/idb-storage';
 import { INPUT_NODE_TYPES } from '../constants/canvas';
+import { resolveIncubatorSourceState } from './incubator-input-count';
 import {
-  NODE_TYPE_TO_SECTION,
   type CanvasNodeType,
   type WorkspaceEdge,
   type WorkspaceNode,
@@ -79,40 +79,16 @@ export async function buildIncubateInputs(
   results: GenerationResult[],
   wiring?: DomainIncubatorWiring | null,
 ): Promise<IncubateInputs> {
-  let connectedNodes: AnyNode[];
-  if (
-    wiring &&
-    (wiring.inputNodeIds.length > 0 || wiring.previewNodeIds.length > 0)
-  ) {
-    const idSet = new Set<string>([
-      ...wiring.inputNodeIds,
-      ...wiring.previewNodeIds,
-    ]);
-    connectedNodes = nodes.filter((n) => idSet.has(n.id));
-  } else {
-    const incomingEdges = edges.filter((e) => e.target === incubatorId);
-    const connectedNodeIds = new Set(incomingEdges.map((e) => e.source));
-    connectedNodes = nodes.filter((n) => connectedNodeIds.has(n.id));
-  }
+  const sourceState = resolveIncubatorSourceState(nodes, edges, incubatorId, spec, wiring);
+  const activeSectionIds = new Set(sourceState.activeSpecSectionIds);
+  const activeNodeIds = new Set([
+    ...sourceState.activeSpecInputNodeIds,
+    ...sourceState.activePreviewNodeIds,
+  ]);
+  const connectedNodes = nodes.filter((node) => activeNodeIds.has(node.id));
 
-  // Input node types wired to this incubator (graph or domain wiring); each maps to a spec facet id.
-  const connectedSectionIds = new Set<string>();
-  for (const node of connectedNodes) {
-    const sid = NODE_TYPE_TO_SECTION[node.type as CanvasNodeType];
-    if (sid) connectedSectionIds.add(sid);
-  }
-
-  /**
-   * Include spec content when the section is wired OR when the user filled it (or added images)
-   * in the global spec store. Previously only wired sections were kept — the default canvas wires
-   * only the design brief, so Research / Objectives / Constraints looked empty in incubator logs
-   * even though input nodes were filled.
-   */
-  const includeSection = (sectionId: string, section: DesignSpec['sections'][string]): boolean => {
-    if (connectedSectionIds.has(sectionId)) return true;
-    if (section.content.trim().length > 0) return true;
-    if (section.images.length > 0) return true;
-    return false;
+  const includeSection = (sectionId: string): boolean => {
+    return activeSectionIds.has(sectionId as SpecSectionId);
   };
 
   const partialSpec: DesignSpec = {
@@ -120,7 +96,7 @@ export async function buildIncubateInputs(
     sections: Object.fromEntries(
       Object.entries(spec.sections).map(([sectionId, section]) => [
         sectionId,
-        includeSection(sectionId, section)
+        includeSection(sectionId)
           ? section
           : { ...section, content: '', images: [] as typeof section.images },
       ])
@@ -164,4 +140,3 @@ export async function buildIncubateInputs(
 
   return { partialSpec, referenceDesigns };
 }
-

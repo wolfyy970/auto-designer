@@ -295,12 +295,6 @@ function CanvasInner() {
             <OptionalInputsTip />
           </ReactFlow>
           <VariantPreviewOverlay />
-          {runInspectorPreviewNodeId != null ? (
-            <div
-              className="pointer-events-none absolute inset-0 z-40 bg-overlay"
-              aria-hidden
-            />
-          ) : null}
           <VariantRunInspector />
         </div>
       </div>

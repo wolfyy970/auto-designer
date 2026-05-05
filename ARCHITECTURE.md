@@ -361,7 +361,7 @@ When a result has files (agentic output), the preview UI (`VariantNode` / canvas
 
 ### Preview run workspace (`VariantRunInspector`)
 
-`runInspectorPreviewNodeId` in `canvas-store` selects which preview’s workspace to show. `CanvasWorkspace` mounts `VariantRunInspector` as an **overlay** on the canvas column (not a layout sibling). A dim backdrop uses **`pointer-events-none`** so pan/zoom still hit React Flow. **`src/lib/canvas-fit-view.ts`** owns shared camera commands: starter-canvas framing, single-node focus, subset fit, full fit, and inspector-dock padding. The starter command uses the actual React Flow pane size to keep the Design Brief + Design System readable while leaving the Incubator visible; hypothesis **Design** syncs use subset fit for the **hypothesis + its preview node(s)** instead of the whole graph.
+`runInspectorPreviewNodeId` in `canvas-store` selects which preview's workspace to show. `CanvasWorkspace` mounts `VariantRunInspector` as a non-modal **overlay** on the canvas column (not a layout sibling) with no dimmer, scrim, or click-capturing layer. **`src/lib/canvas-fit-view.ts`** owns shared camera commands: starter-canvas framing, single-node focus, subset fit, full fit, and inspector-dock padding. The starter command uses the actual React Flow pane size to keep the Design Brief + Design System readable while leaving the Incubator visible; hypothesis **Design** syncs use subset fit for the **hypothesis + its preview node(s)** instead of the whole graph.
 
 ### Auto-Connection Logic (`src/lib/canvas-connections.ts`)
 
@@ -375,11 +375,11 @@ Model wiring is no longer a canvas concern. Each task reads `(providerId, modelI
 
 `computeLineage` performs a full connected-component walk (bidirectional BFS). Selecting a node highlights every node reachable through any chain of edges — including sibling inputs to shared targets. Unconnected nodes dim to 40%.
 
-`buildIncubateInputs` builds the partial spec and reference designs for `/api/incubate`; it can use **domain incubator wiring** when provided so incubation does not depend solely on edge topology.
+`resolveIncubatorSourceState` (`src/lib/incubator-input-count.ts`) is the shared Incubator source resolver for UI counts and run assembly. It classifies filled spec inputs, connected preview references, and active connected Design System nodes, filters stale wiring ids, and lets content-bearing optional inputs participate even if an older graph is missing the repaired structural edge. `buildIncubateInputs` uses that resolved state to build the partial spec and reference designs for `/api/incubate`; DESIGN.md preparation uses the same active Design System ids.
 
 ### Version Stacking
 
-Results accumulate across generation runs. Each result has a `runId` (UUID) and `runNumber` (sequential per hypothesis). Preview nodes reuse the same canvas node across runs, with version navigation. `**userBestOverrides`** in `generation-store` pins which complete `GenerationResult` is treated as “best” for a `strategyId`; without an override, `getBestCompleteResult` uses evaluator scores when present and otherwise falls back to the newest complete run. `**domain-preview-selectors.ts`** maps a preview node id → hypothesis and lists sibling preview node ids for **hypothesis-scoped** full-screen stepping.
+Results accumulate across generation runs. Each result has a `runId` (UUID) and `runNumber` (sequential per hypothesis). Preview nodes reuse the same canvas node across runs, with version navigation. `**userBestOverrides`** in `generation-store` pins which complete `GenerationResult` is treated as “best” for a `strategyId`; the UI exposes those best-pick controls only when `autoImprove` is enabled. Without an override, `getBestCompleteResult` uses evaluator scores when present and otherwise falls back to the newest complete run. `**domain-preview-selectors.ts`** maps a preview node id → hypothesis and lists sibling preview node ids for **hypothesis-scoped** full-screen stepping.
 
 **Agentic eval-round files:** Each `EvaluationRoundSnapshot` may carry a `files` map; the orchestrator attaches the tree that was scored that round. The client persists those blobs under IndexedDB keys `{resultId}:round:{round}` and strips `files` from persisted `evaluationRounds` / provenance to save space (`StoragePort.saveRoundFiles` / `loadRoundFiles`).
 

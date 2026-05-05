@@ -8,6 +8,7 @@ import {
 import { X } from 'lucide-react';
 import { useCanvasStore, type EdgeStatus } from '../../../stores/canvas-store';
 import { EDGE_STATUS, RF_NODRAG_NOPAN } from '../../../constants/canvas';
+import { isProtectedIncubatorSourceEdge } from '../../../lib/incubator-structural-edges';
 
 type DataFlowEdgeData = { status: EdgeStatus };
 type DataFlowEdge = Edge<DataFlowEdgeData, 'dataFlow'>;
@@ -21,6 +22,8 @@ const STATUS_COLORS: Record<EdgeStatus, string> = {
 
 export default function DataFlowEdge({
   id,
+  source,
+  target,
   sourceX,
   sourceY,
   targetX,
@@ -33,7 +36,9 @@ export default function DataFlowEdge({
 }: EdgeProps<DataFlowEdge>) {
   const status = data?.status ?? EDGE_STATUS.IDLE;
   const removeEdge = useCanvasStore((s) => s.removeEdge);
+  const nodes = useCanvasStore((s) => s.nodes);
   const lineageEdgeIds = useCanvasStore((s) => s.lineageEdgeIds);
+  const isProtectedSourceEdge = isProtectedIncubatorSourceEdge({ source, target }, nodes);
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -94,7 +99,7 @@ export default function DataFlowEdge({
         />
       )}
       {/* Delete button at midpoint when selected */}
-      {selected && (
+      {selected && !isProtectedSourceEdge && (
         <EdgeLabelRenderer>
           <button
             style={{

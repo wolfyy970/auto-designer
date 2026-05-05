@@ -28,11 +28,6 @@ function clampIndEnv(value: string | undefined, fallback: number, min: number, m
 
 export const env = {
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY ?? '',
-  /**
-   * OpenRouter key **only** for Vitest sandbox LLM tool tests (`SANDBOX_LLM_TEST=1` →
-   * `server/services/__tests__/sandbox-llm-*.ts`). The Hono API and Pi agent **never** read this.
-   */
-  OPENROUTER_API_KEY_TESTS: process.env.OPENROUTER_API_KEY_TESTS ?? '',
   OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai',
   LMSTUDIO_URL: process.env.LMSTUDIO_URL ?? process.env.VITE_LMSTUDIO_URL ?? 'http://localhost:1234',
   NODE_ENV: process.env.NODE_ENV ?? 'development',

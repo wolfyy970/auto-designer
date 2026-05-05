@@ -13,7 +13,7 @@ No TypeScript knowledge required. If you type the wrong thing (e.g. a string whe
 | [`feature-flags.json`](feature-flags.json) | On/off switches for major product features | Which features are available in the UI and enforced server-side |
 | [`task-defaults.json`](task-defaults.json) | Provider + model defaults per LLM task | Which provider/model each task uses before user overrides, and lockdown pins |
 | [`provider-defaults.json`](provider-defaults.json) | Legacy provider/model defaults for old Model-node migrations | Backward-compatible defaults for persisted snapshots and helper constants |
-| [`thinking-defaults.json`](thinking-defaults.json) | Reasoning effort (level + budget tokens) per LLM task | How hard the model thinks before answering; cost per call |
+| [`thinking-defaults.json`](thinking-defaults.json) | Thinking level + budget tokens per LLM task | How hard the model thinks before answering; cost per call |
 | [`rubric-weights.json`](rubric-weights.json) | Per-rubric scoring weights for the evaluator | Weighted overall score in every eval run |
 | [`evaluation-thresholds.json`](evaluation-thresholds.json) | Score thresholds that trigger revision rounds; max revision cap | How aggressively the agentic loop retries a poor result |
 | [`browser-eval-scoring.json`](browser-eval-scoring.json) | Playwright + VM QA scoring cutoffs | How browser-eval grades interactive elements, content density, and rendering quality |
@@ -56,7 +56,7 @@ Provider/model defaults for each LLM task: `design`, `incubate`, `inputs`, `desi
 
 ## `thinking-defaults.json`
 
-Reasoning-effort and per-call token-budget defaults sent to LLM providers, broken down by task. Two knobs per task:
+Thinking-level and per-call token-budget defaults sent to LLM providers, broken down by task. Two knobs per task:
 
 - **`level`** — how hard the model should think. Maps to `reasoning.effort` (OpenRouter), `thinking.budget_tokens` (Anthropic), or `reasoning_effort` (OpenAI).
 - **`budgetTokens`** — max tokens of private reasoning before the final answer. Caps spend per call.
@@ -74,7 +74,7 @@ Both apply only when the chosen model **supports reasoning**. The capability gat
 | `high` | 20000 | Long deliberation — default for core design and synthesis tasks. |
 | `xhigh` | 32768 | Maximum effort. Use sparingly. |
 
-`budgetByLevel` doubles as the placeholder shown in Settings → Reasoning when a user picks a level but leaves the budget field blank.
+`budgetByLevel` is the budget ladder used when Settings → Reasoning sends a level override. The UI exposes levels only; it does not expose a separate budget field.
 
 ### Task slots (`perTaskDefaults`)
 
@@ -187,6 +187,5 @@ Truncation caps used across server code. Four groups:
 
 Some settings belong in `.env.local` (gitignored) rather than `config/`:
 
-- **Secrets** — `OPENROUTER_API_KEY`, `OPENROUTER_API_KEY_TESTS`. JSON is checked into git.
-- **Environment-specific values** — `PORT`, `VITE_PORT`, `VITE_LMSTUDIO_URL`. Each developer's machine / deploy target differs.
-- **Test-only flags** — `RUN_SANDBOX_LLM_TESTS`, legacy aliases, and `MODEL_SELECTOR`. These gate opt-in live integration tests; they're not product config.
+- **Secrets** — `OPENROUTER_API_KEY`. JSON is checked into git.
+- **Environment-specific values** — `PORT`, `VITE_PORT`, `LMSTUDIO_URL`. Each developer's machine / deploy target differs.

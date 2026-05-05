@@ -87,7 +87,7 @@ describe('POST /api/inputs/generate', () => {
   });
 
   // All three inputs flows share one `inputs` thinking slot (medium default).
-  // Per-input granularity is achieved by the user picking model + effort in
+  // Per-input granularity is achieved by the user picking model + level in
   // Settings, not by separate task slots. Using a reasoning-capable model
   // (`openai/o1`) so the capability gate doesn't short-circuit to `off`.
   it.each(['research-context', 'objectives-metrics', 'design-constraints'] as const)(

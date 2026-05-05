@@ -5,6 +5,8 @@ import { columnX, computeAutoLayout, reconcileEphemeralGhostNodes, snap } from '
 import { buildEdgeId, EDGE_TYPES, EDGE_STATUS, NODE_TYPES } from '../../constants/canvas';
 import { DEFAULT_DESIGN_SYSTEM_SOURCE_MODE } from '../../types/design-system-mode';
 import { hydrateDomainFromCanvasGraph } from '../../workspace/hydrate-domain-from-canvas-graph';
+import { repairIncubatorStructuralSourceEdges } from '../../lib/incubator-structural-edges';
+import { useSpecStore } from '../spec-store';
 import type { CanvasStore } from './canvas-store-types';
 
 function ensureRequiredDesignSystem(state: Pick<CanvasStore, 'nodes' | 'edges' | 'colGap'>) {
@@ -54,7 +56,12 @@ export const createLayoutSlice: StateCreator<
     const state = get();
     if (state.nodes.length > 0) {
       const ensured = ensureRequiredDesignSystem(state);
-      set(ensured);
+      const repaired = repairIncubatorStructuralSourceEdges({
+        nodes: ensured.nodes,
+        edges: ensured.edges,
+        spec: useSpecStore.getState().spec,
+      });
+      set({ nodes: ensured.nodes, edges: repaired.edges });
       hydrateDomainFromCanvasGraph({
         nodes: get().nodes as { id: string; type: CanvasNodeType; data: Record<string, unknown> }[],
         edges: get().edges,

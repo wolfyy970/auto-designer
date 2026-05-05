@@ -94,7 +94,7 @@ function RubricWeightsPartitionCard({
   );
 
   return (
-    <div className="rounded-md border border-border-subtle bg-surface/60 px-3 py-2.5">
+    <div className="rounded-md border border-border-subtle bg-surface px-3 py-2.5">
       <span className="block text-sm font-medium text-fg">Rubric weights</span>
       <p className="mt-1 text-xs text-fg-secondary">
         Relative importance of each rubric when computing the overall score (0–5 scale). Drag the dividers or click a
@@ -145,7 +145,7 @@ export default function SettingsModal({
       {evaluatorEnabled ? (
         <div className="-mx-5 -mt-4 mb-4 border-b border-border px-5 py-3">
           <div
-            className="grid gap-2 rounded-md border border-border-subtle bg-bg/50 p-1 sm:grid-cols-2"
+            className="grid gap-2 rounded-md border border-border-subtle bg-bg p-1 sm:grid-cols-2"
             role="tablist"
             aria-label="Settings sections"
           >
@@ -169,7 +169,7 @@ export default function SettingsModal({
         <div className="space-y-4">
           <ReasoningSection showEvaluatorTask={evaluatorEnabled} />
           {import.meta.env.DEV ? (
-            <div className="rounded-md border border-border-subtle bg-surface/60 px-3 py-2.5">
+            <div className="rounded-md border border-border-subtle bg-surface px-3 py-2.5">
               <span className="block text-sm font-medium text-fg">Design system</span>
               <p className="mt-1 text-xs text-fg-secondary">
                 Browse <code className="rounded bg-surface px-1 font-mono text-nano">@theme</code> swatches, typography
@@ -215,7 +215,7 @@ function EvaluatorSettingsTab() {
         max rounds and target score on the node. Rubric weights stay here (shared across hypotheses that use
         evaluation).
       </p>
-      <div className="rounded-md border border-border-subtle bg-surface/60 px-3 py-2.5">
+      <div className="rounded-md border border-border-subtle bg-surface px-3 py-2.5">
         <span className="block text-sm font-medium text-fg">Maximum revision rounds</span>
         <p className="mt-1 text-xs text-fg-secondary">
           Hard cap on evaluator-driven revision passes after the first build + evaluation. A run ends when either
@@ -234,7 +234,7 @@ function EvaluatorSettingsTab() {
         />
       </div>
 
-      <div className="rounded-md border border-border-subtle bg-surface/60 px-3 py-2.5">
+      <div className="rounded-md border border-border-subtle bg-surface px-3 py-2.5">
         <label className="flex cursor-pointer items-start gap-2.5 select-none">
           <input
             type="checkbox"
@@ -297,7 +297,7 @@ function SettingsTabButton({
       className={`rounded px-3 py-2 text-left transition-colors input-focus ${
         active
           ? 'border border-border bg-surface-raised text-fg shadow-sm'
-          : 'border border-transparent text-fg-secondary hover:bg-surface/70 hover:text-fg'
+          : 'border border-transparent text-fg-secondary hover:bg-surface hover:text-fg'
       }`}
     >
       <span className="block text-xs font-semibold leading-snug">{title}</span>
@@ -357,7 +357,7 @@ function ReasoningSection({ showEvaluatorTask }: { showEvaluatorTask: boolean })
   });
 
   return (
-    <div className="rounded-md border border-border-subtle bg-surface/60 px-3 py-2.5">
+    <div className="rounded-md border border-border-subtle bg-surface px-3 py-2.5">
       <div className="flex items-start justify-between gap-3">
         <span className="block text-sm font-medium text-fg">Reasoning (thinking)</span>
         <button
@@ -437,7 +437,7 @@ function ReasoningRow({
   };
 
   return (
-    <div className="rounded-md border border-border-subtle bg-surface/40 px-3 py-2.5">
+    <div className="rounded-md border border-border-subtle bg-surface px-3 py-2.5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <span className="block text-nano font-medium text-fg-secondary">

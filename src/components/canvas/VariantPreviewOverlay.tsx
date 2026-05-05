@@ -14,6 +14,7 @@ import { normalizeError } from '../../lib/error-utils';
 import { useResultCode } from '../../hooks/useResultCode';
 import { useResultFiles } from '../../hooks/useResultFiles';
 import { useVersionStack } from '../../hooks/useVersionStack';
+import { useAppConfig } from '../../hooks/useAppConfig';
 import type { GenerationResult } from '../../types/provider';
 import { GENERATION_STATUS } from '../../constants/generation';
 import { ArtifactPreviewFrame } from './variant-run';
@@ -93,6 +94,8 @@ export default function VariantPreviewOverlay() {
   const expandedPreviewId = useCanvasStore((s) => s.expandedPreviewId);
   const setExpandedPreview = useCanvasStore((s) => s.setExpandedPreview);
   const incubationPlans = useIncubatorStore((s) => s.incubationPlans);
+  const { data: appConfig } = useAppConfig();
+  const bestUiEnabled = appConfig?.autoImprove === true;
 
   const strategyId = useCanvasStore(
     (s) => {
@@ -277,7 +280,7 @@ export default function VariantPreviewOverlay() {
           <div>
             <h2 className="text-sm font-semibold text-white">
               {strategy?.name ?? 'Design Preview'}
-              {!pinnedRunId && isActiveBest && (
+              {bestUiEnabled && !pinnedRunId && isActiveBest && (
                 <Badge shape="tab" tone="success" className="ml-2">Best current</Badge>
               )}
               {pinnedRunId && (
@@ -328,6 +331,7 @@ export default function VariantPreviewOverlay() {
 
         <div className="flex items-center gap-3">
           {!pinnedRunId &&
+            bestUiEnabled &&
             strategyId &&
             result.status === GENERATION_STATUS.COMPLETE && (
               <>

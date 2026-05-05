@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { NODE_TYPES } from '../../constants/canvas';
 import { useCanvasStore } from '../canvas-store';
+import { useSpecStore } from '../spec-store';
 import { useWorkspaceDomainStore } from '../workspace-domain-store';
 import type { DesignSpec, SpecSection } from '../../types/spec';
 import type { WorkspaceNode } from '../../types/workspace-graph';
@@ -35,6 +36,7 @@ function minimalSpec(sections: Partial<DesignSpec['sections']>): DesignSpec {
 describe('canvas-store smoke', () => {
   beforeEach(() => {
     useCanvasStore.getState().reset();
+    useSpecStore.getState().createNewCanvas('Test canvas');
     useWorkspaceDomainStore.getState().reset();
   });
 
@@ -118,6 +120,26 @@ describe('canvas-store smoke', () => {
     expect(edges.some((edge) => edge.source === designSystem?.id && edge.target === 'inc-1')).toBe(true);
   });
 
+  it('repairs a missing filled input edge when initializing an older canvas', () => {
+    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
+    useCanvasStore.setState({
+      nodes: [
+        { id: 'brief-1', type: NODE_TYPES.DESIGN_BRIEF, position: { x: 0, y: 0 }, data: {} },
+        { id: 'inc-1', type: NODE_TYPES.INCUBATOR, position: { x: 0, y: 0 }, data: {} },
+        { id: 'ds-1', type: NODE_TYPES.DESIGN_SYSTEM, position: { x: 0, y: 0 }, data: { sourceMode: 'wireframe' } },
+      ],
+      edges: [],
+    });
+
+    useCanvasStore.getState().initializeCanvas();
+
+    const { edges } = useCanvasStore.getState();
+    expect(edges.some((edge) => edge.source === 'brief-1' && edge.target === 'inc-1')).toBe(true);
+    expect(edges.some((edge) => edge.source === 'ds-1' && edge.target === 'inc-1')).toBe(true);
+    expect(useWorkspaceDomainStore.getState().incubatorWirings['inc-1']?.inputNodeIds).toEqual(['brief-1']);
+    expect(useWorkspaceDomainStore.getState().incubatorWirings['inc-1']?.designSystemNodeIds).toEqual(['ds-1']);
+  });
+
   it('records and consumes an ephemeral node focus request', () => {
     const newId = useCanvasStore.getState().addNode(NODE_TYPES.RESEARCH_CONTEXT);
     expect(newId).toBeDefined();
@@ -141,6 +163,27 @@ describe('canvas-store smoke', () => {
     expect(pendingFocusNodeId).toBeNull();
   });
 
+  it('materializes a filled optional input with an incubator edge and domain wiring', () => {
+    useCanvasStore.setState({
+      nodes: [
+        { id: 'brief-1', type: NODE_TYPES.DESIGN_BRIEF, position: { x: 0, y: 0 }, data: {} },
+        { id: 'inc-1', type: NODE_TYPES.INCUBATOR, position: { x: 0, y: 0 }, data: {} },
+      ],
+      edges: [],
+    });
+
+    useCanvasStore.getState().materializeOptionalInputNodesFromSpec(
+      minimalSpec({
+        'research-context': section('research-context', 'Known research'),
+      }),
+    );
+
+    const research = useCanvasStore.getState().nodes.find((n) => n.type === NODE_TYPES.RESEARCH_CONTEXT);
+    expect(research).toBeDefined();
+    expect(useCanvasStore.getState().edges.some((edge) => edge.source === research?.id && edge.target === 'inc-1')).toBe(true);
+    expect(useWorkspaceDomainStore.getState().incubatorWirings['inc-1']?.inputNodeIds).toEqual([research!.id]);
+  });
+
   it('removeEdge detaches design-system hypothesis wiring from the domain store', () => {
     useCanvasStore.setState({
       nodes: [
@@ -161,7 +204,7 @@ describe('canvas-store smoke', () => {
     expect(useWorkspaceDomainStore.getState().hypotheses['hyp-1']?.designSystemNodeIds).toEqual([]);
   });
 
-  it('disconnectOutputs detaches incubator input wiring from the domain store', () => {
+  it('removeEdge and disconnectOutputs preserve structural incubator source wiring', () => {
     useCanvasStore.setState({
       nodes: [
         { id: 'brief-1', type: NODE_TYPES.DESIGN_BRIEF, position: { x: 0, y: 0 }, data: {} },
@@ -178,11 +221,29 @@ describe('canvas-store smoke', () => {
     domain.attachIncubatorInput('inc-1', 'brief-1', NODE_TYPES.DESIGN_BRIEF);
     domain.attachIncubatorInput('inc-1', 'ds-1', NODE_TYPES.DESIGN_SYSTEM);
 
+    useCanvasStore.getState().removeEdge('e-brief-inc');
     useCanvasStore.getState().disconnectOutputs('brief-1');
     useCanvasStore.getState().disconnectOutputs('ds-1');
 
     const nextDomain = useWorkspaceDomainStore.getState();
-    expect(nextDomain.incubatorWirings['inc-1']?.inputNodeIds).toEqual([]);
-    expect(nextDomain.incubatorWirings['inc-1']?.designSystemNodeIds).toEqual([]);
+    expect(useCanvasStore.getState().edges.map((edge) => edge.id).sort()).toEqual(['e-brief-inc', 'e-ds-inc']);
+    expect(nextDomain.incubatorWirings['inc-1']?.inputNodeIds).toEqual(['brief-1']);
+    expect(nextDomain.incubatorWirings['inc-1']?.designSystemNodeIds).toEqual(['ds-1']);
+  });
+
+  it('onEdgesChange ignores removal of structural incubator source edges', () => {
+    useCanvasStore.setState({
+      nodes: [
+        { id: 'brief-1', type: NODE_TYPES.DESIGN_BRIEF, position: { x: 0, y: 0 }, data: {} },
+        { id: 'inc-1', type: NODE_TYPES.INCUBATOR, position: { x: 0, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e-brief-inc', source: 'brief-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } },
+      ],
+    });
+
+    useCanvasStore.getState().onEdgesChange([{ id: 'e-brief-inc', type: 'remove' }]);
+
+    expect(useCanvasStore.getState().edges).toHaveLength(1);
   });
 });

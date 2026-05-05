@@ -11,6 +11,11 @@ import {
   isValidConnection as checkValidConnection,
 } from '../../lib/canvas-connections';
 import {
+  isProtectedIncubatorSourceEdge,
+  repairIncubatorStructuralSourceEdges,
+} from '../../lib/incubator-structural-edges';
+import { syncDomainForNewEdge } from '../../workspace/domain-commands';
+import {
   planAddNodeMutation,
   planConnectionMutation,
   planEdgeRemoval,
@@ -66,7 +71,16 @@ export const createGraphSlice: StateCreator<
 
   onEdgesChange: (changes) => {
     const prev = get().edges;
-    const next = applyWorkspaceEdgeChanges(changes, prev);
+    const protectedIds = new Set(
+      prev
+        .filter((edge) => isProtectedIncubatorSourceEdge(edge, get().nodes))
+        .map((edge) => edge.id),
+    );
+    const allowedChanges = changes.filter((change) => {
+      if (change.type !== 'remove') return true;
+      return !protectedIds.has(change.id);
+    });
+    const next = applyWorkspaceEdgeChanges(allowedChanges, prev);
     commitEdgeChangesTransaction(prev, next, get().nodes, set);
   },
 
@@ -120,6 +134,17 @@ export const createGraphSlice: StateCreator<
       getEdges: () => get().edges,
       applyAutoLayout: get().applyAutoLayout,
     });
+    const repaired = repairIncubatorStructuralSourceEdges({
+      nodes: get().nodes,
+      edges: get().edges,
+      spec,
+    });
+    if (repaired.addedEdges.length > 0) {
+      set({ edges: repaired.edges });
+      for (const edge of repaired.addedEdges) {
+        syncDomainForNewEdge(edge, get().nodes, repaired.edges);
+      }
+    }
   },
 
   removeNode: (nodeId) => {
@@ -139,6 +164,8 @@ export const createGraphSlice: StateCreator<
 
   removeEdge: (edgeId) => {
     const state = get();
+    const edge = state.edges.find((candidate) => candidate.id === edgeId);
+    if (edge && isProtectedIncubatorSourceEdge(edge, state.nodes)) return;
     const plan = planEdgeRemoval(state.edges, (e) => e.id === edgeId);
     commitEdgeRemovalTransaction(plan, state.nodes, set);
   },
@@ -151,7 +178,10 @@ export const createGraphSlice: StateCreator<
 
   disconnectOutputs: (nodeId) => {
     const state = get();
-    const plan = planEdgeRemoval(state.edges, (e) => e.source === nodeId);
+    const plan = planEdgeRemoval(
+      state.edges,
+      (e) => e.source === nodeId && !isProtectedIncubatorSourceEdge(e, state.nodes),
+    );
     commitEdgeRemovalTransaction(plan, state.nodes, set);
   },
 });

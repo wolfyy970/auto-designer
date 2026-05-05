@@ -10,7 +10,7 @@ import {
   useIncubatorStore,
 } from '../../../stores/incubator-store';
 import { useCanvasStore } from '../../../stores/canvas-store';
-import { countConnectedIncubatorInputs } from '../../../lib/incubator-input-count';
+import { resolveIncubatorSourceState } from '../../../lib/incubator-input-count';
 import type { IncubatorNodeData } from '../../../types/canvas-data';
 import type { WorkspaceNode } from '../../../types/workspace-graph';
 import { getDesignSystemNodeData } from '../../../lib/canvas-node-data';
@@ -47,9 +47,8 @@ type IncubatorNodeFlowType = Node<IncubatorNodeData, 'incubator'>;
 
 function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>) {
   const { fitView } = useReactFlow();
-  const hasDesignBrief = useSpecStore((s) =>
-    Boolean(s.spec.sections['design-brief']?.content?.trim()),
-  );
+  const spec = useSpecStore((s) => s.spec);
+  const hasDesignBrief = Boolean(spec.sections['design-brief']?.content?.trim());
 
   const isCompiling = useIncubatorStore((s) => s.isCompiling);
   const error = useIncubatorStore((s) => s.error);
@@ -69,28 +68,19 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
   const [designMdGeneratingNodeId, setDesignMdGeneratingNodeId] = useState<string | null>(null);
   const [designMdModalNodeId, setDesignMdModalNodeId] = useState<string | null>(null);
 
+  const sourceState = useMemo(
+    () => resolveIncubatorSourceState(nodes, edges, id, spec, domainWiring),
+    [domainWiring, edges, nodes, id, spec],
+  );
+
   const scopedDesignSystemNodes = useMemo((): WorkspaceNode[] => {
     const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
-    const ids = domainWiring?.designSystemNodeIds ?? [];
-    if (ids.length > 0) {
-      return ids
-        .map((nodeId) => nodeById.get(nodeId))
-        .filter((n): n is WorkspaceNode => Boolean(n) && n!.type === NODE_TYPES.DESIGN_SYSTEM);
-    }
-    return edges
-      .filter((e) => e.target === id)
-      .map((e) => nodeById.get(e.source))
+    return sourceState.activeDesignSystemNodeIds
+      .map((nodeId) => nodeById.get(nodeId))
       .filter((n): n is WorkspaceNode => Boolean(n) && n!.type === NODE_TYPES.DESIGN_SYSTEM);
-  }, [domainWiring, edges, nodes, id]);
+  }, [nodes, sourceState.activeDesignSystemNodeIds]);
 
-  /**
-   * Count what will actually feed into `buildIncubateInputs` — stale domain
-   * wiring ids are filtered out so the card matches what the incubator sees.
-   */
-  const connectedInputCount = useMemo(
-    () => countConnectedIncubatorInputs(nodes, edges, id, domainWiring),
-    [domainWiring, edges, nodes, id],
-  );
+  const connectedSourceCount = sourceState.connectedSourceCount;
 
   /** Hypothesis cards on the canvas wired to this incubator (not stale rows in persisted dimension map). */
   const totalHypotheses = useMemo(() => {
@@ -223,7 +213,7 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-nano text-fg-muted">
-                {connectedInputCount} input{connectedInputCount !== 1 ? 's' : ''} connected
+                {connectedSourceCount} source{connectedSourceCount !== 1 ? 's' : ''} connected
               </span>
             </div>
             {/* Hypothesis count selector */}

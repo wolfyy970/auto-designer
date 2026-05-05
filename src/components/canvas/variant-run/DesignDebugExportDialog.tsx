@@ -411,7 +411,7 @@ export function DesignDebugExportDialog({
             />
 
             {downloadMode !== 'files' ? (
-              <details className="rounded-lg border border-border-subtle bg-surface-nested/30 px-3 py-2 text-xs">
+              <details className="rounded-lg border border-border-subtle bg-surface-nested px-3 py-2 text-xs">
                 <summary className="cursor-pointer select-none font-medium text-fg-secondary">
                   Advanced: choose exact sections
                 </summary>

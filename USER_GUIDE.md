@@ -106,15 +106,15 @@ Write in prose, not bullets. Precision is the product.
 
 **Optional inputs:** The default template focuses on Design Brief + Design System + Incubator. Other sections may show as **ghost** prompts on the canvas until you add them from the ghost card (or load a saved canvas whose spec already fills that section—see **Managing Canvases**). Ghost cards are persistent affordances and reappear if you remove the optional input node; when you activate one, the viewport tracks the newly created node after it moves into the input group.
 
-**Auto-generate (Research / Objectives / Constraints):** On those three input nodes, an **auto-generate** action (when shown) drafts or refines the spec facet body from your **Design Brief** and any other spec sections you have already filled in. The provider + model + effort come from **Settings → Reasoning → Inputs**. **Lockdown** still pins provider/model server-side.
+**Auto-generate (Research / Objectives / Constraints):** On those three input nodes, an **auto-generate** action (when shown) drafts or refines the spec facet body from your **Design Brief** and any other spec sections you have already filled in. The provider + model + thinking level come from **Settings → Reasoning → Inputs**. **Lockdown** still pins provider/model server-side.
 
-### 2. Pick model + effort in Settings
+### 2. Pick model + thinking level in Settings
 
-Open **Settings → Reasoning** to choose, per task, the **provider + model** and the **effort** you want (a five-position slider: Off / Quick / Balanced / Thorough / Maximum). Each task — Hypothesis design, Incubator, Inputs, Design system, and, when Auto-improve is enabled, Evaluator — keeps its own choice. When **lockdown** is enabled in `config/feature-flags.json`, every run uses the per-task pins from `config/task-defaults.json` and the pickers are disabled (the slider stays editable but is honestly a no-op for non-reasoning models — a chip beside the picker tells you).
+Open **Settings → Reasoning** to choose, per task, the **provider + model** and the **thinking level** you want (Off / Low / Medium / High / Extra High). Each task — Hypothesis design, Incubator, Inputs, Design system, and, when Auto-improve is enabled, Evaluator — keeps its own choice. When **lockdown** is enabled in `config/feature-flags.json`, every run uses the per-task pins from `config/task-defaults.json` and the model pickers are disabled. Thinking levels still apply only to reasoning-capable models; non-reasoning models resolve to `off` on the server.
 
 ### 3. Incubate
 
-Connect input nodes to the **Incubator** (edges auto-connect on add). With at least a minimal **Design Brief** written, click **Generate** and choose how many new hypotheses to create. The Incubator uses **Settings → Reasoning → Incubator** for the model + effort. The Incubator sends your connected inputs to the LLM and produces that many hypothesis strategy cards. **blank hypothesis** does the same readiness check (brief + model) but adds a single empty strategy card without calling the LLM, for hand-editing.
+Connect source nodes to the **Incubator** (structural edges auto-connect on add and stay protected). With at least a minimal **Design Brief** written, click **Generate** and choose how many new hypotheses to create. The Incubator uses **Settings → Reasoning → Incubator** for the model + thinking level. It sends active sources — filled spec inputs, connected preview references, and active Design System context — to the LLM and produces that many hypothesis strategy cards. **blank hypothesis** does the same readiness check (brief + model) but adds a single empty strategy card without calling the LLM, for hand-editing.
 
 The Incubator shows **DESIGN.md** readiness before it runs: it follows the active Design System style — Wireframe is already ready, Custom only participates when custom source material exists, and None is ignored. The user's spec inputs (Design Brief, Research, Objectives, Constraints) are passed verbatim to the Incubator at run time — there is no separate "Design specification" document to generate or review.
 
@@ -130,7 +130,7 @@ Edit these before generation. Remove strategies not worth exploring.
 
 ### 5. Design System
 
-The **Design System** node is a required source input. It starts in **Wireframe** mode, using Designer's built-in low-fidelity `DESIGN.md` source so early runs stay draft-like. It behaves like the other source inputs: connect it to the Incubator and/or hypotheses when you want that source included. Its model + effort (used when generating the linted DESIGN.md document from custom source material) come from **Settings → Reasoning → Design system**.
+The **Design System** node is a required source input. It starts in **Wireframe** mode, using Designer's built-in low-fidelity `DESIGN.md` source so early runs stay draft-like. It behaves like the other source inputs: connect it to the Incubator and/or hypotheses when you want that source included. Its model + thinking level (used when generating the linted DESIGN.md document from custom source material) come from **Settings → Reasoning → Design system**.
 
 - Switch to **Custom** to type or paste DESIGN.md, tokens, style-guide prose, or brand notes
 - Drag-and-drop screenshots, reference images, or DESIGN.md files when custom source material matters
@@ -139,7 +139,7 @@ The **Design System** node is a required source input. It starts in **Wireframe*
 
 ### 6. Generate Designs
 
-Each hypothesis has built-in generation controls at the bottom. Click **Design** to run the **agentic** engine: the agent plans files, writes/edits/validates them, and streams progress to the preview. The provider + model + effort for the design run come from **Settings → Reasoning → Hypothesis design**; the slider's five positions (Off / Quick / Balanced / Thorough / Maximum) replace the older None/Light/Deep knob.
+Each hypothesis has built-in generation controls at the bottom. Click **Design** to run the **agentic** engine: the agent plans files, writes/edits/validates them, and streams progress to the preview. The provider + model + thinking level for the design run come from **Settings → Reasoning → Hypothesis design**.
 
 **Auto-improve** (when enabled by `config/feature-flags.json`): when **off**, the run stops after that **single** agent build—**no** evaluator, no scorecard. When **on**, the server runs **evaluation** (LLM rubrics plus browser QA) and can apply **revision passes** from that feedback, up to the max rounds and optional target score (overridable per node; **Settings → Evaluator defaults** sets the baseline). With the checked-in `autoImprove: 0` flag, this control is hidden and all runs are single-pass. See **[PRODUCT.md](PRODUCT.md)** for the full pipeline.
 
@@ -153,13 +153,13 @@ Running generation again adds new versions — use the version navigation arrows
 
 **Progress and workspace:** Starting **Design** does **not** auto-open the run workspace—the preview card shows progress first. Use **Watch agent** or the **panel** icon on the preview toolbar to open the **run workspace** (an overlay on the right); you can still **pan and zoom** the canvas while it is open. The preview card footer summarizes live status with a **three-state chip** that shows what the model is doing right now: 🧠 Brain for extended reasoning, 💬 for narrating (visible text between tool calls), and 🔧 Wrench for an active tool call; the token count keeps ticking through every phase. When a thinking turn ends, a transient **`🧠 Xs`** badge briefly shows how long it reasoned. **Skills in use** and the full **Monitor** timeline—including tool traces—live in the workspace. The timeline’s **Tool use** block shows the active tool in the header when collapsed; when expanded, each streaming tool row uses the same pulse + `Nk tok` pattern as the chip.
 
-**Removing nodes from the canvas:** Use **Backspace** or **Delete** with one or more nodes selected. A short confirmation appears for nodes that can be removed (input cards and structural nodes like the incubator stay protected). Removing a hypothesis also drops its preview nodes. **Selected connections** (edges) delete with the same keys and no extra dialog. The shared spec document is separate; text in section cards may still exist there until you edit it elsewhere.
+**Removing nodes from the canvas:** Use **Backspace** or **Delete** with one or more nodes selected. A short confirmation appears for nodes that can be removed (input cards and structural nodes like the incubator stay protected). Removing a hypothesis also drops its preview nodes. Optional selected connections, such as preview-reference edges, delete with the same keys and no extra dialog; structural source-to-Incubator edges stay protected. The shared spec document is separate; text in section cards may still exist there until you edit it elsewhere.
 
 ### 7. Review Designs
 
 Preview nodes render the generated code in sandboxed iframes. Open the **run workspace** (panel icon or **Watch agent** while generating) for the full timeline, tasks, **Design**/**Evaluation** tabs (when evaluation ran), and—when a run had several evaluator rounds—a shared **Eval round** control on Design and Evaluation to preview that round’s files and scores.
 
-**Best pick:** Use **Mark as best** (star on the preview toolbar or “Mark as best” in full-screen) to pin a preferred result. **Clear best pick** restores the computed default for that strategy lane (highest evaluator score when available, otherwise newest complete run). Full-screen **prev/next design** moves between preview nodes **for the same hypothesis** when domain slots are present.
+**Best pick** *(Auto-improve enabled only)*: Use **Mark as best** (star on the preview toolbar or “Mark as best” in full-screen) to pin a preferred result. **Clear best pick** restores the computed default for that strategy lane (highest evaluator score when available, otherwise newest complete run). Full-screen **prev/next design** moves between preview nodes **for the same hypothesis** when domain slots are present.
 
 **Single-file results:**
 

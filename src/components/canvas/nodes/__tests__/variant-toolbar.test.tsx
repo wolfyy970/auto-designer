@@ -46,4 +46,39 @@ describe('VariantToolbar', () => {
     expect(stop.textContent).toBe('');
     expect(screen.queryByText('Stop')).toBeNull();
   });
+
+  it('hides best-result UI when Auto-improve is not enabled', () => {
+    render(
+      <VariantToolbar
+        {...defaultProps}
+        isBestCurrent
+        showMarkUserBest
+        showClearUserBest
+        onMarkUserBest={vi.fn()}
+        onClearUserBest={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('Best')).toBeNull();
+    expect(screen.queryByTitle('Mark this version as best for this lane')).toBeNull();
+    expect(screen.queryByTitle('Clear your best pick (use computed best result)')).toBeNull();
+  });
+
+  it('shows best-result UI when Auto-improve is enabled', () => {
+    render(
+      <VariantToolbar
+        {...defaultProps}
+        showBestUi
+        isBestCurrent
+        showMarkUserBest
+        showClearUserBest
+        onMarkUserBest={vi.fn()}
+        onClearUserBest={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('Best')).not.toBeNull();
+    expect(screen.queryByTitle('Mark this version as best for this lane')).not.toBeNull();
+    expect(screen.queryByTitle('Clear your best pick (use computed best result)')).not.toBeNull();
+  });
 });

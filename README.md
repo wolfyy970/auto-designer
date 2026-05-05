@@ -11,7 +11,7 @@ Designer opens on a public home page, then the working canvas lives at `/canvas`
 ```bash
 pnpm install
 cp .env.example .env.local  # add your API keys
-# Agentic mode uses Playwright for browser-grounded evaluation (after first run):
+# Optional: install Chromium for browser-grounded evaluation when Auto-improve is enabled.
 pnpm exec playwright install chromium
 pnpm dev:all                 # recommended: API + Vite (API waits until /api/health is up)
 # Or two terminals: pnpm dev:server  then  pnpm dev
@@ -29,7 +29,7 @@ Both processes are required for local development. The Vite dev server proxies `
 | Key                           | Where to get it                                | Required       | What it does                                                                                                                                                                                                                                                                                                       |
 | ----------------------------- | ---------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `OPENROUTER_API_KEY`          | [openrouter.ai](https://openrouter.ai)         | For OpenRouter | Server-side only — proxied via Vite, never exposed to browser                                                                                                                                                                                                                                                      |
-| `VITE_LMSTUDIO_URL`           | Local (default: `http://192.168.252.213:1234`) | For LM Studio  | Local inference endpoint                                                                                                                                                                                                                                                                                           |
+| `LMSTUDIO_URL`                | Local (default: `http://localhost:1234`)       | For LM Studio  | Local inference endpoint; `VITE_LMSTUDIO_URL` is still accepted as a legacy alias                                                                                                                                                                                                                                  |
 | `VITE_LMSTUDIO_VISION_MODELS` | N/A                                            | Optional       | Comma-separated model ID substrings that support vision                                                                                                                                                                                                                                                            |
 | `VITE_LOGROCKET_APP_ID`       | [logrocket.com](https://app.logrocket.com)     | Optional       | Enables [LogRocket](https://logrocket.com) session replay (e.g. `org/app`). Production builds default to `qbwhsc/designer-6dify` when unset; dev builds stay off unless this is set. Detail: [AGENTS.md § Errors and optional telemetry](AGENTS.md#errors-and-optional-telemetry).                                  |
 
@@ -50,7 +50,7 @@ The primary working interface is a visual node-graph canvas (`/canvas`): source 
 | `pnpm dev:all`      | Start API then Vite (waits for `/api/health` — avoids proxy race)                                                                                                                        |
 | `pnpm dev:kill`     | Stop processes listening on default API (**4731**) and Vite (**4732**) ports (`PORT` / `VITE_PORT` when set)                                                                                                           |
 | `pnpm build`        | Type-check and production build                                                                                                                                                          |
-| `pnpm test`         | Vitest unit tests (Playwright merge test excluded in config; **`pnpm test:playwright-eval`** runs it — see [AGENTS.md](AGENTS.md))                                                       |
+| `pnpm test`         | Root Vitest suite plus `@auto-designer/design-system` and `@auto-designer/pi` package tests (Playwright merge test excluded in config; **`pnpm test:playwright-eval`** runs it — see [AGENTS.md](AGENTS.md)) |
 | `pnpm lint`         | Run ESLint                                                                                                                                                                               |
 | `pnpm knip`         | Optional unused **files** and **dependencies** report via Knip (`--include files,dependencies`; not run in CI by default)                                                                |
 | `pnpm snap`         | Checkpoint prompt/skill/rubric versions (changed files only); list/diff/restore subcommands ([USER_GUIDE.md](USER_GUIDE.md#version-history)) |

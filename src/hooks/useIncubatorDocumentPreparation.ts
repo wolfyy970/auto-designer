@@ -17,6 +17,7 @@ import {
   getDesignSystemEffectiveState,
   isDesignMdDocumentStale,
 } from '../lib/design-md';
+import { resolveIncubatorSourceState } from '../lib/incubator-input-count';
 import {
   buildDesignMdDocument,
   buildFailedDesignMdDocument,
@@ -121,15 +122,18 @@ export function useIncubatorDocumentPreparation({
   const ensureDesignSystemDocuments = useCallback(async (): Promise<DesignSystemDocumentForPrompt[]> => {
     const out: DesignSystemDocumentForPrompt[] = [];
     const currentNodes = useCanvasStore.getState().nodes;
+    const currentEdges = useCanvasStore.getState().edges;
     const currentDomainWiring = useWorkspaceDomainStore.getState().incubatorWirings[incubatorId];
     const nodeById = new Map(currentNodes.map((n) => [n.id, n] as const));
-    const scopedIds = currentDomainWiring?.designSystemNodeIds ?? [];
-    const candidates: (WorkspaceNode | undefined)[] = scopedIds.length > 0
-      ? scopedIds.map((nodeId) => nodeById.get(nodeId))
-      : currentNodes.filter((node) =>
-          node.type === NODE_TYPES.DESIGN_SYSTEM &&
-          useCanvasStore.getState().edges.some((edge) => edge.source === node.id && edge.target === incubatorId),
-        );
+    const sourceState = resolveIncubatorSourceState(
+      currentNodes,
+      currentEdges,
+      incubatorId,
+      undefined,
+      currentDomainWiring,
+    );
+    const candidates: (WorkspaceNode | undefined)[] =
+      sourceState.activeDesignSystemNodeIds.map((nodeId) => nodeById.get(nodeId));
     for (const node of candidates) {
       if (!node || node.type !== NODE_TYPES.DESIGN_SYSTEM) continue;
       let data = (node.data ?? {}) as DesignSystemNodeData;
