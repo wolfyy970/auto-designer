@@ -10,7 +10,8 @@ export type {
   UserMessage,
   ToolResultMessage,
 } from '@mariozechner/pi-ai';
-export { streamSimple } from '@mariozechner/pi-ai';
+import { streamSimple as piStreamSimple } from '@mariozechner/pi-ai';
+export const streamSimple = piStreamSimple;
 
 export type {
   AgentSession,

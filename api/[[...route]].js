@@ -3,20 +3,21 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
-import fs, { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { parse } from "yaml";
-import { config } from "dotenv";
-import { jsonrepair } from "jsonrepair";
-import fs$1 from "node:fs";
-import { DEFAULT_MAX_LINES, createReadToolDefinition, createWriteToolDefinition, createEditToolDefinition, createLsToolDefinition, createFindToolDefinition, grepToolDefinition, truncateLine, truncateHead, formatSize, DEFAULT_MAX_BYTES, compact, SettingsManager, DefaultResourceLoader, createAgentSession, SessionManager, AuthStorage } from "@mariozechner/pi-coding-agent";
-import { streamSSE } from "hono/streaming";
-import "@mariozechner/pi-ai";
 import { Bash } from "just-bash";
-import { performance } from "node:perf_hooks";
-import { Type } from "@sinclair/typebox";
-import { Script, createContext } from "node:vm";
 import { minimatch } from "minimatch";
+import { DEFAULT_MAX_LINES, DEFAULT_MAX_BYTES, createReadToolDefinition, createWriteToolDefinition, createEditToolDefinition, createLsToolDefinition, createFindToolDefinition, createGrepToolDefinition, truncateLine, truncateHead, formatSize, AuthStorage, createAgentSession, SessionManager, DefaultResourceLoader } from "@mariozechner/pi-coding-agent";
+import "@mariozechner/pi-ai";
+import { Type } from "typebox";
+import { Script, createContext } from "node:vm";
+import { fileURLToPath } from "node:url";
+import path, { dirname, resolve } from "node:path";
+import fs, { readFileSync, existsSync } from "node:fs";
+import { jsonrepair } from "jsonrepair";
+import { config } from "dotenv";
+import { streamSSE } from "hono/streaming";
+import fs$1, { readFile, mkdir, writeFile } from "node:fs/promises";
+import { parse } from "yaml";
+import { performance } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
 import { chromium } from "playwright";
 import { Buffer as Buffer$1 } from "node:buffer";
@@ -32,19 +33,34 @@ function interpolate(template, vars) {
     (match, key) => key in vars ? vars[key] : match
   );
 }
-const LEGACY_EXISTING_DESIGN_SECTION_ID = "existing-design";
-function getSectionContent(spec, sectionId) {
-  const section = spec.sections[sectionId];
-  if (!section) return "(Not provided)";
-  return section.content.trim() || "(Not provided)";
+const SOURCE_SECTION_IDS = [
+  "design-brief",
+  "research-context",
+  "objectives-metrics",
+  "design-constraints"
+];
+const SECTION_TAG = {
+  "design-brief": "design_brief",
+  "research-context": "research_context",
+  "objectives-metrics": "objectives_metrics",
+  "design-constraints": "design_constraints"
+};
+function appendBlock$1(lines, tag, body) {
+  const trimmed = body?.trim();
+  if (!trimmed) return;
+  lines.push(`<${tag}>
+${trimmed}
+</${tag}>`);
 }
-function collectImageLines(spec) {
-  return Object.values(spec.sections).filter((s) => s.id !== LEGACY_EXISTING_DESIGN_SECTION_ID).flatMap((s) => s.images).filter((img) => img.description.trim()).map((img) => `- [${img.filename}]: ${img.description}`);
-}
-function imageBlock(spec) {
-  const lines = collectImageLines(spec);
-  if (lines.length === 0) return "";
-  return "## Reference Images\n" + lines.join("\n");
+function buildInternalContext(spec) {
+  const lines = [];
+  if (spec.title?.trim()) {
+    lines.push(`<canvas_title>${spec.title.trim()}</canvas_title>`);
+  }
+  for (const sectionId of SOURCE_SECTION_IDS) {
+    appendBlock$1(lines, SECTION_TAG[sectionId], spec.sections[sectionId]?.content);
+  }
+  return lines.join("\n\n");
 }
 function formatReferenceDesignsBlock(referenceDesigns) {
   if (!referenceDesigns || referenceDesigns.length === 0) return "";
@@ -92,13 +108,7 @@ Produce exactly ${count} new hypothesis strategies.
 }
 function buildIncubatorUserPrompt(spec, incubatorUserTemplate, referenceDesigns, options) {
   return interpolate(incubatorUserTemplate, {
-    SPEC_TITLE: spec.title,
-    DESIGN_BRIEF: getSectionContent(spec, "design-brief"),
-    RESEARCH_CONTEXT: getSectionContent(spec, "research-context"),
-    OBJECTIVES_METRICS: getSectionContent(spec, "objectives-metrics"),
-    DESIGN_CONSTRAINTS: getSectionContent(spec, "design-constraints"),
-    IMAGE_BLOCK: imageBlock(spec),
-    INTERNAL_CONTEXT_DOCUMENT_BLOCK: formatInternalContextDocumentBlock(options?.internalContextDocument),
+    INTERNAL_CONTEXT: buildInternalContext(spec),
     DESIGN_SYSTEM_DOCUMENTS_BLOCK: formatDesignSystemDocumentsBlock(options?.designSystemDocuments),
     REFERENCE_DESIGNS_BLOCK: formatReferenceDesignsBlock(referenceDesigns),
     EXISTING_HYPOTHESES_BLOCK: formatExistingHypothesesBlock(options?.existingStrategies),
@@ -119,16 +129,1765 @@ ${doc.content.trim()}
   }
   return block;
 }
-function formatInternalContextDocumentBlock(document) {
-  const body = document?.trim();
-  if (!body) return "";
-  return `
+const SANDBOX_PROJECT_ROOT = "/home/user/project";
+function sandboxProjectAbsPath(rel) {
+  const trimmed = rel.replace(/^\/+/, "");
+  return `${SANDBOX_PROJECT_ROOT}/${trimmed}`;
+}
+function buildSandboxSeedMaps(options) {
+  const files = {};
+  if (options.seedFiles) {
+    for (const [p, content] of Object.entries(options.seedFiles)) {
+      files[sandboxProjectAbsPath(p)] = content;
+    }
+  }
+  return files;
+}
+function createAgentBashSandbox(options = {}) {
+  const files = buildSandboxSeedMaps(options);
+  return new Bash({
+    files,
+    cwd: SANDBOX_PROJECT_ROOT,
+    executionLimits: {
+      maxCommandCount: 5e3,
+      maxLoopIterations: 5e3,
+      maxSedIterations: 5e3,
+      maxAwkIterations: 5e3
+    }
+  });
+}
+const SANDBOX_INTERNAL_SUBDIRS = [".skills"];
+function isInternalWorkspacePath(absPath) {
+  for (const sub of SANDBOX_INTERNAL_SUBDIRS) {
+    const prefix = `${SANDBOX_PROJECT_ROOT}/${sub}/`;
+    if (absPath === `${SANDBOX_PROJECT_ROOT}/${sub}` || absPath.startsWith(prefix)) {
+      return true;
+    }
+  }
+  return false;
+}
+async function extractDesignFiles(bash) {
+  const paths = bash.fs.getAllPaths().filter((p) => {
+    if (!p.startsWith(`${SANDBOX_PROJECT_ROOT}/`) && p !== SANDBOX_PROJECT_ROOT) return false;
+    if (p === SANDBOX_PROJECT_ROOT) return false;
+    if (isInternalWorkspacePath(p)) return false;
+    return true;
+  });
+  const out = {};
+  for (const abs of paths.sort()) {
+    let stat;
+    try {
+      stat = await bash.fs.stat(abs);
+    } catch {
+      continue;
+    }
+    if (!stat.isFile) continue;
+    let body;
+    try {
+      body = await bash.fs.readFile(abs, "utf8");
+    } catch {
+      continue;
+    }
+    const rel = abs.startsWith(`${SANDBOX_PROJECT_ROOT}/`) ? abs.slice(SANDBOX_PROJECT_ROOT.length + 1) : abs;
+    out[rel] = body;
+  }
+  return out;
+}
+function computeDesignFilesBeyondSeed(extracted, seedFiles) {
+  if (!seedFiles || Object.keys(seedFiles).length === 0) {
+    return { ...extracted };
+  }
+  const out = {};
+  for (const [p, content] of Object.entries(extracted)) {
+    const seedContent = seedFiles[p];
+    if (seedContent === void 0 || seedContent !== content) {
+      out[p] = content;
+    }
+  }
+  return out;
+}
+async function snapshotDesignFiles(bash) {
+  const files = await extractDesignFiles(bash);
+  return new Map(Object.entries(files));
+}
+const SANDBOX_LIMITS = {
+  /** Max chars per grep line in virtual grep output. */
+  grepMaxLineLength: 500,
+  /** Pi virtual `ls` tool entry cap. */
+  lsMaxEntries: 500,
+  /** Pi virtual `find` tool result cap. */
+  findMaxResults: 1e3,
+  /** Default max grep matches when the tool `limit` param is omitted. */
+  grepDefaultMatchLimit: 100,
+  /** Max chars returned from bundled bash output to the model. */
+  bashToolMaxChars: 51200
+};
+const SANDBOX_READ_MAX_LINES = DEFAULT_MAX_LINES;
+const LOG_PREVIEW_SNIPPET_MAX$1 = 120;
+const LOG_PREVIEW_SNIPPET_HEAD_CHARS$1 = LOG_PREVIEW_SNIPPET_MAX$1 - 3;
+function normalizeLf(s) {
+  return s.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+function strategy1LeadingWhitespaceOnly(fileContent, oldText) {
+  const fileLines = fileContent.split("\n");
+  const needleLines = oldText.split("\n");
+  if (needleLines.length === 0) return null;
+  const normalizedNeedle = needleLines.map((l) => l.replace(/^\s+/, ""));
+  const matches = [];
+  for (let i = 0; i <= fileLines.length - needleLines.length; i++) {
+    let ok = true;
+    for (let j = 0; j < needleLines.length; j++) {
+      if (fileLines[i + j].replace(/^\s+/, "") !== normalizedNeedle[j]) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) matches.push(i);
+  }
+  if (matches.length !== 1) return null;
+  const start = matches[0];
+  return fileLines.slice(start, start + needleLines.length).join("\n");
+}
+function collapseWhitespace(s) {
+  return s.replace(/\s+/g, " ").trim();
+}
+function strategy2CollapsedWhitespace(fileContent, oldText) {
+  const target = collapseWhitespace(oldText);
+  if (target === "") return null;
+  const lines = fileContent.split("\n");
+  const needleLineCount = oldText.split("\n").length;
+  const minLen = Math.max(1, needleLineCount - 3);
+  const maxLen = Math.min(lines.length, needleLineCount + 3);
+  const matches = [];
+  for (let s = 0; s < lines.length; s++) {
+    for (let len = minLen; len <= maxLen && s + len <= lines.length; len++) {
+      const chunk = lines.slice(s, s + len).join("\n");
+      if (collapseWhitespace(chunk) === target) {
+        matches.push(chunk);
+      }
+    }
+  }
+  const unique = [...new Set(matches)];
+  return unique.length === 1 ? unique[0] : null;
+}
+function strategy3LineTrimAnchors(fileContent, oldText) {
+  const fileLines = fileContent.split("\n");
+  const needleLines = oldText.split("\n");
+  if (needleLines.length === 0) return null;
+  const L = needleLines.length;
+  const blocks = [];
+  for (let i = 0; i <= fileLines.length - L; i++) {
+    let ok = true;
+    for (let k = 0; k < L; k++) {
+      if (fileLines[i + k].trim() !== needleLines[k].trim()) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) {
+      blocks.push(fileLines.slice(i, i + L).join("\n"));
+    }
+  }
+  if (blocks.length !== 1) return null;
+  return blocks[0];
+}
+function collapseAndLowercase(s) {
+  return s.replace(/\s+/g, " ").trim().toLowerCase();
+}
+function strategy4CaseInsensitiveCollapsed(fileContent, oldText) {
+  const fileLines = fileContent.split("\n");
+  const needleLines = oldText.split("\n");
+  if (needleLines.length === 0) return null;
+  const L = needleLines.length;
+  const normalizedNeedle = needleLines.map(collapseAndLowercase);
+  const blocks = [];
+  for (let i = 0; i <= fileLines.length - L; i++) {
+    let ok = true;
+    for (let k = 0; k < L; k++) {
+      if (collapseAndLowercase(fileLines[i + k]) !== normalizedNeedle[k]) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) {
+      blocks.push(fileLines.slice(i, i + L).join("\n"));
+    }
+  }
+  if (blocks.length !== 1) return null;
+  return blocks[0];
+}
+function strategy5AnchorLines(fileContent, oldText) {
+  const fileLines = fileContent.split("\n");
+  const needleLines = oldText.split("\n");
+  if (needleLines.length < 3) return null;
+  const firstNeedle = collapseAndLowercase(needleLines[0]);
+  const lastNeedle = collapseAndLowercase(needleLines[needleLines.length - 1]);
+  if (!firstNeedle || !lastNeedle) return null;
+  const L = needleLines.length;
+  const tolerance = 5;
+  const blocks = [];
+  for (let i = 0; i < fileLines.length; i++) {
+    if (collapseAndLowercase(fileLines[i]) !== firstNeedle) continue;
+    const minEnd = i + Math.max(L - tolerance, 2);
+    const maxEnd = i + L + tolerance;
+    for (let j = Math.min(minEnd, fileLines.length - 1); j < Math.min(maxEnd, fileLines.length); j++) {
+      if (collapseAndLowercase(fileLines[j]) !== lastNeedle) continue;
+      const span = j - i + 1;
+      if (span >= L - tolerance && span <= L + tolerance) {
+        blocks.push(fileLines.slice(i, j + 1).join("\n"));
+      }
+    }
+  }
+  if (blocks.length !== 1) return null;
+  return blocks[0];
+}
+const STRATEGY_NAMES = [
+  "strategy1LeadingWhitespaceOnly",
+  "strategy2CollapsedWhitespace",
+  "strategy3LineTrimAnchors",
+  "strategy4CaseInsensitiveCollapsed",
+  "strategy5AnchorLines"
+];
+const STRATEGIES = [
+  strategy1LeadingWhitespaceOnly,
+  strategy2CollapsedWhitespace,
+  strategy3LineTrimAnchors,
+  strategy4CaseInsensitiveCollapsed,
+  strategy5AnchorLines
+];
+function attemptMatchCascade(fileContent, edits, diagnostics) {
+  const file = normalizeLf(fileContent);
+  const corrected = [];
+  for (let ei = 0; ei < edits.length; ei++) {
+    const e = edits[ei];
+    const oldNorm = normalizeLf(e.oldText);
+    const diag = {
+      editIndex: ei,
+      oldTextPreview: oldNorm.length > LOG_PREVIEW_SNIPPET_MAX$1 ? `${oldNorm.slice(0, LOG_PREVIEW_SNIPPET_HEAD_CHARS$1)}…` : oldNorm,
+      resolvedBy: null,
+      strategiesAttempted: []
+    };
+    let fixed = null;
+    for (let si = 0; si < STRATEGIES.length; si++) {
+      diag.strategiesAttempted.push(STRATEGY_NAMES[si]);
+      fixed = STRATEGIES[si](file, oldNorm);
+      if (fixed && fixed !== e.oldText) {
+        diag.resolvedBy = STRATEGY_NAMES[si];
+        break;
+      }
+      fixed = null;
+    }
+    diagnostics?.push(diag);
+    if (!fixed) {
+      return null;
+    }
+    corrected.push({ oldText: fixed, newText: e.newText });
+  }
+  return corrected;
+}
+function normalizeEditToolParams(params) {
+  if (!params || typeof params !== "object") return null;
+  const p = params;
+  const pathVal = typeof p.path === "string" ? p.path : "";
+  const edits = Array.isArray(p.edits) ? [...p.edits] : [];
+  if (typeof p.oldText === "string" && typeof p.newText === "string") {
+    edits.push({ oldText: p.oldText, newText: p.newText });
+  }
+  if (edits.length === 0) return null;
+  for (const e of edits) {
+    if (typeof e.oldText !== "string" || typeof e.newText !== "string") return null;
+  }
+  return { path: pathVal, edits };
+}
+function isEditNotFoundError(message) {
+  return /could not find/i.test(message);
+}
+const KB = DEFAULT_MAX_BYTES / 1024;
+const SANDBOX_TOOL_OVERRIDES = {
+  read: {
+    description: `Read UTF-8 text from a file in the in-memory project at ${SANDBOX_PROJECT_ROOT}. This workspace is text-only for tool purposes (no image attachments). Output is truncated to ${SANDBOX_READ_MAX_LINES} lines or ${KB}KB (whichever is hit first). Use offset/limit for large files. When you need the full file, continue with offset until complete.`
+  },
+  write: {
+    description: `Create or overwrite a UTF-8 text file under ${SANDBOX_PROJECT_ROOT}. Parent directories are created as needed. Use for **new files** or **complete file rewrites**; prefer **edit** for partial changes to existing files.`
+  },
+  edit: {
+    description: `Apply exact search-and-replace edits to an existing file under ${SANDBOX_PROJECT_ROOT}. Each \`oldText\` must appear **exactly once** in the **original** file before edits are applied. CRITICAL: Include **at least 3 lines of surrounding context** in each \`oldText\` so it uniquely identifies one occurrence — e.g. the full CSS rule block (selector + braces), not a single property line when that value repeats. Prefer **edit** over bash/sed for file changes.`
+  },
+  ls: {
+    description: `List directory contents in the virtual project at ${SANDBOX_PROJECT_ROOT}. Returns entries sorted alphabetically, with '/' suffix for directories. Includes dotfiles. Output is truncated to ${SANDBOX_LIMITS.lsMaxEntries} entries or ${KB}KB (whichever is hit first).`
+  },
+  find: {
+    description: `Search for files by glob pattern under the in-memory project at ${SANDBOX_PROJECT_ROOT}. Returns matching file paths relative to the search directory. There is no .gitignore in this sandbox — every generated file is visible. Output is truncated to ${SANDBOX_LIMITS.findMaxResults} results or ${KB}KB (whichever is hit first).`
+  },
+  grep: {
+    description: `Search file contents in the virtual project workspace using ripgrep-style search (just-bash \`rg\`). Returns matching lines with file paths and line numbers. Only the in-memory design files under ${SANDBOX_PROJECT_ROOT} exist — there is no .gitignore or host filesystem. Output is truncated to ${SANDBOX_LIMITS.grepDefaultMatchLimit} matches or ${KB}KB (whichever is hit first). Long lines are truncated to ${SANDBOX_LIMITS.grepMaxLineLength} chars.`
+  }
+};
+function toProjectRelative(absPath) {
+  if (!absPath.startsWith(`${SANDBOX_PROJECT_ROOT}/`)) return null;
+  return absPath.slice(SANDBOX_PROJECT_ROOT.length + 1);
+}
+async function emitDesignFileIfNeeded(absPath, bash, onDesignFile) {
+  const rel = toProjectRelative(absPath);
+  if (!rel) return;
+  try {
+    const st = await bash.fs.stat(absPath);
+    if (!st.isFile) return;
+    const content = await bash.fs.readFile(absPath, "utf8");
+    onDesignFile(rel, content);
+  } catch {
+  }
+}
+function resolveVirtualPath(relativeOrAbsolute, cwd) {
+  const raw = (relativeOrAbsolute ?? ".").trim() || ".";
+  if (path.posix.isAbsolute(raw)) {
+    return path.posix.normalize(raw);
+  }
+  return path.posix.resolve(cwd, raw);
+}
+function shellSingleQuote(s) {
+  return `'${s.replace(/'/g, `'\\''`)}'`;
+}
+function createVirtualGrepTool(bash, sessionCwd) {
+  const base = createGrepToolDefinition(sessionCwd);
+  return {
+    ...base,
+    ...SANDBOX_TOOL_OVERRIDES.grep,
+    async execute(_toolCallId, params, signal, _onUpdate, _ctx) {
+      const { pattern, path: pathArg, glob: globPat, ignoreCase, literal, context, limit } = params;
+      if (signal?.aborted) {
+        throw new Error("Operation aborted");
+      }
+      const searchPath = resolveVirtualPath(pathArg, sessionCwd);
+      try {
+        await bash.fs.stat(searchPath);
+      } catch {
+        return {
+          content: [{ type: "text", text: `Path not found: ${searchPath}` }],
+          details: void 0
+        };
+      }
+      const effectiveLimit = Math.max(1, limit ?? SANDBOX_LIMITS.grepDefaultMatchLimit);
+      const contextLines = context && context > 0 ? context : 0;
+      const argv = ["rg", "-nH"];
+      if (ignoreCase) argv.push("--ignore-case");
+      if (literal) argv.push("--fixed-strings");
+      if (contextLines > 0) argv.push("-C", String(contextLines));
+      const g = globPat?.trim();
+      if (g) {
+        argv.push("--glob", shellSingleQuote(g));
+      }
+      argv.push(shellSingleQuote(pattern), shellSingleQuote(searchPath));
+      const cmd = argv.join(" ");
+      const result = await bash.exec(cmd, { signal: signal ?? void 0 });
+      if (signal?.aborted) {
+        throw new Error("Operation aborted");
+      }
+      if (result.exitCode !== 0 && result.exitCode !== 1) {
+        const errText = [result.stderr, result.stdout].filter(Boolean).join("\n").trim();
+        return {
+          content: [
+            { type: "text", text: errText || `rg failed with exit code ${result.exitCode}` }
+          ],
+          details: void 0
+        };
+      }
+      const rawOut = (result.stdout ?? "").replace(/\r\n/g, "\n").trimEnd();
+      const stderrTrim = (result.stderr ?? "").trim();
+      if (result.exitCode === 1 && !rawOut && stderrTrim) {
+        return {
+          content: [{ type: "text", text: stderrTrim }],
+          details: void 0
+        };
+      }
+      if (!rawOut) {
+        return {
+          content: [{ type: "text", text: "No matches found" }],
+          details: void 0
+        };
+      }
+      const lines = rawOut.split("\n");
+      const matchLineRe = /^(.+):(\d+):/;
+      let matchCount = 0;
+      let matchLimitReached = false;
+      let linesTruncated = false;
+      const kept = [];
+      for (const line of lines) {
+        if (matchLineRe.test(line)) {
+          if (matchCount >= effectiveLimit) {
+            matchLimitReached = true;
+            break;
+          }
+          matchCount++;
+        }
+        const { text: truncated, wasTruncated } = truncateLine(line, SANDBOX_LIMITS.grepMaxLineLength);
+        if (wasTruncated) linesTruncated = true;
+        kept.push(truncated);
+      }
+      let output = kept.join("\n");
+      const truncation = truncateHead(output, { maxLines: Number.MAX_SAFE_INTEGER });
+      output = truncation.content;
+      const details = {};
+      const notices = [];
+      if (matchLimitReached) {
+        notices.push(
+          `${effectiveLimit} matches limit reached. Use limit=${effectiveLimit * 2} for more, or refine pattern`
+        );
+        details.matchLimitReached = effectiveLimit;
+      }
+      if (truncation.truncated) {
+        notices.push(`${formatSize(DEFAULT_MAX_BYTES)} limit reached`);
+        details.truncation = truncation;
+      }
+      if (linesTruncated) {
+        notices.push(
+          `Some lines truncated to ${SANDBOX_LIMITS.grepMaxLineLength} chars. Use read tool to see full lines`
+        );
+        details.linesTruncated = true;
+      }
+      if (notices.length > 0) {
+        output += `
 
-## Internal Context Document (system-generated synthesis)
-Use this derived context as an interpretation aid for hypothesis generation. It is grounded in the user inputs but may contain labeled inferences; keep final hypotheses anchored to the specification.
+[${notices.join(". ")}]`;
+      }
+      return {
+        content: [{ type: "text", text: output }],
+        details: Object.keys(details).length > 0 ? details : void 0
+      };
+    }
+  };
+}
+function resolveSandboxPathForSession(relativeOrAbsolute, cwd) {
+  return resolveVirtualPath(relativeOrAbsolute, cwd);
+}
+function createSandboxToolContext(bash, onDesignFile) {
+  return {
+    bash,
+    sessionCwd: SANDBOX_PROJECT_ROOT,
+    pathsSeenBeforeEdit: /* @__PURE__ */ new Set(),
+    onDesignFile
+  };
+}
+function buildSandboxedReadTool(ctx) {
+  const { bash, sessionCwd, pathsSeenBeforeEdit } = ctx;
+  const readInner = createReadToolDefinition(sessionCwd, {
+    autoResizeImages: false,
+    operations: {
+      readFile: async (absolutePath) => {
+        const text = await bash.fs.readFile(absolutePath, "utf8");
+        return Buffer.from(text, "utf8");
+      },
+      access: async (absolutePath) => {
+        const ok = await bash.fs.exists(absolutePath);
+        if (!ok) throw new Error("ENOENT");
+      }
+    }
+  });
+  const read = {
+    ...readInner,
+    ...SANDBOX_TOOL_OVERRIDES.read,
+    execute: async (toolCallId, params, signal, onUpdate, extCtx) => {
+      const result = await readInner.execute(toolCallId, params, signal, onUpdate, extCtx);
+      const rawPath = params != null && typeof params === "object" && "path" in params && typeof params.path === "string" ? params.path : "";
+      if (rawPath) {
+        pathsSeenBeforeEdit.add(resolveSandboxPathForSession(rawPath, sessionCwd));
+      }
+      return result;
+    }
+  };
+  return read;
+}
+function buildSandboxedWriteTool(ctx) {
+  const { bash, sessionCwd, pathsSeenBeforeEdit, onDesignFile } = ctx;
+  const writeInner = createWriteToolDefinition(sessionCwd, {
+    operations: {
+      mkdir: async (dir) => {
+        await bash.fs.mkdir(dir, { recursive: true });
+      },
+      writeFile: async (absolutePath, content) => {
+        await bash.fs.mkdir(path.posix.dirname(absolutePath), { recursive: true });
+        await bash.fs.writeFile(absolutePath, content, "utf8");
+        await emitDesignFileIfNeeded(absolutePath, bash, onDesignFile);
+      }
+    }
+  });
+  const write = {
+    ...writeInner,
+    ...SANDBOX_TOOL_OVERRIDES.write,
+    execute: async (toolCallId, params, signal, onUpdate, extCtx) => {
+      const result = await writeInner.execute(toolCallId, params, signal, onUpdate, extCtx);
+      const rawPath = params != null && typeof params === "object" && "path" in params && typeof params.path === "string" ? params.path : "";
+      if (rawPath) {
+        pathsSeenBeforeEdit.add(resolveSandboxPathForSession(rawPath, sessionCwd));
+      }
+      return result;
+    }
+  };
+  return write;
+}
+function buildSandboxedEditTool(ctx) {
+  const { bash, sessionCwd, pathsSeenBeforeEdit, onDesignFile } = ctx;
+  const editInner = createEditToolDefinition(sessionCwd, {
+    operations: {
+      readFile: async (absolutePath) => {
+        const text = await bash.fs.readFile(absolutePath, "utf8");
+        return Buffer.from(text, "utf8");
+      },
+      writeFile: async (absolutePath, content) => {
+        await bash.fs.mkdir(path.posix.dirname(absolutePath), { recursive: true });
+        await bash.fs.writeFile(absolutePath, content, "utf8");
+        await emitDesignFileIfNeeded(absolutePath, bash, onDesignFile);
+      },
+      access: async (absolutePath) => {
+        const ok = await bash.fs.exists(absolutePath);
+        if (!ok) throw new Error("ENOENT");
+      }
+    }
+  });
+  const edit = {
+    ...editInner,
+    ...SANDBOX_TOOL_OVERRIDES.edit,
+    execute: async (toolCallId, params, signal, onUpdate, extCtx) => {
+      const rawPath = params != null && typeof params === "object" && "path" in params && typeof params.path === "string" ? params.path : "";
+      const abs = resolveSandboxPathForSession(rawPath || ".", sessionCwd);
+      const fileExists = await bash.fs.exists(abs);
+      if (fileExists && !pathsSeenBeforeEdit.has(abs)) {
+        throw new Error(
+          `You must read "${rawPath}" before editing it. Use the read tool first to see the current file content.`
+        );
+      }
+      try {
+        return await editInner.execute(toolCallId, params, signal, onUpdate, extCtx);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!isEditNotFoundError(msg)) throw err;
+        const normalized = normalizeEditToolParams(params);
+        if (!normalized) throw err;
+        let fileContent;
+        try {
+          fileContent = await bash.fs.readFile(abs, "utf8");
+        } catch {
+          throw err;
+        }
+        const diagnostics = [];
+        const corrected = attemptMatchCascade(fileContent, normalized.edits, diagnostics);
+        if (!corrected) throw err;
+        const retryParams = {
+          path: normalized.path,
+          edits: corrected
+        };
+        try {
+          return await editInner.execute(toolCallId, retryParams, signal, onUpdate, extCtx);
+        } catch {
+          throw err;
+        }
+      }
+    }
+  };
+  return edit;
+}
+function buildSandboxedLsTool(ctx) {
+  const { bash, sessionCwd } = ctx;
+  const lsInner = createLsToolDefinition(sessionCwd, {
+    operations: {
+      exists: (absolutePath) => bash.fs.exists(absolutePath),
+      stat: async (absolutePath) => {
+        const st = await bash.fs.stat(absolutePath);
+        return { isDirectory: () => st.isDirectory };
+      },
+      readdir: async (absolutePath) => bash.fs.readdir(absolutePath)
+    }
+  });
+  const ls = { ...lsInner, ...SANDBOX_TOOL_OVERRIDES.ls };
+  return ls;
+}
+function buildSandboxedFindTool(ctx) {
+  const { bash, sessionCwd } = ctx;
+  const findInner = createFindToolDefinition(sessionCwd, {
+    operations: {
+      exists: (absolutePath) => bash.fs.exists(absolutePath),
+      glob: async (pattern, searchPath, options) => {
+        const limit = options.limit;
+        const ignore = options.ignore ?? [];
+        const prefix = searchPath.endsWith("/") ? searchPath : `${searchPath}/`;
+        const allPaths = bash.fs.getAllPaths();
+        const out = [];
+        for (const abs of allPaths) {
+          if (out.length >= limit) break;
+          if (abs === searchPath) continue;
+          if (!abs.startsWith(prefix)) continue;
+          let st;
+          try {
+            st = await bash.fs.stat(abs);
+          } catch {
+            continue;
+          }
+          if (!st.isFile) continue;
+          const rel = abs.startsWith(prefix) ? abs.slice(prefix.length) : abs;
+          if (ignore.some((ig) => minimatch(rel, ig, { dot: true }))) continue;
+          if (!minimatch(rel, pattern, { dot: true })) continue;
+          out.push(abs);
+        }
+        return out;
+      }
+    }
+  });
+  const find = { ...findInner, ...SANDBOX_TOOL_OVERRIDES.find };
+  return find;
+}
+function buildSandboxedGrepTool(ctx) {
+  return createVirtualGrepTool(ctx.bash, ctx.sessionCwd);
+}
+const bashParams = Type.Object({
+  command: Type.String({
+    description: "Shell command in the just-bash sandbox (cwd is the project root). No package managers or host binaries — only built-in commands (e.g. rg, grep, sed, awk, jq, cat, find). Prefer read/write/edit tools for files; use bash for text pipelines or when no dedicated tool fits."
+  })
+});
+function buildSandboxedBashTool(ctx) {
+  return createSandboxBashTool(ctx.bash, ctx.onDesignFile);
+}
+function createSandboxBashTool(bash, onFile) {
+  return {
+    name: "bash",
+    label: "bash",
+    description: `Run a shell command in the just-bash virtual shell at ${SANDBOX_PROJECT_ROOT} (your cwd). This is not a full Linux machine: no npm, node, python, or external binaries — only just-bash built-ins (text tools like rg, grep, sed, awk, jq, pipes). For creating or editing design files, prefer the \`write\` and \`edit\` tools; use \`read\` instead of \`cat\`. Use bash for multi-step text pipelines or utilities when no dedicated tool fits.`,
+    parameters: bashParams,
+    async execute(_toolCallId, params, signal, _onUpdate, _ctx) {
+      const { command } = params;
+      const before = await snapshotDesignFiles(bash);
+      const result = await bash.exec(command, { signal: signal ?? void 0 });
+      const after = await snapshotDesignFiles(bash);
+      for (const [rel, content] of after) {
+        if (before.get(rel) !== content) {
+          onFile(rel, content);
+        }
+      }
+      const merged = [result.stdout, result.stderr].filter(Boolean).join("\n");
+      const prefix = result.exitCode !== 0 ? `[exit ${result.exitCode}]
+` : "";
+      const body = merged || (result.exitCode !== 0 ? "(no stdout/stderr)" : "(no output)");
+      const full = prefix + body;
+      const text = full.length > SANDBOX_LIMITS.bashToolMaxChars ? `${full.slice(0, SANDBOX_LIMITS.bashToolMaxChars)}
+[Output truncated at ${SANDBOX_LIMITS.bashToolMaxChars} characters]` : full;
+      return {
+        content: [{ type: "text", text }],
+        details: null
+      };
+    }
+  };
+}
+const SESSION_TAGS$1 = {
+  design: ["design"],
+  evaluation: ["evaluation"],
+  incubation: ["incubation"],
+  "inputs-gen": ["inputs-gen"],
+  "design-system": ["design-system"]
+};
+const tagsCache = /* @__PURE__ */ new Map();
+const defaultSkillTagLookup = async (skill) => {
+  const cached = tagsCache.get(skill.filePath);
+  if (cached) return cached;
+  let body;
+  try {
+    body = await readFile(skill.filePath, "utf8");
+  } catch {
+    tagsCache.set(skill.filePath, []);
+    return [];
+  }
+  const tags = parseTagsFromFrontmatter(body);
+  tagsCache.set(skill.filePath, tags);
+  return tags;
+};
+function parseTagsFromFrontmatter(body) {
+  if (!body.startsWith("---")) return [];
+  const end = body.indexOf("\n---", 3);
+  if (end < 0) return [];
+  const lines = body.slice(3, end).split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const inline = /^tags:\s*\[(.*?)\]\s*$/.exec(line);
+    if (inline?.[1] !== void 0) return splitInlineTagList(inline[1]);
+    if (/^tags:\s*$/.test(line)) {
+      const out = [];
+      for (let j = i + 1; j < lines.length; j++) {
+        const item = /^\s*-\s*(.+?)\s*$/.exec(lines[j]);
+        if (!item) break;
+        out.push(item[1].replace(/^["']|["']$/g, "").trim());
+      }
+      return out;
+    }
+  }
+  return [];
+}
+function splitInlineTagList(inner) {
+  return inner.split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter((s) => s.length > 0);
+}
+class SessionScopedResourceLoader {
+  base;
+  sessionTags;
+  getSkillTags;
+  cachedSkills;
+  constructor(base, options) {
+    this.base = base;
+    this.sessionTags = options.sessionTags ?? SESSION_TAGS$1[options.sessionType];
+    this.getSkillTags = options.getSkillTags ?? defaultSkillTagLookup;
+  }
+  /** Eagerly resolve the filtered skill list. Call once after the base loader's `reload()`. */
+  async refreshSkills() {
+    const { skills, diagnostics } = this.base.getSkills();
+    const allowed = new Set(this.sessionTags);
+    const kept = [];
+    for (const skill of skills) {
+      const tags = await this.getSkillTags(skill);
+      if (tags.length === 0) continue;
+      if (tags.some((t) => allowed.has(t))) {
+        kept.push(skill);
+      }
+    }
+    this.cachedSkills = { skills: kept, diagnostics };
+  }
+  /**
+   * Replace each cached skill's `filePath` and `baseDir` with VFS-relative
+   * paths so Pi's `formatSkillsForPrompt` prints sandbox-resolvable
+   * `<location>` values. Call this after `refreshSkills()` and after
+   * seeding the skills into the just-bash VFS.
+   *
+   * Skills not present in the remapping are left unchanged (their original
+   * paths remain real-disk and `read` against them will fail inside the
+   * sandbox by design).
+   */
+  applyPathRemapping(remapping) {
+    if (!this.cachedSkills) {
+      throw new Error(
+        "applyPathRemapping called before refreshSkills() — call refreshSkills first to populate the cached skill list."
+      );
+    }
+    const remapped = this.cachedSkills.skills.map((skill) => {
+      const newFilePath = remapping.filePathByOriginalFilePath.get(skill.filePath);
+      const newBaseDir = remapping.baseDirByOriginalBaseDir.get(skill.baseDir);
+      if (!newFilePath && !newBaseDir) return skill;
+      return {
+        ...skill,
+        ...newFilePath ? { filePath: newFilePath } : {},
+        ...newBaseDir ? { baseDir: newBaseDir } : {}
+      };
+    });
+    this.cachedSkills = { skills: remapped, diagnostics: this.cachedSkills.diagnostics };
+  }
+  getSkills() {
+    return this.cachedSkills ?? this.base.getSkills();
+  }
+  getExtensions() {
+    return this.base.getExtensions();
+  }
+  getPrompts() {
+    return this.base.getPrompts();
+  }
+  getThemes() {
+    return this.base.getThemes();
+  }
+  getAgentsFiles() {
+    return this.base.getAgentsFiles();
+  }
+  getSystemPrompt() {
+    return this.base.getSystemPrompt();
+  }
+  getAppendSystemPrompt() {
+    return this.base.getAppendSystemPrompt();
+  }
+  extendResources(paths) {
+    this.base.extendResources(paths);
+  }
+  async reload() {
+    await this.base.reload();
+    await this.refreshSkills();
+  }
+}
+const GOOGLE_FONTS_CSS_HOSTS = ["fonts.googleapis.com"];
+const GOOGLE_FONTS_ASSET_HOSTS = ["fonts.gstatic.com"];
+function parseUrlHost(ref) {
+  const raw = ref.trim();
+  if (!raw || raw.startsWith("data:")) return null;
+  try {
+    if (raw.startsWith("//")) return new URL(`https:${raw}`).hostname.toLowerCase();
+    if (/^https?:\/\//i.test(raw)) return new URL(raw).hostname.toLowerCase();
+    return null;
+  } catch {
+    return null;
+  }
+}
+function isAllowedGoogleFontStylesheetUrl(ref) {
+  const host = parseUrlHost(ref);
+  if (!host) return false;
+  return GOOGLE_FONTS_CSS_HOSTS.some((h) => host === h);
+}
+function isAllowedGoogleFontAssetHost(ref) {
+  const host = parseUrlHost(ref);
+  if (!host) return false;
+  return GOOGLE_FONTS_ASSET_HOSTS.some((h) => host === h);
+}
+function isAllowedGoogleFontsExternalRef(ref) {
+  return isAllowedGoogleFontStylesheetUrl(ref) || isAllowedGoogleFontAssetHost(ref);
+}
+function resolveVirtualAssetPath$1(ref, htmlFilePath) {
+  const clean = ref.split("#")[0].split("?")[0].trim();
+  if (!clean) return void 0;
+  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith("data:")) return void 0;
+  if (/^(mailto|javascript|tel):/i.test(clean)) return void 0;
+  let joined;
+  if (clean.startsWith("/")) {
+    joined = clean.slice(1);
+  } else {
+    const lastSlash = htmlFilePath.lastIndexOf("/");
+    const dir = lastSlash >= 0 ? htmlFilePath.slice(0, lastSlash) : "";
+    joined = dir ? `${dir}/${clean}` : clean;
+  }
+  const segments = joined.split("/").filter((s) => s.length > 0 && s !== ".");
+  const out = [];
+  for (const seg of segments) {
+    if (seg === "..") {
+      out.pop();
+    } else {
+      out.push(seg);
+    }
+  }
+  return out.join("/");
+}
+function classifyAssetRef(ref) {
+  const clean = ref.split("#")[0].split("?")[0].trim();
+  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith("data:")) return "external";
+  if (clean.startsWith("/")) return "absolute";
+  return "relative";
+}
+function extractCssImportUrls(css) {
+  const urls = [];
+  const urlParen = /@import\s+url\s*\(\s*["']?([^"')]+)["']?\s*\)\s*;?/gi;
+  const quoted = /@import\s+["']([^"']+)["']\s*;?/gi;
+  let m;
+  while ((m = urlParen.exec(css)) !== null) {
+    const u = m[1]?.trim();
+    if (u) urls.push(u);
+  }
+  while ((m = quoted.exec(css)) !== null) {
+    const u = m[1]?.trim();
+    if (u) urls.push(u);
+  }
+  return urls;
+}
+async function validateHtmlWorkspaceContent(content, htmlPath, hasProjectFile2) {
+  const issues = [];
+  if (!/<!DOCTYPE\s+html/i.test(content)) {
+    issues.push("Missing DOCTYPE declaration");
+  }
+  for (const tag of ["html", "head", "body"]) {
+    if (!new RegExp(`<${tag}[\\s>]`, "i").test(content)) {
+      issues.push(`Missing <${tag}> tag`);
+    }
+  }
+  const scriptOpen = (content.match(/<script/gi) ?? []).length;
+  const scriptClose = (content.match(/<\/script>/gi) ?? []).length;
+  if (scriptOpen !== scriptClose) {
+    issues.push(`Unbalanced <script> tags: ${scriptOpen} opening, ${scriptClose} closing`);
+  }
+  const styleOpen = (content.match(/<style/gi) ?? []).length;
+  const styleClose = (content.match(/<\/style>/gi) ?? []).length;
+  if (styleOpen !== styleClose) {
+    issues.push(`Unbalanced <style> tags: ${styleOpen} opening, ${styleClose} closing`);
+  }
+  const stylesheetRefs = [
+    ...content.matchAll(/<link\s+[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*\/?>/gi)
+  ].map((match) => match[1] ?? "");
+  const scriptRefs = [
+    ...content.matchAll(/<script\s+[^>]*src=["']([^"']+)["'][^>]*><\/script>/gi)
+  ].map((match) => match[1] ?? "");
+  for (const ref of stylesheetRefs) {
+    const kind = classifyAssetRef(ref);
+    if (kind === "external") {
+      if (isAllowedGoogleFontStylesheetUrl(ref)) continue;
+      issues.push(`External asset reference found: ${ref}`);
+      continue;
+    }
+    if (kind === "absolute") {
+      issues.push(`Use relative asset paths instead of root-absolute paths: ${ref}`);
+    }
+    const resolved = resolveVirtualAssetPath$1(ref, htmlPath);
+    if (!resolved) continue;
+    if (!await hasProjectFile2(resolved)) {
+      issues.push(`Referenced asset not found in workspace: ${ref}`);
+    }
+  }
+  for (const ref of scriptRefs) {
+    const kind = classifyAssetRef(ref);
+    if (kind === "external") {
+      issues.push(`External asset reference found: ${ref}`);
+      continue;
+    }
+    if (kind === "absolute") {
+      issues.push(`Use relative asset paths instead of root-absolute paths: ${ref}`);
+    }
+    const resolved = resolveVirtualAssetPath$1(ref, htmlPath);
+    if (!resolved) continue;
+    if (!await hasProjectFile2(resolved)) {
+      issues.push(`Referenced asset not found in workspace: ${ref}`);
+    }
+  }
+  for (const styleMatch of content.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)) {
+    const css = styleMatch[1] ?? "";
+    for (const importUrl of extractCssImportUrls(css)) {
+      if (classifyAssetRef(importUrl) !== "external") continue;
+      if (isAllowedGoogleFontsExternalRef(importUrl)) continue;
+      issues.push(`External @import in <style> not allowed: ${importUrl}`);
+    }
+  }
+  return issues;
+}
+async function readProjectFile(bash, rel) {
+  const abs = sandboxProjectAbsPath(rel);
+  try {
+    if (!await bash.fs.exists(abs)) return void 0;
+    const st = await bash.fs.stat(abs);
+    if (!st.isFile) return void 0;
+    return await bash.fs.readFile(abs, "utf8");
+  } catch {
+    return void 0;
+  }
+}
+async function hasProjectFile(bash, rel) {
+  const abs = sandboxProjectAbsPath(rel);
+  try {
+    if (!await bash.fs.exists(abs)) return false;
+    const st = await bash.fs.stat(abs);
+    return st.isFile;
+  } catch {
+    return false;
+  }
+}
+function normalizeError$1(err) {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+const todoWriteSchema = Type.Object({
+  todos: Type.Array(
+    Type.Object({
+      id: Type.String({ description: 'Unique id (e.g. "1", "2").' }),
+      task: Type.String({ description: "Task description." }),
+      status: Type.Union([
+        Type.Literal("pending"),
+        Type.Literal("in_progress"),
+        Type.Literal("completed")
+      ])
+    }),
+    { description: "Full replacement todo list. Always write the complete current state." }
+  )
+});
+function createTodoWriteTool(todoState, onTodos) {
+  return {
+    name: "todo_write",
+    label: "todo_write",
+    description: "Use `todo_write` to record or update your task list. Always provide the complete current state — full replacement, not incremental updates. Todos survive context compaction.",
+    parameters: todoWriteSchema,
+    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
+      const { todos } = params;
+      todoState.current = todos;
+      onTodos(todos);
+      const summary = todos.map((t) => {
+        const icon = t.status === "completed" ? "✓" : t.status === "in_progress" ? "●" : "○";
+        return `${icon} ${t.task}`;
+      }).join("\n");
+      return {
+        content: [{ type: "text", text: `Todo list updated:
+${summary}` }],
+        details: null
+      };
+    }
+  };
+}
+const validateJsSchema = Type.Object({
+  path: Type.String({ description: 'Path of the JS file (e.g. "app.js").' })
+});
+function createValidateJsTool(bash) {
+  return {
+    name: "validate_js",
+    label: "validate_js",
+    description: "Use `validate_js` to check JavaScript syntax with the Node parser. Prefer running it after substantive edits to catch unbalanced braces, stray punctuation, or invalid syntax before the file goes back into the design.",
+    parameters: validateJsSchema,
+    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
+      const { path: path2 } = params;
+      const content = await readProjectFile(bash, path2);
+      if (content === void 0) {
+        return { content: [{ type: "text", text: `File not found: ${path2}` }], details: null };
+      }
+      try {
+        new Script(content, { filename: path2 });
+        return { content: [{ type: "text", text: `${path2}: syntax OK` }], details: null };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: `${path2}: ${normalizeError$1(err)}` }],
+          details: null
+        };
+      }
+    }
+  };
+}
+const validateHtmlSchema = Type.Object({
+  path: Type.String({ description: 'Path of the HTML file (e.g. "index.html").' })
+});
+function createValidateHtmlTool(bash) {
+  return {
+    name: "validate_html",
+    label: "validate_html",
+    description: "Use `validate_html` to run structural checks on an HTML file (DOCTYPE, html/head/body landmarks, balanced script and style tags, local asset references resolve, external refs blocked except the Google Fonts allowlist). Inline CSS and JS are allowed.",
+    parameters: validateHtmlSchema,
+    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
+      const { path: path2 } = params;
+      const content = await readProjectFile(bash, path2);
+      if (content === void 0) {
+        return { content: [{ type: "text", text: `File not found: ${path2}` }], details: null };
+      }
+      const issues = await validateHtmlWorkspaceContent(
+        content,
+        path2,
+        (rel) => hasProjectFile(bash, rel)
+      );
+      const text = issues.length === 0 ? `${path2}: structure OK` : `${path2}: ${issues.length} issue(s)
+${issues.map((i) => `- ${i}`).join("\n")}`;
+      return { content: [{ type: "text", text }], details: null };
+    }
+  };
+}
+class ToolSurfaceError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ToolSurfaceError";
+  }
+}
+class ToolSurface {
+  handlers = [];
+  /** Add one handler. Returns `this` for chaining. */
+  add(handler) {
+    this.handlers.push(handler);
+    return this;
+  }
+  /** Add many handlers. Returns `this` for chaining. */
+  addAll(handlers) {
+    for (const h of handlers) this.handlers.push(h);
+    return this;
+  }
+  /**
+   * Validate the surface against upstream Pi and produce session inputs.
+   *
+   * Throws `ToolSurfaceError` on any of:
+   *   - Two handlers with the same name.
+   *   - A `sandboxed-pi` or `excluded-pi` handler whose name is not in
+   *     upstream Pi's `allToolNames`.
+   *   - A Pi built-in with no handler at all.
+   */
+  build() {
+    this.assertUniqueNames();
+    const upstreamPiNames = readUpstreamPiBuiltinNames();
+    this.assertPiHandlersMatchUpstream(upstreamPiNames);
+    const registrations = [];
+    const allowlist = [];
+    for (const handler of this.handlers) {
+      switch (handler.kind) {
+        case "sandboxed-pi": {
+          const tool = handler.build();
+          if (tool.name !== handler.name) {
+            throw new ToolSurfaceError(
+              `Sandboxed Pi handler for '${handler.name}' produced a tool whose definition name is '${tool.name}'. Names must match — Pi resolves the override by name and the allowlist filters by name.`
+            );
+          }
+          registrations.push((api) => api.registerTool(tool));
+          allowlist.push(handler.name);
+          break;
+        }
+        case "excluded-pi":
+          break;
+        case "auto-designer-extension":
+          registrations.push(handler.register);
+          allowlist.push(handler.name);
+          break;
+      }
+    }
+    const extensionFactory = (api) => {
+      for (const register of registrations) register(api);
+    };
+    return { extensionFactory, allowlist };
+  }
+  assertUniqueNames() {
+    const seen = /* @__PURE__ */ new Set();
+    for (const h of this.handlers) {
+      if (seen.has(h.name)) {
+        throw new ToolSurfaceError(
+          `Duplicate tool registration: '${h.name}' was added twice. Tool names must be unique across sandboxed-pi / excluded-pi / auto-designer-extension handlers.`
+        );
+      }
+      seen.add(h.name);
+    }
+  }
+  assertPiHandlersMatchUpstream(upstreamPiNames) {
+    const handledPiNames = /* @__PURE__ */ new Set();
+    for (const h of this.handlers) {
+      if (h.kind !== "sandboxed-pi" && h.kind !== "excluded-pi") continue;
+      if (!upstreamPiNames.has(h.name)) {
+        throw new ToolSurfaceError(
+          `Tool surface declares a Pi handler for '${h.name}', but upstream Pi (` + [...upstreamPiNames].sort().join(", ") + `) does not export a built-in by that name. Either remove the stale registration or correct the name.`
+        );
+      }
+      handledPiNames.add(h.name);
+    }
+    const missing = [...upstreamPiNames].filter((name) => !handledPiNames.has(name));
+    if (missing.length > 0) {
+      throw new ToolSurfaceError(
+        `Upstream Pi exposes built-in tool(s) with no disposition in this auto-designer tool surface: ${missing.map((n) => `'${n}'`).join(", ")}.
 
+For each missing tool, add ONE of the following to the surface in src/host.ts:
+  • { kind: 'sandboxed-pi', name: '<n>', build: () => <wrapped-tool> }
+      — a wrapped Pi tool that talks to the just-bash VFS.
+  • { kind: 'excluded-pi', name: '<n>', reason: '<why-not>' }
+      — explicitly deny this tool to the model.
+
+This error means a Pi upgrade introduced a new built-in. Until you decide which path to take, sessions will not start — by design.`
+      );
+    }
+  }
+}
+let cachedUpstreamNames;
+function readUpstreamPiBuiltinNames() {
+  if (cachedUpstreamNames) return cachedUpstreamNames;
+  const piEntryUrl = import.meta.resolve("@mariozechner/pi-coding-agent");
+  const piEntry = fileURLToPath(piEntryUrl);
+  const piPkgDistDir = dirname(piEntry);
+  const toolsIndexPath = resolve(piPkgDistDir, "core/tools/index.js");
+  let source;
+  try {
+    source = readFileSync(toolsIndexPath, "utf8");
+  } catch (cause) {
+    throw new ToolSurfaceError(
+      `Could not read upstream Pi tools index at ${toolsIndexPath}. The package layout may have changed in this Pi version — update readUpstreamPiBuiltinNames() in src/internal/pi-tool-surface.ts. Underlying error: ${cause.message}`
+    );
+  }
+  const match = source.match(/export\s+const\s+allToolNames\s*=\s*new\s+Set\(\[([^\]]*)\]\)/);
+  if (!match) {
+    throw new ToolSurfaceError(
+      `Could not locate the \`allToolNames\` Set literal in ${toolsIndexPath}. Pi may have changed how it exposes its tool inventory — update readUpstreamPiBuiltinNames() in src/internal/pi-tool-surface.ts.`
+    );
+  }
+  const names = match[1].split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter((s) => s.length > 0);
+  cachedUpstreamNames = new Set(names);
+  return cachedUpstreamNames;
+}
+const DEFAULT_COMPLETION_BUDGET = {
+  minCompletion: 1024,
+  absoluteCeiling: 32768,
+  margins: {
+    incubate: 8192,
+    compaction: 8192,
+    agent_turn: 16384,
+    default: 8192
+  }
+};
+function completionBudgetFromPromptTokens$1(contextWindow, estimatedPromptTokens, purpose, productCap, config2 = DEFAULT_COMPLETION_BUDGET) {
+  const cw = Math.max(4096, contextWindow);
+  const margin = config2.margins[purpose];
+  const prompt = Math.max(0, estimatedPromptTokens);
+  const raw = cw - prompt - margin;
+  if (raw < config2.minCompletion) return void 0;
+  let b = Math.min(raw, config2.absoluteCeiling);
+  if (productCap != null) b = Math.min(b, productCap);
+  return Math.max(config2.minCompletion, b);
+}
+function maxCompletionBudgetForContextWindow(contextWindow, productCap, config2 = DEFAULT_COMPLETION_BUDGET) {
+  const SESSION_CEILING_FALLBACK_MARGIN = 8192;
+  const capped = completionBudgetFromPromptTokens$1(contextWindow, 0, "default", productCap, config2);
+  if (capped != null) return capped;
+  return Math.max(4096, Math.max(4096, contextWindow) - SESSION_CEILING_FALLBACK_MARGIN);
+}
+const ZEROED_COST = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+const DEFAULT_OPENROUTER_CONTEXT_WINDOW = 131072;
+const DEFAULT_LMSTUDIO_CONTEXT_WINDOW = 32768;
+function buildModel(opts) {
+  const reasoning = !!opts.thinkingLevel && opts.thinkingLevel !== "off";
+  const cwDefault = opts.provider.id === "lmstudio" ? DEFAULT_LMSTUDIO_CONTEXT_WINDOW : DEFAULT_OPENROUTER_CONTEXT_WINDOW;
+  const contextWindow = Math.max(4096, opts.contextWindow ?? cwDefault);
+  const maxTokens = maxCompletionBudgetForContextWindow(
+    contextWindow,
+    opts.maxOutputTokens,
+    opts.budgetConfig ?? DEFAULT_COMPLETION_BUDGET
+  );
+  if (opts.provider.id === "lmstudio") {
+    return {
+      id: opts.modelId,
+      name: opts.modelId,
+      api: "openai-completions",
+      provider: "lmstudio",
+      baseUrl: `${opts.provider.baseUrl}/v1`,
+      reasoning,
+      input: ["text"],
+      cost: ZEROED_COST,
+      contextWindow,
+      maxTokens
+    };
+  }
+  return {
+    id: opts.modelId,
+    name: opts.modelId,
+    api: "openai-completions",
+    provider: "openrouter",
+    baseUrl: opts.provider.baseUrl,
+    reasoning,
+    input: ["text"],
+    cost: ZEROED_COST,
+    contextWindow,
+    maxTokens
+  };
+}
+function lastAssistant(messages) {
+  if (!Array.isArray(messages)) return void 0;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m && typeof m === "object" && m.role === "assistant") {
+      return m;
+    }
+  }
+  return void 0;
+}
+function subscribeNarrowBridge(session, opts) {
+  const toolStartMs = /* @__PURE__ */ new Map();
+  return session.subscribe((event) => {
+    switch (event.type) {
+      case "turn_start":
+        return void opts.onEvent({ type: "turn_start" });
+      case "turn_end":
+        return void opts.onEvent({ type: "turn_end" });
+      case "tool_execution_start": {
+        const e = event;
+        toolStartMs.set(e.toolCallId, Date.now());
+        return void opts.onEvent({
+          type: "tool_execution_start",
+          toolCallId: e.toolCallId,
+          toolName: e.toolName
+        });
+      }
+      case "tool_execution_end": {
+        const e = event;
+        const start = toolStartMs.get(e.toolCallId);
+        toolStartMs.delete(e.toolCallId);
+        return void opts.onEvent({
+          type: "tool_execution_end",
+          toolCallId: e.toolCallId,
+          toolName: e.toolName,
+          durationMs: start ? Date.now() - start : 0
+        });
+      }
+      case "compaction_start": {
+        const e = event;
+        return void opts.onEvent({ type: "compaction_start", reason: e.reason });
+      }
+      case "compaction_end": {
+        const e = event;
+        return void opts.onEvent({
+          type: "compaction_end",
+          reason: e.reason,
+          aborted: e.aborted,
+          willRetry: e.willRetry,
+          errorMessage: e.errorMessage,
+          summaryChars: e.result?.summary.length
+        });
+      }
+      case "agent_end": {
+        const e = event;
+        const last = lastAssistant(e.messages);
+        const aborted = last?.stopReason === "aborted";
+        const errorMessage = last?.stopReason === "error" ? last?.errorMessage : void 0;
+        return void opts.onEvent({ type: "agent_end", aborted, errorMessage });
+      }
+      default:
+        return;
+    }
+  });
+}
+const APP_RETRYABLE_UPSTREAM_PATTERN = /upstream|5\d{2}|NaN|provider.*error|gateway/i;
+function isAppRetryableUpstreamError(message) {
+  if (!message?.trim()) return false;
+  if (/insufficient credits|out of credits|credits are exhausted|402/i.test(message)) return false;
+  return APP_RETRYABLE_UPSTREAM_PATTERN.test(message);
+}
+function sleepMs(ms) {
+  return new Promise((resolve2) => {
+    setTimeout(resolve2, ms);
+  });
+}
+const SANDBOX_SKILLS_SUBDIR = ".skills";
+const SANDBOX_SKILLS_DIR = `${SANDBOX_PROJECT_ROOT}/${SANDBOX_SKILLS_SUBDIR}`;
+function vfsSkillFilePath(skillName, fileName = "SKILL.md") {
+  const safeName = path.posix.basename(skillName);
+  const safeFile = path.posix.basename(fileName);
+  return `${SANDBOX_SKILLS_DIR}/${safeName}/${safeFile}`;
+}
+function vfsSkillBaseDir(skillName) {
+  return `${SANDBOX_SKILLS_DIR}/${path.posix.basename(skillName)}`;
+}
+async function seedSkillsIntoSandbox(bash, skills) {
+  const filePathByOriginalFilePath = /* @__PURE__ */ new Map();
+  const baseDirByOriginalBaseDir = /* @__PURE__ */ new Map();
+  for (const skill of skills) {
+    let body;
+    try {
+      body = await readFile(skill.filePath, "utf8");
+    } catch {
+      continue;
+    }
+    const vfsFile = vfsSkillFilePath(skill.name, path.posix.basename(skill.filePath));
+    const vfsDir = vfsSkillBaseDir(skill.name);
+    await bash.fs.mkdir(vfsDir, { recursive: true });
+    await bash.fs.writeFile(vfsFile, body, "utf8");
+    filePathByOriginalFilePath.set(skill.filePath, vfsFile);
+    baseDirByOriginalBaseDir.set(skill.baseDir, vfsDir);
+  }
+  return { filePathByOriginalFilePath, baseDirByOriginalBaseDir };
+}
+const MAX_APP_UPSTREAM_RETRIES = 2;
+async function runPromptWithUpstreamRetries(session, userPrompt) {
+  await session.prompt(userPrompt, { expandPromptTemplates: false });
+  let attempts = 0;
+  while (attempts < MAX_APP_UPSTREAM_RETRIES) {
+    const messages = session.agent.state.messages;
+    const lastAssistant2 = lastAssistantMessage(messages);
+    if (!lastAssistant2 || lastAssistant2.stopReason !== "error") return;
+    if (!isAppRetryableUpstreamError(lastAssistant2.errorMessage)) return;
+    if (session.retryAttempt !== 0) return;
+    attempts += 1;
+    if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
+      session.agent.state.messages = messages.slice(0, -1);
+    }
+    await sleepMs(2e3 * 2 ** (attempts - 1));
+    await session.agent.continue();
+  }
+}
+function lastAssistantMessage(messages) {
+  if (!Array.isArray(messages)) return void 0;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m && typeof m === "object" && m.role === "assistant") {
+      return m;
+    }
+  }
+  return void 0;
+}
+async function createSession(opts) {
+  const bash = createAgentBashSandbox({ seedFiles: opts.seedFiles });
+  const todoState = { current: [] };
+  const emittedFilePaths = /* @__PURE__ */ new Set();
+  const onFile = (path2, content) => {
+    emittedFilePaths.add(path2);
+    opts.onFile?.(path2, content);
+  };
+  const onTodos = (todos) => {
+    todoState.current = todos;
+    opts.onTodos?.(todos);
+  };
+  const sandboxCtx = createSandboxToolContext(bash, onFile);
+  const surface = new ToolSurface().add({ kind: "sandboxed-pi", name: "read", build: () => buildSandboxedReadTool(sandboxCtx) }).add({ kind: "sandboxed-pi", name: "write", build: () => buildSandboxedWriteTool(sandboxCtx) }).add({ kind: "sandboxed-pi", name: "edit", build: () => buildSandboxedEditTool(sandboxCtx) }).add({ kind: "sandboxed-pi", name: "ls", build: () => buildSandboxedLsTool(sandboxCtx) }).add({ kind: "sandboxed-pi", name: "find", build: () => buildSandboxedFindTool(sandboxCtx) }).add({ kind: "sandboxed-pi", name: "grep", build: () => buildSandboxedGrepTool(sandboxCtx) }).add({ kind: "sandboxed-pi", name: "bash", build: () => buildSandboxedBashTool(sandboxCtx) }).add({
+    kind: "auto-designer-extension",
+    name: "todo_write",
+    register: (api) => api.registerTool(createTodoWriteTool(todoState, onTodos))
+  }).add({
+    kind: "auto-designer-extension",
+    name: "validate_js",
+    register: (api) => api.registerTool(createValidateJsTool(bash))
+  }).add({
+    kind: "auto-designer-extension",
+    name: "validate_html",
+    register: (api) => api.registerTool(createValidateHtmlTool(bash))
+  });
+  const built = surface.build();
+  const baseLoader = await opts.buildResourceLoader({
+    sessionType: opts.sessionType,
+    extensionFactories: [built.extensionFactory]
+  });
+  const scopedLoader = new SessionScopedResourceLoader(baseLoader, {
+    sessionType: opts.sessionType,
+    getSkillTags: opts.getSkillTags
+  });
+  await scopedLoader.refreshSkills();
+  const seededRemapping = await seedSkillsIntoSandbox(bash, scopedLoader.getSkills().skills);
+  scopedLoader.applyPathRemapping(seededRemapping);
+  const authStorage = AuthStorage.inMemory();
+  if (opts.provider.id === "openrouter") {
+    authStorage.setRuntimeApiKey("openrouter", opts.provider.apiKey);
+  } else {
+    authStorage.setRuntimeApiKey("lmstudio", "local");
+  }
+  const model = buildModel({
+    provider: opts.provider,
+    modelId: opts.modelId,
+    contextWindow: opts.contextWindow,
+    thinkingLevel: opts.thinkingLevel
+  });
+  const { session } = await createAgentSession({
+    authStorage,
+    model,
+    thinkingLevel: opts.thinkingLevel ?? "medium",
+    /**
+     * `tools:` is the explicit allowlist of names the model can call. Every
+     * tool — sandboxed Pi overrides AND auto-designer extensions — was
+     * registered through `pi.registerTool` in the extension factory above
+     * (the canonical pattern documented in extensions.md "Overriding
+     * Built-in Tools" and SDK example 06-extensions.ts). Pi resolves
+     * override-by-name in agent-session.js:_refreshToolRegistry, so the
+     * built-in `read`/`write`/etc. that touch the real disk are replaced
+     * by our VFS-backed versions before the model ever sees them.
+     */
+    tools: [...built.allowlist],
+    sessionManager: SessionManager.inMemory(),
+    cwd: SANDBOX_PROJECT_ROOT,
+    resourceLoader: scopedLoader
+  });
+  const unsubscribe = opts.onEvent ? subscribeNarrowBridge(session, { onEvent: opts.onEvent }) : () => {
+  };
+  if (opts.signal) {
+    opts.signal.addEventListener("abort", () => void session.agent.abort());
+  }
+  let endResult = { aborted: false };
+  const captureUnsub = subscribeNarrowBridge(session, {
+    onEvent: (e) => {
+      if (e.type === "agent_end") {
+        endResult = { aborted: e.aborted, errorMessage: e.errorMessage };
+      }
+    }
+  });
+  let started = false;
+  return {
+    sessionId: session.sessionId,
+    session,
+    abort: async () => {
+      await session.agent.abort();
+    },
+    run: async () => {
+      if (started) throw new Error("SessionHandle.run() is single-shot");
+      started = true;
+      try {
+        const userMessage = `${opts.userPrompt}
+
+[Workspace root: ${SANDBOX_PROJECT_ROOT} — use read, write, edit, ls, find, and grep for files; use bash for shell/commands.]`;
+        await runPromptWithUpstreamRetries(session, userMessage);
+      } finally {
+        unsubscribe();
+        captureUnsub();
+      }
+      const files = await extractDesignFiles(bash);
+      return {
+        files,
+        todos: [...todoState.current],
+        emittedFilePaths: [...emittedFilePaths],
+        aborted: endResult.aborted,
+        errorMessage: endResult.errorMessage
+      };
+    }
+  };
+}
+function createDesignSession(opts) {
+  return createSession({ ...opts, sessionType: "design" });
+}
+function createEvaluationSession(opts) {
+  return createSession({ ...opts, sessionType: "evaluation" });
+}
+function createIncubationSession(opts) {
+  return createSession({ ...opts, sessionType: "incubation" });
+}
+function createInputsGenSession(opts) {
+  return createSession({ ...opts, sessionType: "inputs-gen" });
+}
+function createDesignSystemSession(opts) {
+  return createSession({ ...opts, sessionType: "design-system" });
+}
+const __dirname$1 = dirname(fileURLToPath(import.meta.url));
+function locatePackageRoot() {
+  const candidates = [
+    resolve(__dirname$1, ".."),
+    resolve(process.cwd(), "packages", "auto-designer-pi"),
+    process.cwd()
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(resolve(candidate, "prompts", "_designer-system.md"))) {
+      return candidate;
+    }
+  }
+  return candidates[0];
+}
+const PACKAGE_ROOT = locatePackageRoot();
+const PACKAGE_SKILLS_DIR = resolve(PACKAGE_ROOT, "skills");
+const PACKAGE_PROMPTS_DIR = resolve(PACKAGE_ROOT, "prompts");
+resolve(PACKAGE_ROOT, "extensions");
+const PACKAGE_DESIGNER_SYSTEM_PROMPT_PATH = resolve(PACKAGE_PROMPTS_DIR, "_designer-system.md");
+function stripFrontmatter(text) {
+  if (!text.startsWith("---")) return text;
+  const end = text.indexOf("\n---", 3);
+  if (end < 0) return text;
+  return text.slice(end + 4).replace(/^\n+/, "");
+}
+function loadDesignerSystemPrompt() {
+  return stripFrontmatter(readFileSync(PACKAGE_DESIGNER_SYSTEM_PROMPT_PATH, "utf8")).trim();
+}
+function loadPackagePromptBody(filename) {
+  const safe = filename.replace(/[^A-Za-z0-9._-]/g, "");
+  const full = resolve(PACKAGE_PROMPTS_DIR, safe);
+  return stripFrontmatter(readFileSync(full, "utf8")).trim();
+}
+const INCUBATOR_USER_INPUTS_TEMPLATE = `Analyze the following design specification and produce a dimension map with hypothesis strategies.
+
+<specification>
+{{INTERNAL_CONTEXT}}
+
+{{DESIGN_SYSTEM_DOCUMENTS_BLOCK}}
+</specification>
+
+Produce the dimension map as JSON.{{REFERENCE_DESIGNS_BLOCK}}{{EXISTING_HYPOTHESES_BLOCK}}{{INCUBATOR_HYPOTHESIS_COUNT_LINE}}`;
+const DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE = `Generate a design implementing the following hypothesis, grounded in the specification context below.
+
+<hypothesis>
+<name>{{STRATEGY_NAME}}</name>
+<bet>{{HYPOTHESIS}}</bet>
+<rationale>{{RATIONALE}}</rationale>
+<measurements>{{MEASUREMENTS}}</measurements>
+<dimension_values>
+{{DIMENSION_VALUES}}
+</dimension_values>
+</hypothesis>
+
+<specification>
+
+<design_brief>
+{{DESIGN_BRIEF}}
+</design_brief>
+
+<research_context>
+{{RESEARCH_CONTEXT}}
+</research_context>
+
+{{IMAGE_BLOCK}}
+
+<objectives_metrics>
+{{OBJECTIVES_METRICS}}
+</objectives_metrics>
+
+<design_constraints>
+{{DESIGN_CONSTRAINTS}}
+</design_constraints>
+
+<design_system>
+{{DESIGN_SYSTEM}}
+</design_system>
+
+</specification>`;
+const GLUE_TEMPLATES = {
+  "incubator-user-inputs": INCUBATOR_USER_INPUTS_TEMPLATE,
+  "designer-hypothesis-inputs": DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE
+};
+const PACKAGE_PROMPT_FILES = {
+  "hypotheses-generator-system": "gen-hypotheses.md",
+  "evaluator-design-quality": "eval-design-quality.md",
+  "evaluator-strategy-fidelity": "eval-strategy-fidelity.md",
+  "evaluator-implementation": "eval-implementation.md",
+  "inputs-gen-research-context": "gen-research.md",
+  "inputs-gen-objectives-metrics": "gen-objectives.md",
+  "inputs-gen-design-constraints": "gen-constraints.md",
+  "design-system-extract-system": "ds-extract.md",
+  "design-system-extract-user-input": "ds-extract-input.md",
+  "designer-agentic-revision-user": "revise.md",
+  "agents-md-file": "artifact-conventions.md"
+};
+async function getPromptBody(key) {
+  if (key === "designer-agentic-system") {
+    return loadDesignerSystemPrompt();
+  }
+  const glue = GLUE_TEMPLATES[key];
+  if (glue !== void 0) return glue;
+  const packageFile = PACKAGE_PROMPT_FILES[key];
+  if (packageFile !== void 0) return loadPackagePromptBody(packageFile);
+  throw new Error(`getPromptBody: unhandled PromptKey "${key}"`);
+}
+async function inlineGuidance(key, tag) {
+  const body = await getPromptBody(key);
+  return `<${tag}>
 ${body}
-`;
+</${tag}>`;
+}
+const lockdown = "auto";
+const autoImprove = 0;
+const rawFlags = {
+  lockdown,
+  autoImprove
+};
+const __vite_import_meta_env__$1 = { "PROD": true };
+const flag = z.union([z.literal(0), z.literal(1), z.literal("auto")]);
+const FeatureFlagsFileSchema = z.object({
+  lockdown: flag,
+  autoImprove: flag
+}).strict();
+const FLAGS = FeatureFlagsFileSchema.parse(rawFlags);
+function isProductionEnv() {
+  const meta = typeof import.meta !== "undefined" ? __vite_import_meta_env__$1 ?? null : null;
+  if (meta && typeof meta.PROD === "boolean") return meta.PROD;
+  const proc = globalThis.process;
+  if (proc && proc.env) {
+    return proc.env.NODE_ENV === "production";
+  }
+  return false;
+}
+function resolveFlag(value) {
+  if (value === 1) return true;
+  if (value === 0) return false;
+  return isProductionEnv();
+}
+const FEATURE_LOCKDOWN = resolveFlag(FLAGS.lockdown);
+const FEATURE_AUTO_IMPROVE = resolveFlag(FLAGS.autoImprove);
+const perTaskDefaults$1 = { "design": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" }, "incubate": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" }, "inputs": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" }, "design-system": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" }, "evaluator": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" } };
+const rawTaskDefaults = {
+  perTaskDefaults: perTaskDefaults$1
+};
+const TaskDefaultsSchema = z.object({
+  perTaskDefaults: z.record(
+    z.string(),
+    z.object({ providerId: z.string().min(1), modelId: z.string().min(1) })
+  )
+});
+const TASK_DEFAULTS = TaskDefaultsSchema.parse(rawTaskDefaults).perTaskDefaults;
+function getTaskModelDefault(task) {
+  return TASK_DEFAULTS[task];
+}
+function getLockdownModelForTask(task) {
+  return getTaskModelDefault(task);
+}
+function pinForLockdown(input, lockdown2, task) {
+  if (Array.isArray(input)) {
+    if (!lockdown2) return input.map((c) => ({ ...c }));
+    const pin = getLockdownModelForTask(task);
+    return input.map((c) => ({ ...c, providerId: pin.providerId, modelId: pin.modelId }));
+  }
+  const pair = input;
+  if (!lockdown2) return { ...pair };
+  return getLockdownModelForTask(task);
+}
+function isLockdownEnabled() {
+  return FEATURE_LOCKDOWN;
+}
+function clampProviderModel(providerId, modelId, task) {
+  return pinForLockdown({ providerId, modelId }, isLockdownEnabled(), task);
+}
+function clampEvaluatorOptional(evaluatorProviderId, evaluatorModelId) {
+  if (!isLockdownEnabled()) {
+    return { evaluatorProviderId, evaluatorModelId };
+  }
+  const pin = getLockdownModelForTask("evaluator");
+  return {
+    evaluatorProviderId: pin.providerId,
+    evaluatorModelId: pin.modelId
+  };
+}
+function applyLockdownToHypothesisContext(ctx) {
+  return {
+    ...ctx,
+    modelCredentials: pinForLockdown(ctx.modelCredentials, isLockdownEnabled(), "design")
+  };
+}
+function apiJsonError(c, status, message, details) {
+  const body = { error: message };
+  if (details !== void 0) {
+    body.details = details;
+  }
+  return c.json(body, status);
+}
+async function parseRequestJson(c, schema, options) {
+  let raw;
+  try {
+    raw = await c.req.json();
+  } catch {
+    return { ok: false, response: apiJsonError(c, 400, "Invalid JSON body") };
+  }
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) {
+    const details = parsed.error.flatten();
+    if (process.env.NODE_ENV !== "production" && options?.devWarnLabel) {
+      console.warn(options.devWarnLabel, "validation failed", details);
+    }
+    return { ok: false, response: apiJsonError(c, 400, "Invalid request", details) };
+  }
+  return { ok: true, data: parsed.data };
+}
+const SSE_EVENT_NAMES = {
+  progress: "progress",
+  activity: "activity",
+  thinking: "thinking",
+  streaming_tool: "streaming_tool",
+  trace: "trace",
+  code: "code",
+  error: "error",
+  file: "file",
+  plan: "plan",
+  todos: "todos",
+  phase: "phase",
+  evaluation_progress: "evaluation_progress",
+  evaluation_worker_done: "evaluation_worker_done",
+  evaluation_report: "evaluation_report",
+  revision_round: "revision_round",
+  skills_loaded: "skills_loaded",
+  skill_activated: "skill_activated",
+  checkpoint: "checkpoint",
+  lane_done: "lane_done",
+  done: "done",
+  /** POST /api/incubate final incubation plan (after streaming deltas). */
+  incubate_result: "incubate_result",
+  /** Generic agentic task result — carries the extracted output from the sandbox. */
+  task_result: "task_result"
+};
+function parseJsonLenient(jsonStr) {
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    try {
+      return JSON.parse(jsonrepair(jsonStr));
+    } catch {
+      throw new Error("Invalid JSON after repair attempt");
+    }
+  }
+}
+function extractLlmJsonObjectSegment(raw, options) {
+  let s = raw.trim();
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) s = fence[1].trim();
+  const start = s.indexOf("{");
+  const end = s.lastIndexOf("}");
+  if (start !== -1 && end > start) return s.slice(start, end + 1);
+  if (options?.requireObject) {
+    throw new Error(options.emptyMessage ?? "No JSON object in model output");
+  }
+  return s;
+}
+const TEMPLATE_ECHO_PREFIX = /^string\s*[—–-]\s*/i;
+function incubationFirstHypothesisEmpty(plan) {
+  const h = plan.hypotheses[0];
+  if (!h) return true;
+  return !h.hypothesis.trim();
+}
+function incubationLooksLikeTemplateEcho(plan) {
+  for (const d of plan.dimensions) {
+    if (TEMPLATE_ECHO_PREFIX.test(d.name.trim()) || TEMPLATE_ECHO_PREFIX.test(String(d.range).trim())) {
+      return true;
+    }
+  }
+  for (const h of plan.hypotheses) {
+    if (TEMPLATE_ECHO_PREFIX.test(h.name.trim()) || TEMPLATE_ECHO_PREFIX.test(h.hypothesis.trim()) || TEMPLATE_ECHO_PREFIX.test(h.rationale.trim())) {
+      return true;
+    }
+  }
+  return false;
 }
 const DEFAULT_DEV_API_PORT = 4731;
 const DEFAULT_DEV_CLIENT_PORT = 4732;
@@ -231,9 +1990,9 @@ const env = {
     return process.env.BROWSER_PLAYWRIGHT_EVAL !== "0";
   },
   /**
-   * Public origin for server-side preview URLs (Playwright, eval). No trailing slash.
-   * Defaults to 127.0.0.1 + PORT so headless browsers hit the same process as the API.
-   */
+     * Public origin for server-side preview URLs (Playwright, eval). No trailing slash.
+     * Defaults to 127.0.0.1 + PORT so headless browsers hit the same process as the API.
+     */
   PREVIEW_PUBLIC_URL: (process.env.PREVIEW_PUBLIC_URL ?? "").trim().replace(/\/$/, ""),
   get previewPublicBaseUrl() {
     const explicit = this.PREVIEW_PUBLIC_URL.trim();
@@ -242,398 +2001,6 @@ const env = {
     return `http://127.0.0.1:${port}`;
   }
 };
-function splitFrontmatterMarkdown(raw) {
-  const lines = raw.replace(/^\uFEFF/, "").split(/\r?\n/);
-  if (lines[0]?.trim() !== "---") return null;
-  let end = -1;
-  for (let i = 1; i < lines.length; i++) {
-    if (lines[i].trim() === "---") {
-      end = i;
-      break;
-    }
-  }
-  if (end === -1) return null;
-  const frontmatterYaml = lines.slice(1, end).join("\n");
-  const body = lines.slice(end + 1).join("\n").replace(/^\n+/, "");
-  return { frontmatterYaml, body };
-}
-const skillWhenSchema = z.enum(["auto", "always", "manual"]);
-const skillFrontmatterSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().min(1).max(1024),
-  tags: z.array(z.string()).optional().default([]),
-  when: skillWhenSchema.optional().default("auto")
-});
-const SKILL_FILENAME = "SKILL.md";
-const SESSION_TAGS = {
-  design: ["design"],
-  incubation: ["incubation"],
-  "internal-context": ["internal-context"],
-  evaluation: ["evaluation"],
-  "inputs-gen": ["inputs-gen"],
-  "design-system": ["design-system"]
-};
-function resolveSkillsRoot(explicit) {
-  if (explicit?.trim()) return path.resolve(explicit.trim());
-  const fromEnv = process.env.SKILLS_ROOT?.trim();
-  if (fromEnv) return path.resolve(fromEnv);
-  return path.resolve(process.cwd(), "skills");
-}
-function splitSkillMarkdown(raw) {
-  return splitFrontmatterMarkdown(raw);
-}
-async function safeReadSkillDir(skillsRoot, name) {
-  if (name.startsWith("_") || name.startsWith(".")) return null;
-  const dir = path.join(skillsRoot, name);
-  const skillPath = path.join(dir, SKILL_FILENAME);
-  let raw;
-  try {
-    raw = await fs.readFile(skillPath, "utf8");
-  } catch {
-    return null;
-  }
-  const split = splitSkillMarkdown(raw);
-  if (!split) return null;
-  let data;
-  try {
-    data = parse(split.frontmatterYaml);
-  } catch (err) {
-    if (env.isDev) {
-      console.warn(`[skill-discovery] Invalid YAML in ${skillPath}`, err);
-    }
-    return null;
-  }
-  const parsed = skillFrontmatterSchema.safeParse(data);
-  if (!parsed.success) {
-    if (env.isDev) {
-      console.warn(`[skill-discovery] Invalid skill frontmatter in ${skillPath}`, parsed.error.flatten());
-    }
-    return null;
-  }
-  return {
-    ...parsed.data,
-    key: name,
-    dir,
-    bodyMarkdown: split.body
-  };
-}
-function filterSkillsForSession(entries2, sessionType) {
-  const allowedTags = SESSION_TAGS[sessionType];
-  return entries2.filter((e) => {
-    if (e.when === "manual") return false;
-    return e.tags.some((t) => allowedTags.includes(t));
-  });
-}
-async function discoverSkills(skillsRoot) {
-  let names;
-  try {
-    names = await fs.readdir(skillsRoot);
-  } catch {
-    return [];
-  }
-  const out = [];
-  for (const name of names) {
-    const ent = await safeReadSkillDir(skillsRoot, name);
-    if (ent) out.push(ent);
-  }
-  return out.sort((a, b) => a.key.localeCompare(b.key));
-}
-function catalogEntriesToSummaries(entries2) {
-  return entries2.map((s) => ({
-    key: s.key,
-    name: s.name,
-    description: s.description
-  }));
-}
-function formatSkillsCatalogXml(rows) {
-  if (rows.length === 0) return "";
-  const intro = [
-    "Load a skill's full instructions into context. Call before implementing work that matches a skill's description.",
-    "Parameter `name` is the skill key (directory name under skills/), same as the XML `key` attribute below.",
-    ""
-  ].join("\n");
-  const lines = rows.map(
-    (s) => `  <skill key="${escapeXmlAttr(s.key)}" name="${escapeXmlAttr(s.name)}">${escapeXmlAttr(s.description)}</skill>`
-  );
-  return `
-
-<available_skills>
-${intro}${lines.join("\n")}
-</available_skills>
-`;
-}
-function buildUseSkillToolDescription(rows) {
-  const catalog = formatSkillsCatalogXml(rows).trim();
-  if (!catalog) {
-    return "use_skill: No repo skills are configured for this session (or all are manual). Do not call this tool until skills exist.";
-  }
-  return `use_skill: ${catalog}`;
-}
-function escapeXmlAttr(s) {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-const skillBodyCache = /* @__PURE__ */ new Map();
-async function getSkillBody(key, skillsRoot) {
-  const cached = skillBodyCache.get(key);
-  if (cached !== void 0) return cached;
-  const root = resolveSkillsRoot(skillsRoot);
-  const entry = await safeReadSkillDir(root, key);
-  if (!entry) throw new Error(`Skill "${key}" not found under ${root}`);
-  skillBodyCache.set(key, entry.bodyMarkdown);
-  return entry.bodyMarkdown;
-}
-const promptFrontmatterSchema = z.object({
-  name: z.string().min(1),
-  type: z.literal("system-prompt"),
-  description: z.string().min(1)
-});
-const cache = /* @__PURE__ */ new Map();
-function resolvePromptsRoot() {
-  const fromEnv = process.env.PROMPTS_ROOT?.trim();
-  if (fromEnv) return path.resolve(fromEnv);
-  return path.resolve(process.cwd(), "prompts");
-}
-function splitPromptMarkdown(raw) {
-  return splitFrontmatterMarkdown(raw);
-}
-async function getSystemPromptBody(name) {
-  const cached = cache.get(name);
-  if (cached !== void 0) return cached;
-  const promptsRoot = resolvePromptsRoot();
-  const filePath = path.join(promptsRoot, name, "PROMPT.md");
-  const raw = await fs.readFile(filePath, "utf8");
-  const split = splitPromptMarkdown(raw);
-  if (!split) throw new Error(`Invalid PROMPT.md frontmatter in ${filePath}`);
-  let data;
-  try {
-    data = parse(split.frontmatterYaml);
-  } catch {
-    throw new Error(`Invalid YAML in ${filePath}`);
-  }
-  const parsed = promptFrontmatterSchema.safeParse(data);
-  if (!parsed.success) {
-    throw new Error(`Invalid frontmatter schema in ${filePath}: ${parsed.error.message}`);
-  }
-  cache.set(name, split.body);
-  return split.body;
-}
-const INCUBATOR_USER_INPUTS_TEMPLATE = `Analyze the following design specification and produce a dimension map with hypothesis strategies.
-
-<specification title="{{SPEC_TITLE}}">
-
-<design_brief>
-{{DESIGN_BRIEF}}
-</design_brief>
-
-<research_context>
-{{RESEARCH_CONTEXT}}
-</research_context>
-
-<objectives_metrics>
-{{OBJECTIVES_METRICS}}
-</objectives_metrics>
-
-<design_constraints>
-{{DESIGN_CONSTRAINTS}}
-</design_constraints>
-
-{{IMAGE_BLOCK}}
-
-{{INTERNAL_CONTEXT_DOCUMENT_BLOCK}}
-
-{{DESIGN_SYSTEM_DOCUMENTS_BLOCK}}
-
-</specification>
-
-Produce the dimension map as JSON.{{REFERENCE_DESIGNS_BLOCK}}{{EXISTING_HYPOTHESES_BLOCK}}{{INCUBATOR_HYPOTHESIS_COUNT_LINE}}`;
-const DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE = `Generate a design implementing the following hypothesis, grounded in the specification context below.
-
-<hypothesis>
-<name>{{STRATEGY_NAME}}</name>
-<bet>{{HYPOTHESIS}}</bet>
-<rationale>{{RATIONALE}}</rationale>
-<measurements>{{MEASUREMENTS}}</measurements>
-<dimension_values>
-{{DIMENSION_VALUES}}
-</dimension_values>
-</hypothesis>
-
-<specification>
-
-<design_brief>
-{{DESIGN_BRIEF}}
-</design_brief>
-
-<research_context>
-{{RESEARCH_CONTEXT}}
-</research_context>
-
-{{IMAGE_BLOCK}}
-
-<objectives_metrics>
-{{OBJECTIVES_METRICS}}
-</objectives_metrics>
-
-<design_constraints>
-{{DESIGN_CONSTRAINTS}}
-</design_constraints>
-
-<design_system>
-{{DESIGN_SYSTEM}}
-</design_system>
-
-</specification>`;
-const GLUE_TEMPLATES = {
-  "incubator-user-inputs": INCUBATOR_USER_INPUTS_TEMPLATE,
-  "designer-hypothesis-inputs": DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE
-};
-async function getPromptBody(key) {
-  if (key === "designer-agentic-system") {
-    return getSystemPromptBody("designer-agentic-system");
-  }
-  const glue = GLUE_TEMPLATES[key];
-  if (glue !== void 0) return glue;
-  return getSkillBody(key);
-}
-const promptResolution = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-  __proto__: null,
-  getPromptBody
-}, Symbol.toStringTag, { value: "Module" }));
-const lockdown = 1;
-const autoImprove = 0;
-const rawFlags = {
-  lockdown,
-  autoImprove
-};
-const flag = z.union([z.literal(0), z.literal(1)]);
-const FeatureFlagsFileSchema = z.object({
-  lockdown: flag,
-  autoImprove: flag
-}).strict();
-const FLAGS = FeatureFlagsFileSchema.parse(rawFlags);
-const FEATURE_LOCKDOWN = FLAGS.lockdown === 1;
-const FEATURE_AUTO_IMPROVE = FLAGS.autoImprove === 1;
-const LOCKDOWN_PROVIDER_ID = "openrouter";
-const LOCKDOWN_MODEL_ID = "minimax/minimax-m2.5";
-const LOCKDOWN_MODEL_LABEL = "MiniMax M2.5";
-function isLockdownEnabled() {
-  return FEATURE_LOCKDOWN;
-}
-function clampProviderModel(providerId, modelId) {
-  if (!isLockdownEnabled()) return { providerId, modelId };
-  return { providerId: LOCKDOWN_PROVIDER_ID, modelId: LOCKDOWN_MODEL_ID };
-}
-function clampEvaluatorOptional(evaluatorProviderId, evaluatorModelId) {
-  if (!isLockdownEnabled()) {
-    return { evaluatorProviderId, evaluatorModelId };
-  }
-  return {
-    evaluatorProviderId: LOCKDOWN_PROVIDER_ID,
-    evaluatorModelId: LOCKDOWN_MODEL_ID
-  };
-}
-function applyLockdownToHypothesisContext(ctx) {
-  if (!isLockdownEnabled()) return ctx;
-  return {
-    ...ctx,
-    modelCredentials: ctx.modelCredentials.map((c) => {
-      const pin = clampProviderModel(c.providerId, c.modelId);
-      return { ...c, providerId: pin.providerId, modelId: pin.modelId };
-    })
-  };
-}
-function apiJsonError(c, status, message, details) {
-  const body = { error: message };
-  if (details !== void 0) {
-    body.details = details;
-  }
-  return c.json(body, status);
-}
-async function parseRequestJson(c, schema, options) {
-  let raw;
-  try {
-    raw = await c.req.json();
-  } catch {
-    return { ok: false, response: apiJsonError(c, 400, "Invalid JSON body") };
-  }
-  const parsed = schema.safeParse(raw);
-  if (!parsed.success) {
-    const details = parsed.error.flatten();
-    if (process.env.NODE_ENV !== "production" && options?.devWarnLabel) {
-      console.warn(options.devWarnLabel, "validation failed", details);
-    }
-    return { ok: false, response: apiJsonError(c, 400, "Invalid request", details) };
-  }
-  return { ok: true, data: parsed.data };
-}
-const SSE_EVENT_NAMES = {
-  progress: "progress",
-  activity: "activity",
-  thinking: "thinking",
-  streaming_tool: "streaming_tool",
-  trace: "trace",
-  code: "code",
-  error: "error",
-  file: "file",
-  plan: "plan",
-  todos: "todos",
-  phase: "phase",
-  evaluation_progress: "evaluation_progress",
-  evaluation_worker_done: "evaluation_worker_done",
-  evaluation_report: "evaluation_report",
-  revision_round: "revision_round",
-  skills_loaded: "skills_loaded",
-  skill_activated: "skill_activated",
-  checkpoint: "checkpoint",
-  lane_done: "lane_done",
-  done: "done",
-  /** POST /api/incubate final incubation plan (after streaming deltas). */
-  incubate_result: "incubate_result",
-  /** Generic agentic task result — carries the extracted output from the sandbox. */
-  task_result: "task_result"
-};
-function parseJsonLenient(jsonStr) {
-  try {
-    return JSON.parse(jsonStr);
-  } catch {
-    try {
-      return JSON.parse(jsonrepair(jsonStr));
-    } catch {
-      throw new Error("Invalid JSON after repair attempt");
-    }
-  }
-}
-function extractLlmJsonObjectSegment(raw, options) {
-  let s = raw.trim();
-  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fence) s = fence[1].trim();
-  const start = s.indexOf("{");
-  const end = s.lastIndexOf("}");
-  if (start !== -1 && end > start) return s.slice(start, end + 1);
-  if (options?.requireObject) {
-    throw new Error(options.emptyMessage ?? "No JSON object in model output");
-  }
-  return s;
-}
-const TEMPLATE_ECHO_PREFIX = /^string\s*[—–-]\s*/i;
-function incubationFirstHypothesisEmpty(plan) {
-  const h = plan.hypotheses[0];
-  if (!h) return true;
-  return !h.hypothesis.trim();
-}
-function incubationLooksLikeTemplateEcho(plan) {
-  for (const d of plan.dimensions) {
-    if (TEMPLATE_ECHO_PREFIX.test(d.name.trim()) || TEMPLATE_ECHO_PREFIX.test(String(d.range).trim())) {
-      return true;
-    }
-  }
-  for (const h of plan.hypotheses) {
-    if (TEMPLATE_ECHO_PREFIX.test(h.name.trim()) || TEMPLATE_ECHO_PREFIX.test(h.hypothesis.trim()) || TEMPLATE_ECHO_PREFIX.test(h.rationale.trim())) {
-      return true;
-    }
-  }
-  return false;
-}
 let debounceTimer = null;
 const DEBOUNCE_MS = 500;
 function scheduleAgentLogSnapshot() {
@@ -659,7 +2026,7 @@ async function flushAgentLogSnapshot() {
       Promise.resolve().then(() => traceLogStore)
     ]);
     const dir = path.join(process.cwd(), "logs");
-    fs$1.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(dir, { recursive: true });
     const payload = {
       updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
       note: "Mirror of dev GET /api/logs ({ llm, trace, task }). Regenerated when the log ring changes.",
@@ -667,7 +2034,7 @@ async function flushAgentLogSnapshot() {
       trace: getTraceLogLines2(),
       task: getTaskLogEntries2()
     };
-    fs$1.writeFileSync(path.join(dir, "agent-snapshot.json"), `${JSON.stringify(payload, null, 2)}
+    fs.writeFileSync(path.join(dir, "agent-snapshot.json"), `${JSON.stringify(payload, null, 2)}
 `, "utf8");
   } catch (err) {
     if (env.isDev) console.warn("[agent-log-snapshot] write failed", err);
@@ -710,12 +2077,11 @@ const ContentLimitsFileSchema = z.object({
   }).strict()
 }).strict();
 const _limits = ContentLimitsFileSchema.parse(rawLimits);
-const GREP_MAX_LINE_LENGTH = _limits.sandbox.grepMaxLineLength;
-const SANDBOX_READ_MAX_LINES = DEFAULT_MAX_LINES;
-const SANDBOX_LS_MAX_ENTRIES = _limits.sandbox.lsMaxEntries;
-const SANDBOX_FIND_MAX_RESULTS = _limits.sandbox.findMaxResults;
-const SANDBOX_GREP_DEFAULT_MATCH_LIMIT = _limits.sandbox.grepDefaultMatchLimit;
-const BASH_TOOL_MAX_CHARS = _limits.sandbox.bashToolMaxChars;
+_limits.sandbox.grepMaxLineLength;
+_limits.sandbox.lsMaxEntries;
+_limits.sandbox.findMaxResults;
+_limits.sandbox.grepDefaultMatchLimit;
+_limits.sandbox.bashToolMaxChars;
 const EVAL_FILE_MAX_CHARS = _limits.evaluator.fileMaxChars;
 const EVAL_BUNDLE_MAX_CHARS = _limits.evaluator.bundleMaxChars;
 const EVAL_DEGRADED_MSG_MAX = _limits.evaluator.degradedMsgMax;
@@ -797,11 +2163,11 @@ function writeObservabilityLine(line) {
   const dir = path.dirname(filePath);
   try {
     if (!ensuredDirs.has(dir)) {
-      fs$1.mkdirSync(dir, { recursive: true });
+      fs.mkdirSync(dir, { recursive: true });
       ensuredDirs.add(dir);
     }
     const out = observabilityLineForFile(line);
-    fs$1.appendFileSync(filePath, `${JSON.stringify(out)}
+    fs.appendFileSync(filePath, `${JSON.stringify(out)}
 `, "utf8");
   } catch (err) {
     console.error("[observability-sink] append failed", err);
@@ -1044,7 +2410,7 @@ const logStore = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProp
   setLlmCallResponseBody,
   setLlmCallWaitingStatus
 }, Symbol.toStringTag, { value: "Module" }));
-const perTaskDefaults = { "design": { "level": "high", "budgetTokens": 2e4 }, "incubate": { "level": "high", "budgetTokens": 2e4 }, "internal-context": { "level": "high", "budgetTokens": 2e4 }, "inputs": { "level": "medium", "budgetTokens": 5e3 }, "design-system": { "level": "high", "budgetTokens": 2e4 }, "evaluator": { "level": "low", "budgetTokens": 2048 } };
+const perTaskDefaults = { "design": { "level": "high", "budgetTokens": 2e4 }, "incubate": { "level": "high", "budgetTokens": 2e4 }, "inputs": { "level": "medium", "budgetTokens": 5e3 }, "design-system": { "level": "high", "budgetTokens": 2e4 }, "evaluator": { "level": "low", "budgetTokens": 2048 } };
 const budgetByLevel = { "off": 0, "minimal": 1024, "low": 2048, "medium": 5e3, "high": 2e4, "xhigh": 32768 };
 const budgetBounds = { "minTokens": 1024, "maxTokens": 32768 };
 const rawConfig = {
@@ -1077,7 +2443,6 @@ const THINKING_LEVELS = [
 const THINKING_TASKS = [
   "design",
   "incubate",
-  "internal-context",
   "inputs",
   "design-system",
   "evaluator"
@@ -1090,8 +2455,8 @@ const ThinkingConfigSchema = z.object({
   budgetTokens: z.number().int().min(0)
 });
 const ThinkingOverrideSchema = z.object({
-  level: ThinkingLevelSchema.optional(),
-  budgetTokens: z.number().int().min(0).optional()
+  level: ThinkingLevelSchema,
+  budgetTokens: z.number().int().min(0)
 }).strict();
 const perTaskDefaultsShape = Object.fromEntries(
   THINKING_TASKS.map((task) => [task, ThinkingConfigSchema])
@@ -1112,7 +2477,7 @@ const ThinkingDefaultsFileSchema = z.object({
 const CONFIG = ThinkingDefaultsFileSchema.parse(rawConfig);
 const THINKING_BUDGET_MIN_TOKENS = CONFIG.budgetBounds.minTokens;
 const THINKING_BUDGET_MAX_TOKENS = CONFIG.budgetBounds.maxTokens;
-CONFIG.budgetByLevel;
+const THINKING_BUDGET_BY_LEVEL = CONFIG.budgetByLevel;
 const THINKING_CONFIG_DEFAULTS = CONFIG.perTaskDefaults;
 function clampBudget(n) {
   if (Number.isNaN(n)) return THINKING_BUDGET_MIN_TOKENS;
@@ -1125,7 +2490,7 @@ function resolveThinkingConfig(task, modelId, override) {
   const defaults = THINKING_CONFIG_DEFAULTS[task];
   const level = override?.level ?? defaults.level;
   if (level === "off") return THINKING_OFF;
-  const rawBudget2 = override?.budgetTokens ?? defaults.budgetTokens;
+  const rawBudget2 = override?.budgetTokens ?? THINKING_BUDGET_BY_LEVEL[level];
   return { level, budgetTokens: clampBudget(rawBudget2) };
 }
 function normalizeError(err, fallback) {
@@ -1387,15 +2752,15 @@ function writeSuccessfulTaskRunDiskLog(input) {
 let activeSlots = 0;
 let gateChain = Promise.resolve();
 async function acquireAgenticSlotOrReject() {
-  return new Promise((resolve) => {
+  return new Promise((resolve2) => {
     gateChain = gateChain.then(() => {
       const max = env.MAX_CONCURRENT_AGENTIC_RUNS;
       if (activeSlots >= max) {
-        resolve(false);
+        resolve2(false);
         return;
       }
       activeSlots += 1;
-      resolve(true);
+      resolve2(true);
     });
   });
 }
@@ -1430,11 +2795,113 @@ async function emitSkillsLoadedEvents(emit, skills, tracePhase) {
   });
   await emit({ type: "skills_loaded", skills });
 }
+function splitFrontmatterMarkdown(raw) {
+  const lines = raw.replace(/^\uFEFF/, "").split(/\r?\n/);
+  if (lines[0]?.trim() !== "---") return null;
+  let end = -1;
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i].trim() === "---") {
+      end = i;
+      break;
+    }
+  }
+  if (end === -1) return null;
+  const frontmatterYaml = lines.slice(1, end).join("\n");
+  const body = lines.slice(end + 1).join("\n").replace(/^\n+/, "");
+  return { frontmatterYaml, body };
+}
+const skillWhenSchema = z.enum(["auto", "always", "manual"]);
+const skillFrontmatterSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().min(1).max(1024),
+  "allowed-tools": z.union([z.string(), z.array(z.string())]).optional(),
+  dependencies: z.union([z.string(), z.array(z.string())]).optional(),
+  tags: z.array(z.string()).optional().default([]),
+  when: skillWhenSchema.optional().default("auto")
+});
+const SKILL_FILENAME = "SKILL.md";
+const SESSION_TAGS = {
+  design: ["design"],
+  incubation: ["incubation"],
+  evaluation: ["evaluation"],
+  "inputs-gen": ["inputs-gen"],
+  "design-system": ["design-system"]
+};
+function resolvePackageSkillsCatalogRoot() {
+  return path.resolve(process.cwd(), "packages", "auto-designer-pi", "skills");
+}
+async function safeReadSkillDir(skillsRoot, name) {
+  if (name.startsWith("_") || name.startsWith(".")) return null;
+  const dir = path.join(skillsRoot, name);
+  const skillPath = path.join(dir, SKILL_FILENAME);
+  let raw;
+  try {
+    raw = await fs$1.readFile(skillPath, "utf8");
+  } catch {
+    return null;
+  }
+  const split = splitFrontmatterMarkdown(raw);
+  if (!split) return null;
+  let data;
+  try {
+    data = parse(split.frontmatterYaml);
+  } catch (err) {
+    if (env.isDev) {
+      console.warn(`[skill-discovery] Invalid YAML in ${skillPath}`, err);
+    }
+    return null;
+  }
+  const parsed = skillFrontmatterSchema.safeParse(data);
+  if (!parsed.success) {
+    if (env.isDev) {
+      console.warn(
+        `[skill-discovery] Invalid skill frontmatter in ${skillPath}`,
+        parsed.error.flatten()
+      );
+    }
+    return null;
+  }
+  return {
+    ...parsed.data,
+    key: name,
+    dir,
+    bodyMarkdown: split.body,
+    resources: []
+  };
+}
+function filterSkillsForSession(entries2, sessionType) {
+  const allowedTags = SESSION_TAGS[sessionType];
+  return entries2.filter((e) => {
+    if (e.when === "manual") return false;
+    return e.tags.some((t) => allowedTags.includes(t));
+  });
+}
+async function discoverSkills(skillsRoot) {
+  let names;
+  try {
+    names = await fs$1.readdir(skillsRoot);
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const name of names) {
+    const ent = await safeReadSkillDir(skillsRoot, name);
+    if (ent) out.push(ent);
+  }
+  return out.sort((a, b) => a.key.localeCompare(b.key));
+}
+function catalogEntriesToSummaries(entries2) {
+  return entries2.map((s) => ({
+    key: s.key,
+    name: s.name,
+    description: s.description
+  }));
+}
 async function buildAgenticSystemContext(input) {
-  const systemPrompt = await getSystemPromptBody("designer-agentic-system");
+  const systemPrompt = loadDesignerSystemPrompt();
   const sandboxSeedFiles = {};
   const sessionType = input.sessionType ?? "design";
-  const skillsRoot = resolveSkillsRoot(input.skillsRoot);
+  const skillsRoot = input.skillsRoot ?? resolvePackageSkillsCatalogRoot();
   const allEntries = await discoverSkills(skillsRoot);
   const catalogEntries = filterSkillsForSession(allEntries, sessionType);
   const loadedSkills = catalogEntriesToSummaries(catalogEntries);
@@ -1894,8 +3361,9 @@ const MARGIN = {
   agent_turn: _budget.margins.agentTurn,
   default: _budget.margins.default
 };
+const FALLBACK_OPENROUTER_CONTEXT_WINDOW = 131072;
 function contextFallback(providerId) {
-  return providerId === "lmstudio" ? env.LM_STUDIO_CONTEXT_WINDOW : 131072;
+  return providerId === "lmstudio" ? env.LM_STUDIO_CONTEXT_WINDOW : FALLBACK_OPENROUTER_CONTEXT_WINDOW;
 }
 function completionBudgetFromPromptTokens(contextWindow, estimatedPromptTokens, purpose, productCap) {
   const cw = Math.max(4096, contextWindow);
@@ -1917,27 +3385,125 @@ async function completionMaxTokensForChat(providerId, modelId, messages, purpose
     env.MAX_OUTPUT_TOKENS
   );
 }
-function estimateUserMessageContent(content) {
+const toolArgsRecordSchema = z.record(z.string(), z.unknown());
+const TOOL_PATH_ARG_KEYS = ["path", "file", "filePath", "target_file"];
+function extractPiToolPathFromArguments(raw) {
+  const parsed = toolArgsRecordSchema.safeParse(raw);
+  if (!parsed.success) return void 0;
+  const o = parsed.data;
+  for (const key of TOOL_PATH_ARG_KEYS) {
+    const v = o[key];
+    if (typeof v === "string" && v.length > 0) return v;
+  }
+  return void 0;
+}
+function parsePiToolExecutionArgs(_toolName, raw) {
+  const parsed = toolArgsRecordSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {};
+  }
+  const o = parsed.data;
+  const path2 = typeof o.path === "string" ? o.path : void 0;
+  const pattern = typeof o.pattern === "string" ? o.pattern : void 0;
+  const key = typeof o.key === "string" ? o.key : void 0;
+  const name = typeof o.name === "string" ? o.name : void 0;
+  return { path: path2 ?? key ?? name, pattern };
+}
+function isTextPart(p) {
+  return p !== null && typeof p === "object" && p.type === "text" && typeof p.text === "string";
+}
+function isThinkingPart(p) {
+  return p !== null && typeof p === "object" && p.type === "thinking" && typeof p.thinking === "string";
+}
+function isImagePart(p) {
+  return p !== null && typeof p === "object" && p.type === "image" && typeof p.data === "string";
+}
+function isToolCallPart(p) {
+  if (p === null || typeof p !== "object") return false;
+  if (p.type !== "toolCall") return false;
+  return typeof p.name === "string";
+}
+function parseToolCallFromAssistantSlice(slice) {
+  if (slice === null || typeof slice !== "object" || !("type" in slice)) {
+    return { toolName: "tool" };
+  }
+  const type = slice.type;
+  if (type !== "toolCall") {
+    return { toolName: "tool" };
+  }
+  const obj = slice;
+  const name = obj.name;
+  const args = obj.arguments;
+  const toolName = typeof name === "string" && name.length > 0 ? name : "tool";
+  const argumentsObj = args !== null && typeof args === "object" && !Array.isArray(args) ? args : void 0;
+  const toolPath = argumentsObj != null ? extractPiToolPathFromArguments(argumentsObj) : void 0;
+  return { toolName, ...toolPath != null ? { toolPath } : {} };
+}
+function toolMetaFromPartialNarrowed(partial, contentIndex) {
+  const slice = partial.content[contentIndex];
+  return parseToolCallFromAssistantSlice(slice);
+}
+function extractToolPathFromAssistantPartial(partial, contentIndex) {
+  return toolMetaFromPartialNarrowed(partial, contentIndex).toolPath;
+}
+function parsePiToolCallEnd(toolCall) {
+  if (toolCall === null || typeof toolCall !== "object" || Array.isArray(toolCall)) {
+    return null;
+  }
+  const o = toolCall;
+  const name = o.name;
+  const args = o.arguments;
+  const out = {};
+  if (typeof name === "string") out.name = name;
+  if (args !== null && typeof args === "object" && !Array.isArray(args)) {
+    out.arguments = args;
+  }
+  return out;
+}
+function toolPathFromNarrowedToolCall(tc) {
+  return extractPiToolPathFromArguments(tc.arguments);
+}
+function parseUnknownArgsRecord(args) {
+  if (args === null || args === void 0) return void 0;
+  if (typeof args !== "object" || Array.isArray(args)) return void 0;
+  return args;
+}
+function parseCompactionDetails(details) {
+  if (details === null || typeof details !== "object" || Array.isArray(details)) return void 0;
+  const d = details;
+  const readFiles = d.readFiles;
+  const modifiedFiles = d.modifiedFiles;
+  const out = {};
+  if (Array.isArray(readFiles) && readFiles.every((x) => typeof x === "string")) {
+    out.readFiles = readFiles;
+  }
+  if (Array.isArray(modifiedFiles) && modifiedFiles.every((x) => typeof x === "string")) {
+    out.modifiedFiles = modifiedFiles;
+  }
+  return Object.keys(out).length > 0 ? out : void 0;
+}
+const IMAGE_TOKEN_ESTIMATE = 2500;
+const CONTEXT_TOKEN_FUDGE = 1.04;
+const MIN_USER_MESSAGE_TOKENS = 6;
+function estimateUserOrToolContent(content) {
   if (typeof content === "string") return estimateTextTokens(content);
   let n = 0;
-  for (const p of content) {
-    if (p.type === "text" && typeof p.text === "string") n += estimateTextTokens(p.text);
-    else if (p.type === "thinking" && typeof p.thinking === "string") {
-      n += estimateTextTokens(p.thinking);
-    } else if (p.type === "image" && typeof p.data === "string") n += 2500;
+  for (const part of content) {
+    if (isTextPart(part)) n += estimateTextTokens(part.text);
+    else if (isImagePart(part)) n += IMAGE_TOKEN_ESTIMATE;
   }
-  return Math.max(n, 6);
+  return Math.max(n, MIN_USER_MESSAGE_TOKENS);
 }
 function estimatePiContextTokens(context) {
   let n = estimateTextTokens(context.systemPrompt ?? "");
   for (const m of context.messages) {
     if (m.role === "user" || m.role === "toolResult") {
-      n += estimateUserMessageContent(m.content);
+      n += estimateUserOrToolContent(m.content);
     } else if (m.role === "assistant") {
       for (const c of m.content) {
-        if (c.type === "text") n += estimateTextTokens(c.text);
-        else if (c.type === "thinking") n += estimateTextTokens(c.thinking);
-        else if (c.type === "toolCall") {
+        if (isTextPart(c)) n += estimateTextTokens(c.text);
+        else if (isThinkingPart(c)) n += estimateTextTokens(c.thinking);
+        else if (isToolCallPart(c)) {
           n += estimateTextTokens(JSON.stringify(c.arguments ?? {}));
           n += estimateTextTokens(c.name);
         }
@@ -1951,7 +3517,7 @@ ${t.description}
 ${JSON.stringify(t.parameters ?? {})}`);
     }
   }
-  return Math.ceil(n * 1.04);
+  return Math.ceil(n * CONTEXT_TOKEN_FUDGE);
 }
 function piStreamCompletionMaxTokens(model, context, explicitFromOptions) {
   if (explicitFromOptions != null) return explicitFromOptions;
@@ -1966,123 +3532,6 @@ function piStreamCompletionMaxTokens(model, context, explicitFromOptions) {
   const ceil = Math.min(model.maxTokens, product ?? model.maxTokens);
   if (dynamic == null) return ceil;
   return Math.min(dynamic, ceil);
-}
-function emitEvent(onEvent, event, optionsOrOnFail) {
-  const opts = typeof optionsOrOnFail === "function" ? { onFail: optionsOrOnFail } : optionsOrOnFail ?? {};
-  const label = opts.label ?? "[pi-emit]";
-  const handle2 = (e) => {
-    console.error(`${label} onEvent failed`, normalizeError(e), e);
-    opts.onFail?.(e);
-  };
-  try {
-    const ret = onEvent(event);
-    if (ret && typeof ret.then === "function") {
-      ret.catch(handle2);
-    }
-  } catch (e) {
-    handle2(e);
-  }
-}
-const SANDBOX_PROJECT_ROOT = "/home/user/project";
-function sandboxProjectAbsPath(rel) {
-  const trimmed = rel.replace(/^\/+/, "");
-  return `${SANDBOX_PROJECT_ROOT}/${trimmed}`;
-}
-function buildSandboxSeedMaps(options) {
-  const files = {};
-  if (options.seedFiles) {
-    for (const [path2, content] of Object.entries(options.seedFiles)) {
-      files[sandboxProjectAbsPath(path2)] = content;
-    }
-  }
-  return files;
-}
-function createAgentBashSandbox(options) {
-  const files = buildSandboxSeedMaps(options);
-  return new Bash({
-    files,
-    cwd: SANDBOX_PROJECT_ROOT,
-    executionLimits: {
-      maxCommandCount: 5e3,
-      maxLoopIterations: 5e3,
-      maxSedIterations: 5e3,
-      maxAwkIterations: 5e3
-    }
-  });
-}
-async function extractDesignFiles(bash) {
-  const paths = bash.fs.getAllPaths().filter((p) => {
-    if (!p.startsWith(`${SANDBOX_PROJECT_ROOT}/`) && p !== SANDBOX_PROJECT_ROOT) return false;
-    if (p === SANDBOX_PROJECT_ROOT) return false;
-    return true;
-  });
-  const out = {};
-  for (const abs of paths.sort()) {
-    let stat;
-    try {
-      stat = await bash.fs.stat(abs);
-    } catch {
-      if (env.isDev) {
-        console.warn("[sandbox] extractDesignFiles: stat failed for", abs);
-      }
-      continue;
-    }
-    if (!stat.isFile) continue;
-    let body;
-    try {
-      body = await bash.fs.readFile(abs, "utf8");
-    } catch {
-      if (env.isDev) {
-        console.warn("[sandbox] extractDesignFiles: readFile failed for", abs);
-      }
-      continue;
-    }
-    const rel = abs.startsWith(`${SANDBOX_PROJECT_ROOT}/`) ? abs.slice(SANDBOX_PROJECT_ROOT.length + 1) : abs;
-    out[rel] = body;
-  }
-  return out;
-}
-function computeDesignFilesBeyondSeed(extracted, seedFiles) {
-  if (!seedFiles || Object.keys(seedFiles).length === 0) {
-    return { ...extracted };
-  }
-  const out = {};
-  for (const [path2, content] of Object.entries(extracted)) {
-    const seedContent = seedFiles[path2];
-    if (seedContent === void 0) {
-      out[path2] = content;
-    } else if (seedContent !== content) {
-      out[path2] = content;
-    }
-  }
-  return out;
-}
-async function snapshotDesignFiles(bash) {
-  const files = await extractDesignFiles(bash);
-  return new Map(Object.entries(files));
-}
-const DEBUG_AGENT_INGEST_URL = "http://127.0.0.1:7576/ingest/83c687e1-03e6-457d-9b2a-e5ea8f1db0e1";
-const DEBUG_AGENT_INGEST_SESSION_ID = "5b9be9";
-function buildDebugAgentIngestBody(payload) {
-  const sessionId = payload.sessionId ?? DEBUG_AGENT_INGEST_SESSION_ID;
-  return JSON.stringify({
-    ...payload,
-    sessionId,
-    timestamp: Date.now()
-  });
-}
-function debugAgentIngest(payload) {
-  if (process.env.DEBUG_AGENT_INGEST !== "1") return;
-  const sessionId = payload.sessionId ?? DEBUG_AGENT_INGEST_SESSION_ID;
-  fetch(DEBUG_AGENT_INGEST_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": sessionId
-    },
-    body: buildDebugAgentIngestBody(payload)
-  }).catch(() => {
-  });
 }
 const DEFAULT_MODEL = "qwen/qwen3-coder-next";
 class LMStudioProvider {
@@ -2185,8 +3634,6 @@ function mapSessionTypeToLlmLogSource(sessionType) {
       return "incubator";
     case "inputs-gen":
       return "inputsGen";
-    case "internal-context":
-      return "internalContext";
     case "design-system":
       return "designSystem";
     case "evaluation":
@@ -2302,1064 +3749,6 @@ function wrapPiStreamWithLogging(inner, params) {
     });
   });
 }
-const ZEROED_COST = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
-const SESSION_CEILING_FALLBACK_MARGIN = 8192;
-function maxCompletionBudgetForContextWindow(totalContext) {
-  const capped = completionBudgetFromPromptTokens(
-    totalContext,
-    0,
-    "default",
-    env.MAX_OUTPUT_TOKENS
-  );
-  if (capped != null) return capped;
-  return Math.max(
-    4096,
-    Math.max(4096, totalContext) - SESSION_CEILING_FALLBACK_MARGIN
-  );
-}
-function buildModel(providerId, modelId, thinkingLevel, contextWindowFromRegistry) {
-  const reasoning = !!thinkingLevel && thinkingLevel !== "off";
-  const defaultCw = providerId === "lmstudio" ? env.LM_STUDIO_CONTEXT_WINDOW : 131072;
-  const contextWindow = Math.max(4096, contextWindowFromRegistry ?? defaultCw);
-  const maxTokens = maxCompletionBudgetForContextWindow(contextWindow);
-  if (providerId === "lmstudio") {
-    return {
-      id: modelId,
-      name: modelId,
-      api: "openai-completions",
-      provider: "lmstudio",
-      baseUrl: `${env.LMSTUDIO_URL}/v1`,
-      reasoning,
-      input: ["text"],
-      cost: ZEROED_COST,
-      contextWindow,
-      maxTokens
-    };
-  }
-  return {
-    id: modelId,
-    name: modelId,
-    api: "openai-completions",
-    provider: "openrouter",
-    baseUrl: `${env.OPENROUTER_BASE_URL}/api/v1`,
-    reasoning,
-    input: ["text"],
-    cost: ZEROED_COST,
-    contextWindow,
-    maxTokens
-  };
-}
-function piToolParams(params) {
-  return params;
-}
-const bashParams = Type.Object({
-  command: Type.String({
-    description: "Shell command in the just-bash sandbox (cwd is the project root). No package managers or host binaries — only built-in commands (e.g. rg, grep, sed, awk, jq, cat, find). Prefer read/write/edit tools for files; use bash for text pipelines or when no dedicated tool fits."
-  })
-});
-function createSandboxBashTool(bash, onFile) {
-  return {
-    name: "bash",
-    label: "bash",
-    description: `Run a shell command in the just-bash virtual shell at ${SANDBOX_PROJECT_ROOT} (your cwd). This is not a full Linux machine: no npm, node, python, or external binaries — only just-bash built-ins (text tools like rg, grep, sed, awk, jq, pipes). For creating or editing design files, prefer the \`write\` and \`edit\` tools; use \`read\` instead of \`cat\`. Use bash for multi-step text pipelines or utilities when no dedicated tool fits.`,
-    parameters: bashParams,
-    async execute(_toolCallId, params, signal, _onUpdate, _ctx) {
-      const { command } = piToolParams(params);
-      const before = await snapshotDesignFiles(bash);
-      const result = await bash.exec(command, { signal: signal ?? void 0 });
-      const after = await snapshotDesignFiles(bash);
-      for (const [rel, content] of after) {
-        if (before.get(rel) !== content) {
-          onFile(rel, content);
-        }
-      }
-      const merged = [result.stdout, result.stderr].filter(Boolean).join("\n");
-      const prefix = result.exitCode !== 0 ? `[exit ${result.exitCode}]
-` : "";
-      const body = merged || (result.exitCode !== 0 ? "(no stdout/stderr)" : "(no output)");
-      const full = prefix + body;
-      const text = full.length > BASH_TOOL_MAX_CHARS ? `${full.slice(0, BASH_TOOL_MAX_CHARS)}
-[Output truncated at ${BASH_TOOL_MAX_CHARS} characters]` : full;
-      return {
-        content: [{ type: "text", text }],
-        details: null
-      };
-    }
-  };
-}
-const GOOGLE_FONTS_CSS_HOSTS = ["fonts.googleapis.com"];
-const GOOGLE_FONTS_ASSET_HOSTS = ["fonts.gstatic.com"];
-function parseUrlHost(ref) {
-  const raw = ref.trim();
-  if (!raw || raw.startsWith("data:")) return null;
-  try {
-    if (raw.startsWith("//")) return new URL(`https:${raw}`).hostname.toLowerCase();
-    if (/^https?:\/\//i.test(raw)) return new URL(raw).hostname.toLowerCase();
-    return null;
-  } catch {
-    return null;
-  }
-}
-function isAllowedGoogleFontStylesheetUrl(ref) {
-  const host = parseUrlHost(ref);
-  if (!host) return false;
-  return GOOGLE_FONTS_CSS_HOSTS.some((h) => host === h);
-}
-function isAllowedGoogleFontAssetHost(ref) {
-  const host = parseUrlHost(ref);
-  if (!host) return false;
-  return GOOGLE_FONTS_ASSET_HOSTS.some((h) => host === h);
-}
-function isAllowedGoogleFontsExternalRef(ref) {
-  return isAllowedGoogleFontStylesheetUrl(ref) || isAllowedGoogleFontAssetHost(ref);
-}
-function resolveVirtualAssetPath(ref, htmlFilePath) {
-  const clean = ref.split("#")[0].split("?")[0].trim();
-  if (!clean) return void 0;
-  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith("data:")) return void 0;
-  if (/^(mailto|javascript|tel):/i.test(clean)) return void 0;
-  let joined;
-  if (clean.startsWith("/")) {
-    joined = clean.slice(1);
-  } else {
-    const lastSlash = htmlFilePath.lastIndexOf("/");
-    const dir = lastSlash >= 0 ? htmlFilePath.slice(0, lastSlash) : "";
-    joined = dir ? `${dir}/${clean}` : clean;
-  }
-  const segments = joined.split("/").filter((s) => s.length > 0 && s !== ".");
-  const out = [];
-  for (const seg of segments) {
-    if (seg === "..") {
-      out.pop();
-    } else {
-      out.push(seg);
-    }
-  }
-  return out.join("/");
-}
-function classifyAssetRef(ref) {
-  const clean = ref.split("#")[0].split("?")[0].trim();
-  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith("data:")) return "external";
-  if (clean.startsWith("/")) return "absolute";
-  return "relative";
-}
-function extractCssImportUrls(css) {
-  const urls = [];
-  const urlParen = /@import\s+url\s*\(\s*["']?([^"')]+)["']?\s*\)\s*;?/gi;
-  const quoted = /@import\s+["']([^"']+)["']\s*;?/gi;
-  let m;
-  while ((m = urlParen.exec(css)) !== null) {
-    const u = m[1]?.trim();
-    if (u) urls.push(u);
-  }
-  while ((m = quoted.exec(css)) !== null) {
-    const u = m[1]?.trim();
-    if (u) urls.push(u);
-  }
-  return urls;
-}
-async function validateHtmlWorkspaceContent(content, htmlPath, hasProjectFile2) {
-  const issues = [];
-  if (!/<!DOCTYPE\s+html/i.test(content)) {
-    issues.push("Missing DOCTYPE declaration");
-  }
-  for (const tag of ["html", "head", "body"]) {
-    if (!new RegExp(`<${tag}[\\s>]`, "i").test(content)) {
-      issues.push(`Missing <${tag}> tag`);
-    }
-  }
-  const scriptOpen = (content.match(/<script/gi) ?? []).length;
-  const scriptClose = (content.match(/<\/script>/gi) ?? []).length;
-  if (scriptOpen !== scriptClose) {
-    issues.push(`Unbalanced <script> tags: ${scriptOpen} opening, ${scriptClose} closing`);
-  }
-  const styleOpen = (content.match(/<style/gi) ?? []).length;
-  const styleClose = (content.match(/<\/style>/gi) ?? []).length;
-  if (styleOpen !== styleClose) {
-    issues.push(`Unbalanced <style> tags: ${styleOpen} opening, ${styleClose} closing`);
-  }
-  const stylesheetRefs = [
-    ...content.matchAll(/<link\s+[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*\/?>/gi)
-  ].map((match) => match[1] ?? "");
-  const scriptRefs = [
-    ...content.matchAll(/<script\s+[^>]*src=["']([^"']+)["'][^>]*><\/script>/gi)
-  ].map((match) => match[1] ?? "");
-  for (const ref of stylesheetRefs) {
-    const kind = classifyAssetRef(ref);
-    if (kind === "external") {
-      if (isAllowedGoogleFontStylesheetUrl(ref)) continue;
-      issues.push(`External asset reference found: ${ref}`);
-      continue;
-    }
-    if (kind === "absolute") {
-      issues.push(`Use relative asset paths instead of root-absolute paths: ${ref}`);
-    }
-    const resolved = resolveVirtualAssetPath(ref, htmlPath);
-    if (!resolved) continue;
-    if (!await hasProjectFile2(resolved)) {
-      issues.push(`Referenced asset not found in workspace: ${ref}`);
-    }
-  }
-  for (const ref of scriptRefs) {
-    const kind = classifyAssetRef(ref);
-    if (kind === "external") {
-      issues.push(`External asset reference found: ${ref}`);
-      continue;
-    }
-    if (kind === "absolute") {
-      issues.push(`Use relative asset paths instead of root-absolute paths: ${ref}`);
-    }
-    const resolved = resolveVirtualAssetPath(ref, htmlPath);
-    if (!resolved) continue;
-    if (!await hasProjectFile2(resolved)) {
-      issues.push(`Referenced asset not found in workspace: ${ref}`);
-    }
-  }
-  for (const styleMatch of content.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)) {
-    const css = styleMatch[1] ?? "";
-    for (const importUrl of extractCssImportUrls(css)) {
-      if (classifyAssetRef(importUrl) !== "external") continue;
-      if (isAllowedGoogleFontsExternalRef(importUrl)) continue;
-      issues.push(`External @import in <style> not allowed: ${importUrl}`);
-    }
-  }
-  return issues;
-}
-async function readProjectFile(bash, rel) {
-  const abs = sandboxProjectAbsPath(rel);
-  try {
-    if (!await bash.fs.exists(abs)) return void 0;
-    const st = await bash.fs.stat(abs);
-    if (!st.isFile) return void 0;
-    return await bash.fs.readFile(abs, "utf8");
-  } catch {
-    return void 0;
-  }
-}
-async function hasProjectFile(bash, rel) {
-  const abs = sandboxProjectAbsPath(rel);
-  try {
-    if (!await bash.fs.exists(abs)) return false;
-    const st = await bash.fs.stat(abs);
-    return st.isFile;
-  } catch {
-    return false;
-  }
-}
-const todoWriteSchema = Type.Object({
-  todos: Type.Array(
-    Type.Object({
-      id: Type.String({ description: 'Unique id (e.g. "1", "2").' }),
-      task: Type.String({ description: "Task description." }),
-      status: Type.Union([
-        Type.Literal("pending"),
-        Type.Literal("in_progress"),
-        Type.Literal("completed")
-      ])
-    }),
-    { description: "Full replacement todo list. Always write the complete current state." }
-  )
-});
-function createTodoWriteTool(todoState, onTodos) {
-  return {
-    name: "todo_write",
-    label: "todo_write",
-    description: "Write or update your task list. Always provide the complete current state — full replacement. Todos survive context compaction.",
-    promptSnippet: "Track task progress (survives context compaction)",
-    parameters: todoWriteSchema,
-    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
-      const { todos } = piToolParams(params);
-      todoState.current = todos;
-      onTodos(todos);
-      const summary = todos.map((t) => {
-        const icon = t.status === "completed" ? "✓" : t.status === "in_progress" ? "●" : "○";
-        return `${icon} ${t.task}`;
-      }).join("\n");
-      return {
-        content: [{ type: "text", text: `Todo list updated:
-${summary}` }],
-        details: null
-      };
-    }
-  };
-}
-const useSkillSchema = Type.Object({
-  name: Type.String({
-    description: 'Skill key — directory name under skills/ (matches <skill key="..."> in this tool description).'
-  })
-});
-function createUseSkillTool(entries2, onActivate) {
-  const byKey = new Map(entries2.map((e) => [e.key, e]));
-  const rows = entries2.map((e) => ({
-    key: e.key,
-    name: e.name,
-    description: e.description
-  }));
-  const description = buildUseSkillToolDescription(rows);
-  return {
-    name: "use_skill",
-    label: "use_skill",
-    description,
-    promptSnippet: "Load skill instructions from the skills catalog",
-    parameters: useSkillSchema,
-    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
-      const { name } = piToolParams(params);
-      const key = name.trim();
-      const skill = byKey.get(key);
-      if (!skill) {
-        const available = [...byKey.keys()].sort().join(", ") || "(none)";
-        return {
-          content: [{ type: "text", text: `Unknown skill: ${key}. Available: ${available}` }],
-          details: null
-        };
-      }
-      onActivate({
-        key: skill.key,
-        name: skill.name,
-        description: skill.description
-      });
-      const header = `# ${skill.name}
-
-`;
-      return {
-        content: [{ type: "text", text: header + skill.bodyMarkdown }],
-        details: null
-      };
-    }
-  };
-}
-const validateJsSchema = Type.Object({
-  path: Type.String({ description: 'Path of the JS file (e.g. "app.js").' })
-});
-function createValidateJsTool(bash) {
-  return {
-    name: "validate_js",
-    label: "validate_js",
-    description: "Check JS syntax with the Node parser. Prefer after substantive edits.",
-    promptSnippet: "Check JS syntax with Node parser",
-    parameters: validateJsSchema,
-    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
-      const { path: path2 } = piToolParams(params);
-      const content = await readProjectFile(bash, path2);
-      if (content === void 0) {
-        return {
-          content: [{ type: "text", text: `File not found: ${path2}` }],
-          details: null
-        };
-      }
-      try {
-        new Script(content, { filename: path2 });
-        return {
-          content: [{ type: "text", text: `${path2}: syntax OK` }],
-          details: null
-        };
-      } catch (err) {
-        const msg = normalizeError(err);
-        return {
-          content: [{ type: "text", text: `${path2}: ${msg}` }],
-          details: null
-        };
-      }
-    }
-  };
-}
-const validateHtmlSchema = Type.Object({
-  path: Type.String({ description: 'Path of the HTML file (e.g. "index.html").' })
-});
-function createValidateHtmlTool(bash) {
-  return {
-    name: "validate_html",
-    label: "validate_html",
-    description: "Structural checks for HTML (DOCTYPE, landmark tags, balanced script/style, local asset refs — inline CSS/JS allowed).",
-    promptSnippet: "Structural checks for HTML (DOCTYPE, landmarks, assets)",
-    parameters: validateHtmlSchema,
-    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
-      const { path: path2 } = piToolParams(params);
-      const content = await readProjectFile(bash, path2);
-      if (content === void 0) {
-        return {
-          content: [{ type: "text", text: `File not found: ${path2}` }],
-          details: null
-        };
-      }
-      const issues = await validateHtmlWorkspaceContent(content, path2, (rel) => hasProjectFile(bash, rel));
-      const text = issues.length === 0 ? `${path2}: structure OK` : `${path2}: ${issues.length} issue(s)
-${issues.map((i) => `- ${i}`).join("\n")}`;
-      return {
-        content: [{ type: "text", text }],
-        details: null
-      };
-    }
-  };
-}
-function normalizeLf(s) {
-  return s.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-}
-function strategy1LeadingWhitespaceOnly(fileContent, oldText) {
-  const fileLines = fileContent.split("\n");
-  const needleLines = oldText.split("\n");
-  if (needleLines.length === 0) return null;
-  const normalizedNeedle = needleLines.map((l) => l.replace(/^\s+/, ""));
-  const matches = [];
-  for (let i = 0; i <= fileLines.length - needleLines.length; i++) {
-    let ok = true;
-    for (let j = 0; j < needleLines.length; j++) {
-      const fileLineNorm = fileLines[i + j].replace(/^\s+/, "");
-      if (fileLineNorm !== normalizedNeedle[j]) {
-        ok = false;
-        break;
-      }
-    }
-    if (ok) matches.push(i);
-  }
-  if (matches.length !== 1) return null;
-  const start = matches[0];
-  return fileLines.slice(start, start + needleLines.length).join("\n");
-}
-function collapseWhitespace(s) {
-  return s.replace(/\s+/g, " ").trim();
-}
-function strategy2CollapsedWhitespace(fileContent, oldText) {
-  const target = collapseWhitespace(oldText);
-  if (target === "") return null;
-  const lines = fileContent.split("\n");
-  const needleLineCount = oldText.split("\n").length;
-  const minLen = Math.max(1, needleLineCount - 3);
-  const maxLen = Math.min(lines.length, needleLineCount + 3);
-  const matches = [];
-  for (let s = 0; s < lines.length; s++) {
-    for (let len = minLen; len <= maxLen && s + len <= lines.length; len++) {
-      const chunk = lines.slice(s, s + len).join("\n");
-      if (collapseWhitespace(chunk) === target) {
-        matches.push(chunk);
-      }
-    }
-  }
-  const unique = [...new Set(matches)];
-  return unique.length === 1 ? unique[0] : null;
-}
-function strategy3LineTrimAnchors(fileContent, oldText) {
-  const fileLines = fileContent.split("\n");
-  const needleLines = oldText.split("\n");
-  if (needleLines.length === 0) return null;
-  const L = needleLines.length;
-  const blocks = [];
-  for (let i = 0; i <= fileLines.length - L; i++) {
-    let ok = true;
-    for (let k = 0; k < L; k++) {
-      if (fileLines[i + k].trim() !== needleLines[k].trim()) {
-        ok = false;
-        break;
-      }
-    }
-    if (ok) {
-      blocks.push(fileLines.slice(i, i + L).join("\n"));
-    }
-  }
-  if (blocks.length !== 1) return null;
-  return blocks[0];
-}
-function collapseAndLowercase(s) {
-  return s.replace(/\s+/g, " ").trim().toLowerCase();
-}
-function strategy4CaseInsensitiveCollapsed(fileContent, oldText) {
-  const fileLines = fileContent.split("\n");
-  const needleLines = oldText.split("\n");
-  if (needleLines.length === 0) return null;
-  const L = needleLines.length;
-  const normalizedNeedle = needleLines.map(collapseAndLowercase);
-  const blocks = [];
-  for (let i = 0; i <= fileLines.length - L; i++) {
-    let ok = true;
-    for (let k = 0; k < L; k++) {
-      if (collapseAndLowercase(fileLines[i + k]) !== normalizedNeedle[k]) {
-        ok = false;
-        break;
-      }
-    }
-    if (ok) {
-      blocks.push(fileLines.slice(i, i + L).join("\n"));
-    }
-  }
-  if (blocks.length !== 1) return null;
-  return blocks[0];
-}
-function strategy5AnchorLines(fileContent, oldText) {
-  const fileLines = fileContent.split("\n");
-  const needleLines = oldText.split("\n");
-  if (needleLines.length < 3) return null;
-  const firstNeedle = collapseAndLowercase(needleLines[0]);
-  const lastNeedle = collapseAndLowercase(needleLines[needleLines.length - 1]);
-  if (!firstNeedle || !lastNeedle) return null;
-  const L = needleLines.length;
-  const tolerance = 5;
-  const blocks = [];
-  for (let i = 0; i < fileLines.length; i++) {
-    if (collapseAndLowercase(fileLines[i]) !== firstNeedle) continue;
-    const minEnd = i + Math.max(L - tolerance, 2);
-    const maxEnd = i + L + tolerance;
-    for (let j = Math.min(minEnd, fileLines.length - 1); j < Math.min(maxEnd, fileLines.length); j++) {
-      if (collapseAndLowercase(fileLines[j]) !== lastNeedle) continue;
-      const span = j - i + 1;
-      if (span >= L - tolerance && span <= L + tolerance) {
-        blocks.push(fileLines.slice(i, j + 1).join("\n"));
-      }
-    }
-  }
-  if (blocks.length !== 1) return null;
-  return blocks[0];
-}
-const STRATEGY_NAMES = [
-  "strategy1LeadingWhitespaceOnly",
-  "strategy2CollapsedWhitespace",
-  "strategy3LineTrimAnchors",
-  "strategy4CaseInsensitiveCollapsed",
-  "strategy5AnchorLines"
-];
-const STRATEGIES = [
-  strategy1LeadingWhitespaceOnly,
-  strategy2CollapsedWhitespace,
-  strategy3LineTrimAnchors,
-  strategy4CaseInsensitiveCollapsed,
-  strategy5AnchorLines
-];
-function attemptMatchCascade(fileContent, edits, diagnostics) {
-  const file = normalizeLf(fileContent);
-  const corrected = [];
-  for (let ei = 0; ei < edits.length; ei++) {
-    const e = edits[ei];
-    const oldNorm = normalizeLf(e.oldText);
-    const diag = {
-      editIndex: ei,
-      oldTextPreview: oldNorm.length > LOG_PREVIEW_SNIPPET_MAX ? `${oldNorm.slice(0, LOG_PREVIEW_SNIPPET_HEAD_CHARS)}…` : oldNorm,
-      resolvedBy: null,
-      strategiesAttempted: []
-    };
-    let fixed = null;
-    for (let si = 0; si < STRATEGIES.length; si++) {
-      diag.strategiesAttempted.push(STRATEGY_NAMES[si]);
-      fixed = STRATEGIES[si](file, oldNorm);
-      if (fixed && fixed !== e.oldText) {
-        diag.resolvedBy = STRATEGY_NAMES[si];
-        break;
-      }
-      fixed = null;
-    }
-    diagnostics?.push(diag);
-    if (!fixed) {
-      return null;
-    }
-    corrected.push({ oldText: fixed, newText: e.newText });
-  }
-  return corrected;
-}
-function normalizeEditToolParams(params) {
-  if (!params || typeof params !== "object") return null;
-  const p = params;
-  const pathVal = typeof p.path === "string" ? p.path : "";
-  const edits = Array.isArray(p.edits) ? [...p.edits] : [];
-  if (typeof p.oldText === "string" && typeof p.newText === "string") {
-    edits.push({ oldText: p.oldText, newText: p.newText });
-  }
-  if (edits.length === 0) return null;
-  for (const e of edits) {
-    if (typeof e.oldText !== "string" || typeof e.newText !== "string") return null;
-  }
-  return { path: pathVal, edits };
-}
-function isEditNotFoundError(message) {
-  return /could not find/i.test(message);
-}
-const SANDBOX_TOOL_OVERRIDES = {
-  read: {
-    description: `Read UTF-8 text from a file in the in-memory project at ${SANDBOX_PROJECT_ROOT}. This workspace is text-only for tool purposes (no image attachments). Output is truncated to ${SANDBOX_READ_MAX_LINES} lines or ${DEFAULT_MAX_BYTES / 1024}KB (whichever is hit first). Use offset/limit for large files. When you need the full file, continue with offset until complete.`
-  },
-  write: {
-    description: `Create or overwrite a UTF-8 text file under ${SANDBOX_PROJECT_ROOT}. Parent directories are created as needed. Use for **new files** or **complete file rewrites**; prefer **edit** for partial changes to existing files.`
-  },
-  edit: {
-    description: `Apply exact search-and-replace edits to an existing file under ${SANDBOX_PROJECT_ROOT}. Each \`oldText\` must appear **exactly once** in the **original** file before edits are applied. CRITICAL: Include **at least 3 lines of surrounding context** in each \`oldText\` so it uniquely identifies one occurrence — e.g. the full CSS rule block (selector + braces), not a single property line when that value repeats. Prefer **edit** over bash/sed for file changes.`
-  },
-  ls: {
-    description: `List directory contents in the virtual project at ${SANDBOX_PROJECT_ROOT}. Returns entries sorted alphabetically, with '/' suffix for directories. Includes dotfiles. Output is truncated to ${SANDBOX_LS_MAX_ENTRIES} entries or ${DEFAULT_MAX_BYTES / 1024}KB (whichever is hit first).`
-  },
-  find: {
-    description: `Search for files by glob pattern under the in-memory project at ${SANDBOX_PROJECT_ROOT}. Returns matching file paths relative to the search directory. There is no .gitignore in this sandbox — every generated file is visible. Output is truncated to ${SANDBOX_FIND_MAX_RESULTS} results or ${DEFAULT_MAX_BYTES / 1024}KB (whichever is hit first).`
-  },
-  grep: {
-    description: `Search file contents in the virtual project workspace using ripgrep-style search (just-bash \`rg\`). Returns matching lines with file paths and line numbers. Only the in-memory design files under ${SANDBOX_PROJECT_ROOT} exist — there is no .gitignore or host filesystem. Output is truncated to ${SANDBOX_GREP_DEFAULT_MATCH_LIMIT} matches or ${DEFAULT_MAX_BYTES / 1024}KB (whichever is hit first). Long lines are truncated to ${GREP_MAX_LINE_LENGTH} chars.`
-  }
-};
-function toProjectRelative(absPath) {
-  if (!absPath.startsWith(`${SANDBOX_PROJECT_ROOT}/`)) return null;
-  return absPath.slice(SANDBOX_PROJECT_ROOT.length + 1);
-}
-async function emitDesignFileIfNeeded(absPath, bash, onDesignFile) {
-  const rel = toProjectRelative(absPath);
-  if (!rel) return;
-  try {
-    const st = await bash.fs.stat(absPath);
-    if (!st.isFile) return;
-    const content = await bash.fs.readFile(absPath, "utf8");
-    onDesignFile(rel, content);
-  } catch {
-  }
-}
-function resolveVirtualPath(relativeOrAbsolute, cwd) {
-  const raw = (relativeOrAbsolute ?? ".").trim() || ".";
-  if (path.posix.isAbsolute(raw)) {
-    return path.posix.normalize(raw);
-  }
-  return path.posix.resolve(cwd, raw);
-}
-function shellSingleQuote(s) {
-  return `'${s.replace(/'/g, `'\\''`)}'`;
-}
-function createVirtualGrepTool(bash, sessionCwd) {
-  const base = grepToolDefinition;
-  return {
-    ...base,
-    ...SANDBOX_TOOL_OVERRIDES.grep,
-    async execute(_toolCallId, params, signal, _onUpdate, _ctx) {
-      const { pattern, path: pathArg, glob: globPat, ignoreCase, literal, context, limit } = params;
-      if (signal?.aborted) {
-        throw new Error("Operation aborted");
-      }
-      const searchPath = resolveVirtualPath(pathArg, sessionCwd);
-      try {
-        await bash.fs.stat(searchPath);
-      } catch {
-        return {
-          content: [{ type: "text", text: `Path not found: ${searchPath}` }],
-          details: void 0
-        };
-      }
-      const effectiveLimit = Math.max(1, limit ?? SANDBOX_GREP_DEFAULT_MATCH_LIMIT);
-      const contextLines = context && context > 0 ? context : 0;
-      const argv = ["rg", "-nH"];
-      if (ignoreCase) argv.push("--ignore-case");
-      if (literal) argv.push("--fixed-strings");
-      if (contextLines > 0) argv.push("-C", String(contextLines));
-      const g = globPat?.trim();
-      if (g) {
-        argv.push("--glob", shellSingleQuote(g));
-      }
-      argv.push(shellSingleQuote(pattern), shellSingleQuote(searchPath));
-      const cmd = argv.join(" ");
-      const result = await bash.exec(cmd, { signal: signal ?? void 0 });
-      if (signal?.aborted) {
-        throw new Error("Operation aborted");
-      }
-      if (result.exitCode !== 0 && result.exitCode !== 1) {
-        const errText = [result.stderr, result.stdout].filter(Boolean).join("\n").trim();
-        return {
-          content: [
-            {
-              type: "text",
-              text: errText || `rg failed with exit code ${result.exitCode}`
-            }
-          ],
-          details: void 0
-        };
-      }
-      const rawOut = (result.stdout ?? "").replace(/\r\n/g, "\n").trimEnd();
-      const stderrTrim = (result.stderr ?? "").trim();
-      if (result.exitCode === 1 && !rawOut && stderrTrim) {
-        return {
-          content: [{ type: "text", text: stderrTrim }],
-          details: void 0
-        };
-      }
-      if (!rawOut) {
-        return {
-          content: [{ type: "text", text: "No matches found" }],
-          details: void 0
-        };
-      }
-      const lines = rawOut.split("\n");
-      const matchLineRe = /^(.+):(\d+):/;
-      let matchCount = 0;
-      let matchLimitReached = false;
-      let linesTruncated = false;
-      const kept = [];
-      for (const line of lines) {
-        const isMatch = matchLineRe.test(line);
-        if (isMatch) {
-          if (matchCount >= effectiveLimit) {
-            matchLimitReached = true;
-            break;
-          }
-          matchCount++;
-        }
-        const { text: truncated, wasTruncated } = truncateLine(line, GREP_MAX_LINE_LENGTH);
-        if (wasTruncated) linesTruncated = true;
-        kept.push(truncated);
-      }
-      let output = kept.join("\n");
-      const truncation = truncateHead(output, { maxLines: Number.MAX_SAFE_INTEGER });
-      output = truncation.content;
-      const details = {};
-      const notices = [];
-      if (matchLimitReached) {
-        notices.push(
-          `${effectiveLimit} matches limit reached. Use limit=${effectiveLimit * 2} for more, or refine pattern`
-        );
-        details.matchLimitReached = effectiveLimit;
-      }
-      if (truncation.truncated) {
-        notices.push(`${formatSize(DEFAULT_MAX_BYTES)} limit reached`);
-        details.truncation = truncation;
-      }
-      if (linesTruncated) {
-        notices.push(
-          `Some lines truncated to ${GREP_MAX_LINE_LENGTH} chars. Use read tool to see full lines`
-        );
-        details.linesTruncated = true;
-      }
-      if (notices.length > 0) {
-        output += `
-
-[${notices.join(". ")}]`;
-      }
-      return {
-        content: [{ type: "text", text: output }],
-        details: Object.keys(details).length > 0 ? details : void 0
-      };
-    }
-  };
-}
-function resolveSandboxPathForSession(relativeOrAbsolute, cwd) {
-  return resolveVirtualPath(relativeOrAbsolute, cwd);
-}
-function createVirtualPiCodingTools(bash, onDesignFile) {
-  const sessionCwd = SANDBOX_PROJECT_ROOT;
-  const pathsSeenBeforeEdit = /* @__PURE__ */ new Set();
-  const readInner = createReadToolDefinition(sessionCwd, {
-    autoResizeImages: false,
-    operations: {
-      readFile: async (absolutePath) => {
-        const text = await bash.fs.readFile(absolutePath, "utf8");
-        return Buffer.from(text, "utf8");
-      },
-      access: async (absolutePath) => {
-        const ok = await bash.fs.exists(absolutePath);
-        if (!ok) throw new Error("ENOENT");
-      }
-    }
-  });
-  const read = {
-    ...readInner,
-    ...SANDBOX_TOOL_OVERRIDES.read,
-    execute: async (toolCallId, params, signal, onUpdate, extCtx) => {
-      const result = await readInner.execute(toolCallId, params, signal, onUpdate, extCtx);
-      const rawPath = params != null && typeof params === "object" && "path" in params && typeof params.path === "string" ? params.path : "";
-      if (rawPath) {
-        pathsSeenBeforeEdit.add(resolveSandboxPathForSession(rawPath, sessionCwd));
-      }
-      return result;
-    }
-  };
-  const writeInner = createWriteToolDefinition(sessionCwd, {
-    operations: {
-      mkdir: async (dir) => {
-        await bash.fs.mkdir(dir, { recursive: true });
-      },
-      writeFile: async (absolutePath, content) => {
-        await bash.fs.mkdir(path.posix.dirname(absolutePath), { recursive: true });
-        await bash.fs.writeFile(absolutePath, content, "utf8");
-        await emitDesignFileIfNeeded(absolutePath, bash, onDesignFile);
-      }
-    }
-  });
-  const write = {
-    ...writeInner,
-    ...SANDBOX_TOOL_OVERRIDES.write,
-    execute: async (toolCallId, params, signal, onUpdate, extCtx) => {
-      const result = await writeInner.execute(toolCallId, params, signal, onUpdate, extCtx);
-      const rawPath = params != null && typeof params === "object" && "path" in params && typeof params.path === "string" ? params.path : "";
-      if (rawPath) {
-        pathsSeenBeforeEdit.add(resolveSandboxPathForSession(rawPath, sessionCwd));
-      }
-      return result;
-    }
-  };
-  const editInner = createEditToolDefinition(sessionCwd, {
-    operations: {
-      readFile: async (absolutePath) => {
-        const text = await bash.fs.readFile(absolutePath, "utf8");
-        return Buffer.from(text, "utf8");
-      },
-      writeFile: async (absolutePath, content) => {
-        await bash.fs.mkdir(path.posix.dirname(absolutePath), { recursive: true });
-        await bash.fs.writeFile(absolutePath, content, "utf8");
-        await emitDesignFileIfNeeded(absolutePath, bash, onDesignFile);
-      },
-      access: async (absolutePath) => {
-        const ok = await bash.fs.exists(absolutePath);
-        if (!ok) throw new Error("ENOENT");
-      }
-    }
-  });
-  const edit = {
-    ...editInner,
-    ...SANDBOX_TOOL_OVERRIDES.edit,
-    execute: async (toolCallId, params, signal, onUpdate, extCtx) => {
-      const rawPath = params != null && typeof params === "object" && "path" in params && typeof params.path === "string" ? params.path : "";
-      const abs = resolveSandboxPathForSession(rawPath || ".", sessionCwd);
-      const fileExists = await bash.fs.exists(abs);
-      if (fileExists && !pathsSeenBeforeEdit.has(abs)) {
-        throw new Error(
-          `You must read "${rawPath}" before editing it. Use the read tool first to see the current file content.`
-        );
-      }
-      try {
-        const result = await editInner.execute(toolCallId, params, signal, onUpdate, extCtx);
-        return result;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (!isEditNotFoundError(msg)) {
-          throw err;
-        }
-        const normalized = normalizeEditToolParams(params);
-        if (!normalized) {
-          throw err;
-        }
-        let fileContent;
-        try {
-          fileContent = await bash.fs.readFile(abs, "utf8");
-        } catch {
-          throw err;
-        }
-        const diagnostics = [];
-        const corrected = attemptMatchCascade(fileContent, normalized.edits, diagnostics);
-        if (!corrected) {
-          console.debug(
-            "[edit-cascade] all strategies failed for",
-            rawPath,
-            JSON.stringify(diagnostics)
-          );
-          throw err;
-        }
-        console.debug(
-          "[edit-cascade] resolved via cascade for",
-          rawPath,
-          JSON.stringify(diagnostics)
-        );
-        const retryParams = {
-          path: normalized.path,
-          edits: corrected
-        };
-        try {
-          const result = await editInner.execute(
-            toolCallId,
-            retryParams,
-            signal,
-            onUpdate,
-            extCtx
-          );
-          return result;
-        } catch {
-          throw err;
-        }
-      }
-    }
-  };
-  const lsInner = createLsToolDefinition(sessionCwd, {
-    operations: {
-      exists: (absolutePath) => bash.fs.exists(absolutePath),
-      stat: async (absolutePath) => {
-        const st = await bash.fs.stat(absolutePath);
-        return {
-          isDirectory: () => st.isDirectory
-        };
-      },
-      readdir: async (absolutePath) => bash.fs.readdir(absolutePath)
-    }
-  });
-  const ls = {
-    ...lsInner,
-    ...SANDBOX_TOOL_OVERRIDES.ls,
-    execute: async (toolCallId, params, signal, onUpdate, extCtx) => {
-      const vfsPaths = bash.fs.getAllPaths();
-      const pathArg = params != null && typeof params === "object" && "path" in params && typeof params.path === "string" ? params.path : "";
-      const stray = vfsPaths.filter(
-        (p) => p !== SANDBOX_PROJECT_ROOT && !p.startsWith(`${SANDBOX_PROJECT_ROOT}/`)
-      );
-      debugAgentIngest({
-        hypothesisId: stray.length > 0 ? "H5" : "H4",
-        location: "virtual-tools.ts:ls:enter",
-        message: "virtual ls enter",
-        data: {
-          sandboxRoot: SANDBOX_PROJECT_ROOT,
-          toolCallId,
-          pathArg,
-          vfsTotal: vfsPaths.length,
-          strayCount: stray.length,
-          straySample: stray.slice(0, 6)
-        }
-      });
-      const t0 = Date.now();
-      try {
-        const result = await lsInner.execute(toolCallId, params, signal, onUpdate, extCtx);
-        const first = result.content[0];
-        const textLen = first && typeof first === "object" && first !== null && "text" in first ? String(first.text ?? "").length : 0;
-        debugAgentIngest({
-          hypothesisId: "H4",
-          location: "virtual-tools.ts:ls:exit",
-          message: "virtual ls exit",
-          data: { toolCallId, durationMs: Date.now() - t0, textLen }
-        });
-        return result;
-      } catch (err) {
-        debugAgentIngest({
-          hypothesisId: "H4",
-          location: "virtual-tools.ts:ls:error",
-          message: "virtual ls throw",
-          data: { toolCallId, err: normalizeError(err) }
-        });
-        throw err;
-      }
-    }
-  };
-  const findInner = createFindToolDefinition(sessionCwd, {
-    operations: {
-      exists: (absolutePath) => bash.fs.exists(absolutePath),
-      glob: async (pattern, searchPath, options) => {
-        const limit = options.limit;
-        const ignore = options.ignore ?? [];
-        const prefix = searchPath.endsWith("/") ? searchPath : `${searchPath}/`;
-        const allPaths = bash.fs.getAllPaths();
-        const out = [];
-        for (const abs of allPaths) {
-          if (out.length >= limit) break;
-          if (abs === searchPath) continue;
-          if (!abs.startsWith(prefix)) continue;
-          let st;
-          try {
-            st = await bash.fs.stat(abs);
-          } catch {
-            continue;
-          }
-          if (!st.isFile) continue;
-          const rel = abs.startsWith(prefix) ? abs.slice(prefix.length) : abs;
-          const ignored = ignore.some((ig) => minimatch(rel, ig, { dot: true }));
-          if (ignored) continue;
-          if (!minimatch(rel, pattern, { dot: true })) continue;
-          out.push(abs);
-        }
-        return out;
-      }
-    }
-  });
-  const find = { ...findInner, ...SANDBOX_TOOL_OVERRIDES.find };
-  const grep = createVirtualGrepTool(bash, sessionCwd);
-  return [read, write, edit, ls, find, grep];
-}
-function buildAgentToolGroups(input) {
-  return {
-    virtualFileTools: createVirtualPiCodingTools(input.bash, input.onDesignFile),
-    bashTool: createSandboxBashTool(input.bash, input.onDesignFile),
-    appTools: [
-      createTodoWriteTool(input.todoState, input.onTodos),
-      createUseSkillTool(input.skillCatalog, input.onSkillActivated)
-    ],
-    validationTools: [
-      createValidateJsTool(input.bash),
-      createValidateHtmlTool(input.bash)
-    ]
-  };
-}
-function flattenAgentToolGroups(groups) {
-  return [
-    ...groups.virtualFileTools,
-    groups.bashTool,
-    ...groups.appTools,
-    ...groups.validationTools
-  ];
-}
-const toolArgsRecordSchema = z.record(z.string(), z.unknown());
-const TOOL_PATH_ARG_KEYS = ["path", "file", "filePath", "target_file"];
-function extractPiToolPathFromArguments(raw) {
-  const parsed = toolArgsRecordSchema.safeParse(raw);
-  if (!parsed.success) return void 0;
-  const o = parsed.data;
-  for (const key of TOOL_PATH_ARG_KEYS) {
-    const v = o[key];
-    if (typeof v === "string" && v.length > 0) return v;
-  }
-  return void 0;
-}
-function parsePiToolExecutionArgs(_toolName, raw) {
-  const parsed = toolArgsRecordSchema.safeParse(raw);
-  if (!parsed.success) {
-    return {};
-  }
-  const o = parsed.data;
-  const path2 = typeof o.path === "string" ? o.path : void 0;
-  const pattern = typeof o.pattern === "string" ? o.pattern : void 0;
-  const key = typeof o.key === "string" ? o.key : void 0;
-  const name = typeof o.name === "string" ? o.name : void 0;
-  return { path: path2 ?? key ?? name, pattern };
-}
-function parseToolCallFromAssistantSlice(slice) {
-  if (slice === null || typeof slice !== "object" || !("type" in slice)) {
-    return { toolName: "tool" };
-  }
-  const type = slice.type;
-  if (type !== "toolCall") {
-    return { toolName: "tool" };
-  }
-  const obj = slice;
-  const name = obj.name;
-  const args = obj.arguments;
-  const toolName = typeof name === "string" && name.length > 0 ? name : "tool";
-  const argumentsObj = args !== null && typeof args === "object" && !Array.isArray(args) ? args : void 0;
-  const toolPath = argumentsObj != null ? extractPiToolPathFromArguments(argumentsObj) : void 0;
-  return { toolName, ...toolPath != null ? { toolPath } : {} };
-}
-function toolMetaFromPartialNarrowed(partial, contentIndex) {
-  const slice = partial.content[contentIndex];
-  return parseToolCallFromAssistantSlice(slice);
-}
-function extractToolPathFromAssistantPartial(partial, contentIndex) {
-  return toolMetaFromPartialNarrowed(partial, contentIndex).toolPath;
-}
-function parsePiToolCallEnd(toolCall) {
-  if (toolCall === null || typeof toolCall !== "object" || Array.isArray(toolCall)) {
-    return null;
-  }
-  const o = toolCall;
-  const name = o.name;
-  const args = o.arguments;
-  const out = {};
-  if (typeof name === "string") out.name = name;
-  if (args !== null && typeof args === "object" && !Array.isArray(args)) {
-    out.arguments = args;
-  }
-  return out;
-}
-function toolPathFromNarrowedToolCall(tc) {
-  return extractPiToolPathFromArguments(tc.arguments);
-}
-function parseUnknownArgsRecord(args) {
-  if (args === null || args === void 0) return void 0;
-  if (typeof args !== "object" || Array.isArray(args)) return void 0;
-  return args;
-}
-function parseCompactionDetails(details) {
-  if (details === null || typeof details !== "object" || Array.isArray(details)) return void 0;
-  const d = details;
-  const readFiles = d.readFiles;
-  const modifiedFiles = d.modifiedFiles;
-  const out = {};
-  if (Array.isArray(readFiles) && readFiles.every((x) => typeof x === "string")) {
-    out.readFiles = readFiles;
-  }
-  if (Array.isArray(modifiedFiles) && modifiedFiles.every((x) => typeof x === "string")) {
-    out.modifiedFiles = modifiedFiles;
-  }
-  return Object.keys(out).length > 0 ? out : void 0;
-}
 function findLastAssistantMessage(messages) {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
@@ -3370,8 +3759,21 @@ function findLastAssistantMessage(messages) {
   }
   return void 0;
 }
-function lastAssistantHasAgentError(session) {
-  return findLastAssistantMessage(session.agent.state.messages)?.stopReason === "error";
+function emitEvent(onEvent, event, optionsOrOnFail) {
+  const opts = typeof optionsOrOnFail === "function" ? { onFail: optionsOrOnFail } : optionsOrOnFail ?? {};
+  const label = opts.label ?? "[pi-emit]";
+  const handle2 = (e) => {
+    console.error(`${label} onEvent failed`, normalizeError(e), e);
+    opts.onFail?.(e);
+  };
+  try {
+    const ret = onEvent(event);
+    if (ret && typeof ret.then === "function") {
+      ret.catch(handle2);
+    }
+  } catch (e) {
+    handle2(e);
+  }
 }
 function safeBridgeEmit(ctx, event) {
   emitEvent(ctx.onEvent, event, {
@@ -3393,9 +3795,9 @@ function handleCompactionStart(ctx, event) {
 function handleAgentEnd(ctx, event) {
   if (event.type !== "agent_end") return;
   const messages = event.messages;
-  const lastAssistant = findLastAssistantMessage(messages);
-  if (!lastAssistant || lastAssistant.stopReason !== "error") return;
-  const errMsg = lastAssistant.errorMessage?.trim() || "Model stream error";
+  const lastAssistant2 = findLastAssistantMessage(messages);
+  if (!lastAssistant2 || lastAssistant2.stopReason !== "error") return;
+  const errMsg = lastAssistant2.errorMessage?.trim() || "Model stream error";
   const traceRow = {
     id: crypto.randomUUID(),
     at: (/* @__PURE__ */ new Date()).toISOString(),
@@ -3437,6 +3839,29 @@ function handleCompactionEnd(ctx, event) {
 }
 const AGENTIC_PROGRESS_WORKING = "Agent working…";
 const RUN_TRACE_LABEL_AGENT_WORKING = "Agent working";
+const DEBUG_AGENT_INGEST_URL = "http://127.0.0.1:7576/ingest/83c687e1-03e6-457d-9b2a-e5ea8f1db0e1";
+const DEBUG_AGENT_INGEST_SESSION_ID = "5b9be9";
+function buildDebugAgentIngestBody(payload) {
+  const sessionId = payload.sessionId ?? DEBUG_AGENT_INGEST_SESSION_ID;
+  return JSON.stringify({
+    ...payload,
+    sessionId,
+    timestamp: Date.now()
+  });
+}
+function debugAgentIngest(payload) {
+  if (process.env.DEBUG_AGENT_INGEST !== "1") return;
+  const sessionId = payload.sessionId ?? DEBUG_AGENT_INGEST_SESSION_ID;
+  fetch(DEBUG_AGENT_INGEST_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": sessionId
+    },
+    body: buildDebugAgentIngestBody(payload)
+  }).catch(() => {
+  });
+}
 function serializePiToolArgsForTrace(raw, maxChars = PI_TOOL_ARGS_TRACE_MAX_CHARS) {
   if (raw == null) return void 0;
   if (typeof raw !== "object") return void 0;
@@ -3794,117 +4219,70 @@ function subscribePiSessionBridge(session, ctx) {
     }
   });
 }
-function createDesignerCompactionExtensionFactory(getCompactionFocus) {
-  return (pi) => {
-    pi.on("session_before_compact", async (event, ctx) => {
-      const model = ctx.model;
-      if (!model) return;
-      let focus = "";
-      try {
-        focus = (await getCompactionFocus()).trim();
-      } catch {
-      }
-      const pieces = [event.customInstructions?.trim(), focus].filter((s) => s && s.length > 0);
-      const customInstructions = pieces.length > 0 ? pieces.join("\n\n") : void 0;
-      if (!customInstructions) {
-        return;
-      }
-      const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
-      if (!auth.ok || !auth.apiKey) {
-        return;
-      }
-      try {
-        const result = await compact(
-          event.preparation,
-          model,
-          auth.apiKey,
-          auth.headers,
-          customInstructions,
-          event.signal
-        );
-        return { compaction: result };
-      } catch {
-        return;
-      }
-    });
+const NO_FILES_MESSAGE = "Agent completed without creating design files in the sandbox. Try a model that supports tool use, or ensure the bash tool runs successfully.";
+async function resolveProviderConfig(providerId, modelId) {
+  if (providerId !== "openrouter" && providerId !== "lmstudio") {
+    throw new Error(`pi-agent-runtime: unsupported provider "${providerId}"`);
+  }
+  const provider = providerId === "openrouter" ? {
+    id: "openrouter",
+    baseUrl: `${env.OPENROUTER_BASE_URL}/api/v1`,
+    apiKey: env.OPENROUTER_API_KEY
+  } : { id: "lmstudio", baseUrl: env.LMSTUDIO_URL };
+  const registryCw = await getProviderModelContextWindow(providerId, modelId);
+  const fallbackCw = providerId === "lmstudio" ? env.LM_STUDIO_CONTEXT_WINDOW : FALLBACK_OPENROUTER_CONTEXT_WINDOW;
+  return { provider, contextWindow: registryCw ?? fallbackCw };
+}
+function dispatchSessionFactory(sessionType, baseOpts, seedFiles) {
+  switch (sessionType) {
+    case "evaluation":
+      return createEvaluationSession(baseOpts);
+    case "incubation":
+      return createIncubationSession(baseOpts);
+    case "inputs-gen":
+      return createInputsGenSession(baseOpts);
+    case "design-system":
+      return createDesignSystemSession(baseOpts);
+    case "design":
+    default:
+      return createDesignSession({ ...baseOpts, seedFiles });
+  }
+}
+function mapPackageResult(result, seedFiles) {
+  const hasRevisionSeed = !!seedFiles && Object.keys(seedFiles).length > 0;
+  const outputVsSeed = hasRevisionSeed ? computeDesignFilesBeyondSeed(result.files, seedFiles) : result.files;
+  if (Object.keys(outputVsSeed).length === 0 && !result.aborted) {
+    return { ok: false, reason: "no_files", message: NO_FILES_MESSAGE };
+  }
+  return {
+    ok: true,
+    result: {
+      files: result.files,
+      todos: result.todos,
+      emittedFilePaths: result.emittedFilePaths
+    }
   };
 }
-function compactionReserveTokensForContextWindow(contextWindow) {
-  return Math.max(24e3, Math.floor(contextWindow * 0.28));
-}
-async function createSandboxResourceLoader(options) {
-  const systemPrompt = options.systemPrompt?.trim();
-  const reserveTokens = compactionReserveTokensForContextWindow(options.contextWindow);
-  const settingsManager = SettingsManager.inMemory({
-    compaction: {
-      enabled: true,
-      reserveTokens,
-      keepRecentTokens: 2e4
-    }
-  });
-  const extensionFactories = [];
-  if (options.getCompactionPromptBody) {
-    extensionFactories.push(
-      createDesignerCompactionExtensionFactory(options.getCompactionPromptBody)
-    );
-  }
+function buildPackageResourceLoader(input) {
   const loader = new DefaultResourceLoader({
-    cwd: SANDBOX_PROJECT_ROOT,
-    settingsManager,
+    cwd: input.cwd,
+    /** Required since Pi 0.72 even when project-local discovery is disabled. */
+    agentDir: input.cwd,
+    /** Disable project-local discovery — we point at the package's bundled paths instead. */
     noExtensions: true,
     noSkills: true,
     noPromptTemplates: true,
     noThemes: true,
-    extensionFactories,
-    systemPrompt: systemPrompt && systemPrompt.length > 0 ? systemPrompt : void 0
+    extensionFactories: input.extensionFactories,
+    additionalSkillPaths: [PACKAGE_SKILLS_DIR],
+    additionalPromptTemplatePaths: [PACKAGE_PROMPTS_DIR],
+    systemPrompt: input.systemPrompt
   });
-  await loader.reload();
-  return { resourceLoader: loader, settingsManager };
-}
-const APP_RETRYABLE_UPSTREAM_PATTERN = /upstream|5\d{2}|NaN|provider.*error|gateway/i;
-function isAppRetryableUpstreamError(message) {
-  if (!message?.trim()) return false;
-  if (/insufficient credits|out of credits|credits are exhausted|402/i.test(message)) return false;
-  return APP_RETRYABLE_UPSTREAM_PATTERN.test(message);
-}
-function sleepMs(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
+  return Promise.resolve(loader).then(async (l) => {
+    await l.reload();
+    return l;
   });
 }
-const MAX_APP_UPSTREAM_RETRIES = 2;
-async function runPromptWithUpstreamRetries(session, userPrompt, onEvent, trace2) {
-  await session.prompt(userPrompt, { expandPromptTemplates: false });
-  let attempts = 0;
-  while (attempts < MAX_APP_UPSTREAM_RETRIES) {
-    const lastAssistant = findLastAssistantMessage(session.agent.state.messages);
-    if (!lastAssistant || lastAssistant.stopReason !== "error") return;
-    if (!isAppRetryableUpstreamError(lastAssistant.errorMessage)) return;
-    if (session.retryAttempt !== 0) return;
-    attempts += 1;
-    await onEvent({
-      type: "progress",
-      payload: `Retrying after upstream error (attempt ${attempts}/${MAX_APP_UPSTREAM_RETRIES})…`
-    });
-    await onEvent(
-      trace2("compaction", `Retrying after upstream error (${attempts}/${MAX_APP_UPSTREAM_RETRIES})`, {
-        phase: "building",
-        status: "warning",
-        detail: lastAssistant.errorMessage?.slice(0, 500)
-      })
-    );
-    const msgs = session.agent.state.messages;
-    if (msgs.length > 0 && msgs[msgs.length - 1].role === "assistant") {
-      session.agent.replaceMessages(msgs.slice(0, -1));
-    }
-    await sleepMs(2e3 * 2 ** (attempts - 1));
-    await session.agent.continue();
-  }
-}
-const FALLBACK_CONTEXT_WINDOW_DEFAULT = 131072;
-const IDLE_PROGRESS_GAP_SEC = 18;
-const IDLE_CHECK_MS = 1e4;
-const STALL_DEBUG_MS = 6e4;
 function createTraceEvent(kind, label, extra = {}) {
   return {
     type: "trace",
@@ -3918,259 +4296,120 @@ function createTraceEvent(kind, label, extra = {}) {
     }
   };
 }
-async function emitSessionStart(params, onEvent) {
-  const message = params.initialProgressMessage ?? "Starting agentic generation...";
-  await onEvent({ type: "progress", payload: message });
-  await onEvent(createTraceEvent("run_started", message, { phase: "building" }));
-}
-async function buildPiModelRuntime(params) {
-  const registryCw = await getProviderModelContextWindow(params.providerId, params.modelId);
-  const fallbackCw = params.providerId === "lmstudio" ? env.LM_STUDIO_CONTEXT_WINDOW : FALLBACK_CONTEXT_WINDOW_DEFAULT;
-  const contextWindow = registryCw ?? fallbackCw;
-  const model = buildModel(
+async function runPiAgentSession(params, onEvent) {
+  const { provider, contextWindow } = await resolveProviderConfig(
     params.providerId,
-    params.modelId,
-    params.thinkingLevel,
-    contextWindow
+    params.modelId
   );
-  const authStorage = AuthStorage.inMemory();
-  if (params.providerId === "lmstudio") {
-    authStorage.setRuntimeApiKey("lmstudio", "local");
-  }
-  if (params.providerId === "openrouter" && env.OPENROUTER_API_KEY) {
-    authStorage.setRuntimeApiKey("openrouter", env.OPENROUTER_API_KEY);
-  }
-  return { authStorage, contextWindow, model };
-}
-function createDesignFileEmitter(onEvent, trace2) {
-  let fileEventCount = 0;
-  const emittedFilePaths = /* @__PURE__ */ new Set();
-  return {
-    emittedFilePaths,
-    getFileEventCount: () => fileEventCount,
-    onDesignFile: (path2, content) => {
-      fileEventCount += 1;
-      emittedFilePaths.add(path2);
-      emitEvent(onEvent, { type: "file", path: path2, content });
-      emitEvent(
-        onEvent,
-        trace2("file_written", `Saved ${path2}`, {
-          phase: "building",
-          path: path2,
-          status: "success"
-        })
-      );
+  const startMessage = params.initialProgressMessage ?? "Starting agentic generation...";
+  await onEvent({ type: "progress", payload: startMessage });
+  await onEvent(createTraceEvent("run_started", startMessage, { phase: "building" }));
+  const systemPromptBody = (params.systemPrompt?.trim() || loadDesignerSystemPrompt()).trim();
+  const onFile = (path2, content) => {
+    void onEvent({ type: "file", path: path2, content });
+    void onEvent(
+      createTraceEvent("file_written", `Saved ${path2}`, {
+        phase: "building",
+        path: path2,
+        status: "success"
+      })
+    );
+  };
+  const onTodos = (todos) => {
+    void onEvent({ type: "todos", todos });
+  };
+  const onPackageEvent = (e) => {
+    if (e.type === "agent_end" && e.errorMessage) {
+      void onEvent({ type: "error", payload: e.errorMessage });
     }
   };
-}
-async function createSandboxSessionResources(params, contextWindow) {
-  const { getPromptBody: getPromptBodyFn } = await Promise.resolve().then(() => promptResolution);
-  return createSandboxResourceLoader({
-    systemPrompt: params.systemPrompt.trim(),
+  const baseOpts = {
+    provider,
+    modelId: params.modelId,
     contextWindow,
-    getCompactionPromptBody: () => getPromptBodyFn("agent-context-compaction")
-  });
-}
-function startSessionHeartbeatTimers(input) {
-  const idleTimer = setInterval(() => {
-    if (input.params.signal?.aborted) return;
-    const gapSec = Math.floor((Date.now() - input.streamActivityAt.current) / 1e3);
-    if (gapSec < IDLE_PROGRESS_GAP_SEC) return;
-    emitEvent(input.onEvent, {
-      type: "progress",
-      payload: `Still working… ${gapSec}s since last streamed output`
-    });
-  }, IDLE_CHECK_MS);
-  const stallDebugTimer = setInterval(() => {
-    if (input.params.signal?.aborted) return;
-    const idleSec = Math.floor((Date.now() - input.streamActivityAt.current) / 1e3);
-    const isRevision = !!input.params.compactionNote?.trim();
-    debugAgentIngest({
-      hypothesisId: "H6",
-      location: "pi-agent-service.ts:stall_heartbeat",
-      message: "agent session stall heartbeat",
-      data: {
-        idleSec,
-        pendingToolCalls: input.pendingToolCallsRef.current,
-        isRevision,
-        userPromptChars: input.params.userPrompt.length,
-        seedFileCount: input.params.seedFiles ? Object.keys(input.params.seedFiles).length : 0
-      }
-    });
-  }, STALL_DEBUG_MS);
-  return () => {
-    clearInterval(idleTimer);
-    clearInterval(stallDebugTimer);
+    thinkingLevel: params.thinkingLevel,
+    systemPrompt: systemPromptBody,
+    userPrompt: params.userPrompt,
+    signal: params.signal,
+    correlationId: params.correlationId,
+    onFile,
+    onTodos,
+    onEvent: onPackageEvent,
+    buildResourceLoader: ({ extensionFactories }) => buildPackageResourceLoader({
+      systemPrompt: systemPromptBody,
+      extensionFactories,
+      cwd: SANDBOX_PROJECT_ROOT
+    })
   };
-}
-async function extractSessionResult(input) {
-  const files = await extractDesignFiles(input.bash);
-  const seedSnapshot = input.params.seedFiles;
-  const hasRevisionSeed = !!seedSnapshot && Object.keys(seedSnapshot).length > 0;
-  const outputVsSeed = hasRevisionSeed ? computeDesignFilesBeyondSeed(files, seedSnapshot) : files;
-  if (env.isDev) {
-    const seedCount = input.params.seedFiles ? Object.keys(input.params.seedFiles).length : 0;
-    console.debug("[pi-agent] session complete", {
-      correlationId: input.params.correlationId,
-      filesExtracted: Object.keys(files).length,
-      beyondSeedCount: Object.keys(outputVsSeed).length,
-      fileNames: Object.keys(files),
-      fileEventsEmitted: input.fileEventCount,
-      hasSeed: !!input.params.seedFiles && Object.keys(input.params.seedFiles).length > 0,
-      seedFileCount: seedCount,
-      todoCount: input.todoState.current.length,
-      aborted: !!input.params.signal?.aborted,
-      provider: input.params.providerId,
-      model: input.params.modelId,
-      contextWindow: input.contextWindow
-    });
-  }
-  if (Object.keys(outputVsSeed).length === 0 && !input.params.signal?.aborted) {
-    if (!lastAssistantHasAgentError(input.session)) {
-      if (env.isDev) {
-        console.warn(
-          "[pi-agent] agent produced no new or changed files vs seed (empty workspace or unchanged revision seed)"
-        );
-      }
-      await input.onEvent({
-        type: "error",
-        payload: "Agent completed without creating design files in the sandbox. Try a model that supports tool use, or ensure the bash tool runs successfully."
-      });
-    }
-    return null;
-  }
-  return {
-    files,
-    todos: [...input.todoState.current],
-    emittedFilePaths: [...input.emittedFilePaths]
-  };
-}
-async function runDesignAgentSession(params, onEvent) {
-  const trace2 = createTraceEvent;
-  await emitSessionStart(params, onEvent);
-  const bash = createAgentBashSandbox({
-    seedFiles: params.seedFiles
-  });
-  const todoState = { current: [] };
-  const hasSeed = !!params.seedFiles && Object.keys(params.seedFiles).length > 0;
-  const { authStorage, contextWindow, model } = await buildPiModelRuntime(params);
-  const { emittedFilePaths, getFileEventCount, onDesignFile } = createDesignFileEmitter(onEvent, trace2);
-  const skillCatalog = params.skillCatalog ?? [];
-  const toolGroups = buildAgentToolGroups({
-    bash,
-    todoState,
-    skillCatalog,
-    onDesignFile,
-    onTodos: (todos) => {
-      emitEvent(onEvent, { type: "todos", todos });
-    },
-    onSkillActivated: (payload) => {
-      emitEvent(onEvent, {
-        type: "skill_activated",
-        key: payload.key,
-        name: payload.name,
-        description: payload.description
-      });
-    }
-  });
-  const customTools = flattenAgentToolGroups(toolGroups);
+  const handle2 = await dispatchSessionFactory(params.sessionType, baseOpts, params.seedFiles);
   const llmTurnLogRef = {};
-  const { resourceLoader, settingsManager } = await createSandboxSessionResources(params, contextWindow);
-  const { session, modelFallbackMessage } = await createAgentSession({
-    authStorage,
-    model,
-    thinkingLevel: params.thinkingLevel ?? "medium",
-    tools: [],
-    customTools,
-    sessionManager: SessionManager.inMemory(),
-    cwd: SANDBOX_PROJECT_ROOT,
-    settingsManager,
-    resourceLoader
-  });
-  if (modelFallbackMessage && process.env.NODE_ENV !== "production") {
-    console.warn("[pi-agent-service]", modelFallbackMessage);
-  }
-  const prevStream = session.agent.streamFn;
-  session.agent.streamFn = wrapPiStreamWithLogging(prevStream, {
+  const prevStream = handle2.session.agent.streamFn;
+  handle2.session.agent.streamFn = wrapPiStreamWithLogging(prevStream, {
     providerId: params.providerId,
     modelId: params.modelId,
     source: mapSessionTypeToLlmLogSource(params.sessionType),
-    phase: params.compactionNote?.trim() ? PI_LLM_LOG_PHASE.REVISION : PI_LLM_LOG_PHASE.AGENTIC_TURN,
+    phase: params.phase === "revision" ? PI_LLM_LOG_PHASE.REVISION : PI_LLM_LOG_PHASE.AGENTIC_TURN,
     turnLogRef: llmTurnLogRef,
     correlationId: params.correlationId
   });
-  const streamActivityAt = { current: Date.now() };
-  const pendingToolCallsRef = { current: 0 };
-  const subscribeCtx = {
+  const unsubscribeBridge = subscribePiSessionBridge(handle2.session, {
     onEvent,
-    trace: trace2,
+    trace: createTraceEvent,
     toolPathByCallId: /* @__PURE__ */ new Map(),
     toolArgsByCallId: /* @__PURE__ */ new Map(),
     waitingForFirstToken: { current: false },
     turnLogRef: llmTurnLogRef,
-    streamActivityAt,
+    streamActivityAt: { current: Date.now() },
     modelTurnId: { current: 0 },
-    pendingToolCallsRef,
-    onStreamDeliveryFailure: () => session.agent.abort()
-  };
-  const unsubscribe = subscribePiSessionBridge(session, subscribeCtx);
-  if (params.signal) {
-    params.signal.addEventListener("abort", () => session.agent.abort());
-  }
-  const stopHeartbeatTimers = startSessionHeartbeatTimers({
-    params,
-    onEvent,
-    streamActivityAt,
-    pendingToolCallsRef
+    pendingToolCallsRef: { current: 0 },
+    onStreamDeliveryFailure: () => handle2.session.agent.abort()
   });
   if (env.isDev) {
-    const seedKeys = hasSeed ? Object.keys(params.seedFiles) : [];
-    console.debug("[pi-agent] session start", {
+    console.debug("[pi-agent-runtime] session start", {
       correlationId: params.correlationId,
       provider: params.providerId,
       model: params.modelId,
       contextWindow,
-      seedFileCount: seedKeys.length,
-      seedFilePaths: seedKeys.slice(0, 20),
-      toolCount: customTools.length,
-      userPromptChars: params.userPrompt.length,
-      systemPromptChars: params.systemPrompt.length
+      seedFileCount: params.seedFiles ? Object.keys(params.seedFiles).length : 0,
+      sessionType: params.sessionType
     });
   }
+  let result;
   try {
-    await runPromptWithUpstreamRetries(
-      session,
-      `${params.userPrompt}
-
-[Workspace root: ${SANDBOX_PROJECT_ROOT} — use read, write, edit, ls, find, and grep for files; use bash for shell/commands.]`,
-      onEvent,
-      trace2
-    );
+    const t0 = performance.now();
+    result = await handle2.run();
+    if (env.isDev) {
+      console.debug("[pi-agent-runtime] session done", {
+        correlationId: params.correlationId,
+        durationMs: Math.round(performance.now() - t0),
+        fileCount: Object.keys(result.files).length,
+        todoCount: result.todos.length,
+        aborted: result.aborted
+      });
+    }
   } catch (err) {
     if (env.isDev) {
-      console.error("[pi-agent] session.prompt failed", normalizeError(err), err);
+      console.error("[pi-agent-runtime] handle.run failed", normalizeError(err), err);
     }
     await onEvent({ type: "error", payload: `Agent error: ${normalizeProviderError(err)}` });
     return null;
   } finally {
-    stopHeartbeatTimers();
-    unsubscribe();
+    unsubscribeBridge();
   }
-  return extractSessionResult({
-    bash,
-    params,
-    session,
-    todoState,
-    emittedFilePaths,
-    fileEventCount: getFileEventCount(),
-    contextWindow,
-    onEvent
-  });
+  if (result.errorMessage) {
+    await onEvent({ type: "error", payload: result.errorMessage });
+  }
+  const outcome = mapPackageResult(result, params.seedFiles);
+  if (!outcome.ok) {
+    await onEvent({ type: "error", payload: outcome.message });
+    return null;
+  }
+  return outcome.result;
 }
 async function runTaskAgentPiSession(input, forward) {
   const ctx = await buildAgenticSystemContext({ sessionType: input.sessionType });
   await emitSkillsLoadedEvents(forward, ctx.loadedSkills, "building");
-  const sessionResult = await runDesignAgentSession(
+  const sessionResult = await runPiAgentSession(
     {
       userPrompt: input.userPrompt,
       providerId: input.providerId,
@@ -4180,7 +4419,6 @@ async function runTaskAgentPiSession(input, forward) {
       correlationId: input.correlationId,
       sessionType: input.sessionType,
       systemPrompt: ctx.systemPrompt,
-      skillCatalog: ctx.skillCatalog,
       seedFiles: ctx.sandboxSeedFiles,
       initialProgressMessage: input.initialProgressMessage ?? "Starting task…"
     },
@@ -4407,22 +4645,20 @@ const SpecSectionSchema = z.object({
   images: z.array(ReferenceImageSchema),
   lastModified: z.string()
 });
-const InternalContextDocumentSchema = z.object({
-  content: z.string(),
-  sourceHash: z.string(),
-  generatedAt: z.string(),
-  providerId: z.string(),
-  modelId: z.string(),
-  error: z.string().optional()
-});
 const DesignSpecSchema = z.object({
   id: z.string(),
   title: z.string(),
   sections: z.record(z.string(), SpecSectionSchema),
-  internalContextDocument: InternalContextDocumentSchema.optional(),
   createdAt: z.string(),
   lastModified: z.string(),
   version: z.number()
+});
+const DesignSystemMarkdownSourceSchema = z.object({
+  id: z.string(),
+  filename: z.string(),
+  content: z.string(),
+  sizeBytes: z.number().int().min(0),
+  createdAt: z.string()
 });
 const DesignMdLintFindingSchema = z.object({
   severity: z.enum(["error", "warning", "info"]),
@@ -4448,6 +4684,7 @@ const DomainDesignSystemContentSchema = z.object({
   title: z.string(),
   content: z.string(),
   images: z.array(ReferenceImageSchema),
+  markdownSources: z.array(DesignSystemMarkdownSourceSchema).optional(),
   designMdDocument: DesignMdDocumentSchema.optional(),
   providerMigration: z.string().optional(),
   modelMigration: z.string().optional()
@@ -4460,20 +4697,18 @@ const DomainHypothesisSchema = z.object({
   id: z.string(),
   incubatorId: z.string(),
   strategyId: z.string(),
-  modelNodeIds: z.array(z.string()),
+  /** @deprecated Pre-Phase-7-D requests may include this; ignored on the server. */
+  modelNodeIds: z.array(z.string()).optional(),
   designSystemNodeIds: z.array(z.string()),
   revisionEnabled: z.boolean().optional(),
   maxRevisionRounds: z.number().int().min(0).max(20).optional(),
   minOverallScore: z.union([z.number().min(0).max(5), z.null()]).optional(),
   placeholder: z.boolean()
 });
-const DomainModelProfileSchema = z.object({
-  nodeId: z.string(),
-  providerId: z.string(),
-  modelId: z.string(),
-  title: z.string().optional(),
-  thinkingLevel: ThinkingLevelSchema.optional(),
-  thinking: ThinkingOverrideSchema.optional()
+const SettingsModelCredentialSchema = z.object({
+  providerId: z.string().min(1),
+  modelId: z.string().min(1),
+  thinkingLevel: ThinkingLevelSchema
 });
 const HypothesisStrategySchema = z.object({
   id: z.string(),
@@ -4491,9 +4726,9 @@ const HypothesisWorkspaceCoreObjectSchema = z.object({
   spec: DesignSpecSchema,
   snapshot: WorkspaceSnapshotSchema,
   domainHypothesis: DomainHypothesisSchema.nullish(),
-  modelProfiles: z.record(z.string(), DomainModelProfileSchema),
   designSystems: z.record(z.string(), DomainDesignSystemContentSchema),
-  defaultIncubatorProvider: z.string().min(1)
+  /** Settings-store credential — Phase 7 D source of truth for routing. */
+  settingsCredential: SettingsModelCredentialSchema
 });
 function coerceStrategy(obj) {
   const strategy2 = obj.strategy ?? obj.hypothesisStrategy ?? obj.variantStrategy;
@@ -4537,18 +4772,12 @@ const DesignSystemExtractRequestSchema = z.object({
       description: z.string().optional()
     }).passthrough()
   ).optional(),
+  markdownSources: z.array(DesignSystemMarkdownSourceSchema).optional(),
   providerId: z.string().min(1),
   modelId: z.string().min(1),
   thinking: ThinkingOverrideSchema.optional()
-}).refine((body) => Boolean(body.content?.trim()) || Boolean(body.images?.length), {
-  message: "Provide design-system text, reference images, or both."
-});
-const InternalContextGenerateRequestSchema = z.object({
-  spec: DesignSpecSchema,
-  sourceHash: z.string().min(1),
-  providerId: z.string().min(1),
-  modelId: z.string().min(1),
-  thinking: ThinkingOverrideSchema.optional()
+}).refine((body) => Boolean(body.content?.trim()) || Boolean(body.images?.length) || Boolean(body.markdownSources?.some((source) => source.content.trim())), {
+  message: "Provide design-system text, Markdown sources, design-system reference images, or a combination."
 });
 const InputsGenerateTargetSchema = z.enum([
   "research-context",
@@ -4568,7 +4797,6 @@ const InputsGenerateRequestSchema = z.object({
 const IncubatorPromptOptionsSchema = z.object({
   count: z.number().int().positive().optional(),
   existingStrategies: z.array(HypothesisStrategySchema).optional(),
-  internalContextDocument: z.string().optional(),
   designSystemDocuments: z.array(z.object({ nodeId: z.string(), title: z.string(), content: z.string() })).optional()
 });
 const IncubateRequestSchema = z.object({
@@ -4582,7 +4810,6 @@ const IncubateRequestSchema = z.object({
     })
   ).optional(),
   supportsVision: z.boolean().optional(),
-  internalContextDocument: z.string().optional(),
   designSystemDocuments: z.array(z.object({ nodeId: z.string(), title: z.string(), content: z.string() })).optional(),
   promptOptions: IncubatorPromptOptionsSchema.optional(),
   thinking: ThinkingOverrideSchema.optional()
@@ -4591,6 +4818,10 @@ const incubate = new Hono();
 const dimensionRangeSchema$1 = z.union([
   z.string(),
   z.array(z.string()).transform((a) => a.join(", "))
+]);
+const measurementsSchema = z.union([
+  z.string(),
+  z.array(z.unknown()).transform((a) => a.map((x) => String(x)).join("; "))
 ]);
 const DimensionSchema$1 = z.object({
   name: z.string().default(""),
@@ -4602,7 +4833,7 @@ const HypothesisStrategyParseSchema = z.object({
   hypothesis: z.string().optional().default(""),
   primaryEmphasis: z.string().optional(),
   rationale: z.string().default(""),
-  measurements: z.string().default(""),
+  measurements: measurementsSchema.optional().default(""),
   dimensionValues: z.record(z.string(), z.unknown()).optional().default(() => ({}))
 }).transform((v) => ({
   id: generateId(),
@@ -4629,7 +4860,7 @@ const LLMResponseSchema = z.object({
 incubate.post("/", async (c) => {
   const parsed = await parseRequestJson(c, IncubateRequestSchema);
   if (!parsed.ok) return parsed.response;
-  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId);
+  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId, "incubate");
   const body = { ...parsed.data, providerId: pinned.providerId, modelId: pinned.modelId };
   const userPromptTemplate = await getPromptBody("incubator-user-inputs");
   const assembledSpec = buildIncubatorUserPrompt(
@@ -4638,19 +4869,19 @@ incubate.post("/", async (c) => {
     body.referenceDesigns,
     {
       ...body.promptOptions,
-      internalContextDocument: body.promptOptions?.internalContextDocument ?? body.internalContextDocument,
       designSystemDocuments: body.promptOptions?.designSystemDocuments ?? body.designSystemDocuments
     }
   );
+  const guidance = await inlineGuidance("hypotheses-generator-system", "hypotheses_generator_guidance");
   const agentUserPrompt = `<task>
 Analyze the design specification below and produce a dimension map with hypothesis strategies.
 
 Write the complete JSON result to \`result.json\` in the workspace root. The JSON must contain:
 - "dimensions": array of { name, range, isConstant }
 - "hypotheses": array of { name, hypothesis, rationale, measurements, dimensionValues }
-
-Use the \`use_skill\` tool to load relevant skills before beginning your analysis.
 </task>
+
+${guidance}
 
 ${assembledSpec}`;
   return runTaskAgentRoute(c, {
@@ -4774,6 +5005,30 @@ function resolvePreviewEntryPath(files) {
 function encodeVirtualPathForUrl(relPath) {
   const normalized = relPath.replace(/\\/g, "/").replace(/^\/+/, "");
   return normalized.split("/").filter((s) => s.length > 0).map(encodeURIComponent).join("/");
+}
+function resolveVirtualAssetPath(ref, htmlFilePath) {
+  const clean = ref.split("#")[0].split("?")[0].trim();
+  if (!clean) return void 0;
+  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith("data:")) return void 0;
+  if (/^(mailto|javascript|tel):/i.test(clean)) return void 0;
+  let joined;
+  if (clean.startsWith("/")) {
+    joined = clean.slice(1);
+  } else {
+    const lastSlash = htmlFilePath.lastIndexOf("/");
+    const dir = lastSlash >= 0 ? htmlFilePath.slice(0, lastSlash) : "";
+    joined = dir ? `${dir}/${clean}` : clean;
+  }
+  const segments = joined.split("/").filter((s) => s.length > 0 && s !== ".");
+  const out = [];
+  for (const seg of segments) {
+    if (seg === "..") {
+      out.pop();
+    } else {
+      out.push(seg);
+    }
+  }
+  return out.join("/");
 }
 function generateMissingEntryShell(files) {
   const fileList = Object.entries(files).map(
@@ -6438,13 +6693,12 @@ async function runAgenticPiSessionRound(options, streamCtx, forward, tracePhase,
   await emitSkillsLoadedEvents((e) => emitOrchestratorEvent(streamCtx, e), ctx.loadedSkills, tracePhase);
   setPiTracePhase(tracePhase);
   const extras = typeof sessionExtras === "function" ? sessionExtras(ctx) : sessionExtras;
-  return runDesignAgentSession(
+  return runPiAgentSession(
     {
       ...options.build,
       ...extras,
       sessionType: options.sessionType ?? "design",
-      systemPrompt: ctx.systemPrompt,
-      skillCatalog: ctx.skillCatalog
+      systemPrompt: ctx.systemPrompt
     },
     forward
   );
@@ -6723,7 +6977,7 @@ async function runAgenticWithEvaluationImpl(options) {
       const revised = await runAgenticPiSessionRound(mergedOptions, streamCtx, forward, "revising", setPiTrace, () => ({
         userPrompt: revisionUser,
         seedFiles: files,
-        compactionNote: `Post-evaluation revision requested. Overall ${snapshot.aggregate.overallScore.toFixed(2)}. Hard fails: ${snapshot.aggregate.hardFails.length}.`,
+        phase: "revision",
         initialProgressMessage: "Revising design from evaluation feedback…"
       }));
       if (!revised || effectiveSignal.aborted) {
@@ -6792,7 +7046,10 @@ async function executeGenerateStream(stream, body, abortSignal, options) {
     await write(sseEvent, data);
   };
   const runAgentic = async () => {
-    const thinkingOverride = body.thinking ?? (body.thinkingLevel ? { level: body.thinkingLevel } : void 0);
+    const thinkingOverride = body.thinking ?? (body.thinkingLevel ? {
+      level: body.thinkingLevel,
+      budgetTokens: THINKING_BUDGET_BY_LEVEL[body.thinkingLevel]
+    } : void 0);
     const designThinking = resolveThinkingConfig("design", body.modelId, thinkingOverride);
     const agenticResult2 = await runAgenticWithEvaluation({
       build: {
@@ -6899,7 +7156,7 @@ generate.post("/", async (c) => {
     devWarnLabel: "[generate]"
   });
   if (!parsed.ok) return parsed.response;
-  const m = clampProviderModel(parsed.data.providerId, parsed.data.modelId);
+  const m = clampProviderModel(parsed.data.providerId, parsed.data.modelId, "design");
   const ev = clampEvaluatorOptional(parsed.data.evaluatorProviderId, parsed.data.evaluatorModelId);
   const body = { ...parsed.data, ...ev, providerId: m.providerId, modelId: m.modelId };
   const correlationId = body.correlationId?.trim() || crypto.randomUUID();
@@ -7051,22 +7308,35 @@ async function lintDesignMdDocument(content) {
   return normalizeLintReport(mod.lint(content));
 }
 const designSystem = new Hono();
+function escapePromptAttribute(value) {
+  return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
+}
 designSystem.post("/extract", async (c) => {
   const parsed = await parseRequestJson(c, DesignSystemExtractRequestSchema);
   if (!parsed.ok) return parsed.response;
-  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId);
+  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId, "design-system");
   const body = { ...parsed.data, providerId: pinned.providerId, modelId: pinned.modelId };
   const imageDescriptions = (body.images ?? []).map((img, i) => {
     const name = img.name ?? img.filename ?? `screenshot-${i + 1}`;
     return `Image ${i + 1}: ${name}${img.description ? ` — ${img.description}` : ""}`;
   }).join("\n");
+  const markdownSources = (body.markdownSources ?? []).filter((source) => source.content.trim()).map(
+    (source) => `<markdown_source filename="${escapePromptAttribute(source.filename)}" sizeBytes="${source.sizeBytes}">
+${source.content.trim()}
+</markdown_source>`
+  ).join("\n\n");
+  const guidance = await inlineGuidance("design-system-extract-system", "design_md_extraction_guidance");
   const agentUserPrompt = `<task>
 Create a Google DESIGN.md document from the provided design-system source material.
 
-Use the \`use_skill\` tool to load the relevant DESIGN.md extraction skill before beginning. Treat that skill as the authoritative contract for the Google/Stitch DESIGN.md schema, section order, inference policy, and lint-friendly output.
+Treat the guidance below as the authoritative contract for the Google/Stitch DESIGN.md schema, section order, inference policy, and lint-friendly output.
 
-Analyze the written source material and any UI screenshots, then write the complete Markdown document to \`DESIGN.md\` in the workspace root.
+Analyze the written source material, uploaded Markdown sources, and any UI screenshots, then write the complete Markdown document to \`DESIGN.md\` in the workspace root.
+
+Uploaded Markdown sources, including files already named \`DESIGN.md\`, are source evidence. Do not assume they are already canonical or lint-clean. Preserve their intent, repair schema/section/token issues where needed, normalize them into the current Google/Stitch DESIGN.md format, and produce one complete lint-friendly \`DESIGN.md\`.
 </task>
+
+${guidance}
 
 <design_system_title>
 ${body.title ?? "Design System"}
@@ -7079,6 +7349,10 @@ ${body.sourceHash ?? "(not provided)"}
 <written_source>
 ${body.content?.trim() ?? ""}
 </written_source>
+
+<markdown_sources>
+${markdownSources}
+</markdown_sources>
 
 <screenshots>
 ${imageDescriptions}
@@ -7110,19 +7384,21 @@ Generate DESIGN.md from this design-system source.`;
   });
 });
 const NODE_TYPES = {
-  DESIGN_SYSTEM: "designSystem",
-  MODEL: "model"
+  DESIGN_SYSTEM: "designSystem"
 };
-function getModelNodeData(node) {
-  if (!node || node.type !== NODE_TYPES.MODEL) return void 0;
-  return node.data;
-}
 function getDesignSystemNodeData(node) {
   if (!node || node.type !== NODE_TYPES.DESIGN_SYSTEM) return void 0;
   return node.data;
 }
-function isThinkingLevel(x) {
-  return typeof x === "string" && THINKING_LEVELS.includes(x);
+function formatDesignSystemSourceMarkdown(source) {
+  const parts = [];
+  if (source.content?.trim()) parts.push(source.content.trim());
+  for (const asset of source.markdownSources ?? []) {
+    if (!asset.content.trim()) continue;
+    parts.push(`## Markdown source: ${asset.filename}
+${asset.content.trim()}`);
+  }
+  return parts.join("\n\n---\n\n");
 }
 function workspaceSnapshotWireToGraph(snapshot) {
   return {
@@ -7130,105 +7406,47 @@ function workspaceSnapshotWireToGraph(snapshot) {
     edges: snapshot.edges
   };
 }
-function nodeById(snapshot, id) {
-  return snapshot.nodes.find((n) => n.id === id);
-}
-function listIncomingModelCredentialsFromGraph(targetNodeId, snapshot, defaultIncubatorProvider) {
-  const out = [];
-  for (const e of snapshot.edges) {
-    if (e.target !== targetNodeId) continue;
-    const src = nodeById(snapshot, e.source);
-    if (!src || src.type !== NODE_TYPES.MODEL) continue;
-    const md = getModelNodeData(src);
-    if (!md?.modelId) continue;
-    const providerId = md.providerId || defaultIncubatorProvider;
-    const thinkingLevel = (isThinkingLevel(md.thinkingLevel) ? md.thinkingLevel : void 0) ?? "minimal";
-    out.push({ providerId, modelId: md.modelId, thinkingLevel });
-    break;
-  }
-  return out;
-}
 function collectDesignSystemFromDomain(hypothesis2, designSystems) {
-  if (!hypothesis2) return { content: void 0, images: [] };
+  if (!hypothesis2) return void 0;
   const parts = [];
-  const images = [];
   for (const dsId of hypothesis2.designSystemNodeIds) {
     const ds = designSystems[dsId];
     if (!ds) continue;
-    const c = ds.designMdDocument?.content || ds.content || "";
+    const c = ds.designMdDocument?.content || formatDesignSystemSourceMarkdown(ds) || "";
     const t = ds.title || "Design System";
     if (c.trim()) parts.push(`## ${t}
 ${c}`);
-    images.push(...ds.images ?? []);
   }
-  return {
-    content: parts.join("\n\n---\n\n") || void 0,
-    images
-  };
+  return parts.join("\n\n---\n\n") || void 0;
 }
 function collectDesignSystemFromGraph(snapshot, targetNodeId) {
   const incomingEdges = snapshot.edges.filter((e) => e.target === targetNodeId);
   const dsNodes = incomingEdges.map((e) => snapshot.nodes.find((n) => n.id === e.source && n.type === NODE_TYPES.DESIGN_SYSTEM)).filter(Boolean);
-  if (dsNodes.length === 0) return { content: void 0, images: [] };
+  if (dsNodes.length === 0) return void 0;
   const parts = dsNodes.map((n) => {
     const data = getDesignSystemNodeData(n);
     const t = data?.title || "Design System";
-    const c = data?.designMdDocument?.content || data?.content || "";
+    const c = data?.designMdDocument?.content || (data ? formatDesignSystemSourceMarkdown(data) : "") || "";
     return c.trim() ? `## ${t}
 ${c}` : "";
   }).filter(Boolean);
-  return {
-    content: parts.join("\n\n---\n\n") || void 0,
-    images: dsNodes.flatMap((n) => getDesignSystemNodeData(n)?.images ?? [])
-  };
-}
-function listModelCredentialsFromDomain(hypothesis2, modelProfiles, defaultIncubatorProvider) {
-  if (!hypothesis2) return [];
-  const out = [];
-  for (const mid of hypothesis2.modelNodeIds.slice(0, 1)) {
-    const p = modelProfiles[mid];
-    if (!p?.modelId) continue;
-    out.push({
-      providerId: p.providerId || defaultIncubatorProvider,
-      modelId: p.modelId,
-      thinkingLevel: p.thinkingLevel ?? "minimal"
-    });
-  }
-  return out;
+  return parts.join("\n\n---\n\n") || void 0;
 }
 function buildHypothesisGenerationContextFromInputs(input) {
   const { hypothesisNodeId, hypothesisStrategy, spec, snapshot, domainHypothesis } = input;
-  let modelCredentials = listModelCredentialsFromDomain(
-    domainHypothesis ?? void 0,
-    input.modelProfiles,
-    input.defaultIncubatorProvider
-  );
-  if (modelCredentials.length === 0) {
-    modelCredentials = listIncomingModelCredentialsFromGraph(
-      hypothesisNodeId,
-      snapshot,
-      input.defaultIncubatorProvider
-    );
-  }
-  if (modelCredentials.length === 0) return null;
+  const modelCredentials = [input.settingsCredential];
   let designSystemContent;
-  let designSystemImages = [];
   if (domainHypothesis && domainHypothesis.designSystemNodeIds.length > 0) {
-    const ds = collectDesignSystemFromDomain(domainHypothesis, input.designSystems);
-    designSystemContent = ds.content;
-    designSystemImages = ds.images;
+    designSystemContent = collectDesignSystemFromDomain(domainHypothesis, input.designSystems);
   } else {
-    const g = collectDesignSystemFromGraph(snapshot, hypothesisNodeId);
-    designSystemContent = g.content;
-    designSystemImages = g.images;
+    designSystemContent = collectDesignSystemFromGraph(snapshot, hypothesisNodeId);
   }
   return {
     hypothesisNodeId,
     hypothesisStrategy,
     spec,
     modelCredentials,
-    designSystemContent,
-    designSystemImages
+    designSystemContent
   };
 }
 function provenanceFromHypothesisContext(ctx) {
@@ -7261,6 +7479,11 @@ function evaluationPayloadFromHypothesisContext(ctx) {
     ...outputFormat ? { outputFormat: String(outputFormat).trim() } : {}
   };
 }
+function getSectionContent(spec, sectionId) {
+  const section = spec.sections[sectionId];
+  if (!section) return "(Not provided)";
+  return section.content.trim() || "(Not provided)";
+}
 function buildHypothesisPrompt(spec, strategy2, hypothesisTemplate, designSystemOverride) {
   const dimensionValuesList = Object.entries(strategy2.dimensionValues).map(([dim, val]) => `- ${dim}: ${val}`).join("\n");
   return interpolate(hypothesisTemplate, {
@@ -7277,17 +7500,13 @@ function buildHypothesisPrompt(spec, strategy2, hypothesisTemplate, designSystem
     DESIGN_SYSTEM: designSystemOverride ?? getSectionContent(spec, "design-system")
   });
 }
-function incubateHypothesisPrompts(spec, incubationPlan, hypothesisTemplate, designSystemOverride, extraImages) {
-  const allImages = [
-    ...Object.values(spec.sections).flatMap((s) => s.images),
-    ...extraImages ?? []
-  ];
+function incubateHypothesisPrompts(spec, incubationPlan, hypothesisTemplate, designSystemOverride) {
   return incubationPlan.hypotheses.map((strategy2) => ({
     id: generateId(),
     strategyId: strategy2.id,
     specId: spec.id,
     prompt: buildHypothesisPrompt(spec, strategy2, hypothesisTemplate, designSystemOverride),
-    images: allImages,
+    images: [],
     compiledAt: now()
   }));
 }
@@ -7298,9 +7517,8 @@ async function buildHypothesisWorkspaceBundle(body) {
     spec: body.spec,
     snapshot: workspaceSnapshotWireToGraph(body.snapshot),
     domainHypothesis: body.domainHypothesis ?? void 0,
-    modelProfiles: body.modelProfiles,
     designSystems: body.designSystems,
-    defaultIncubatorProvider: body.defaultIncubatorProvider
+    settingsCredential: body.settingsCredential
   });
   if (!ctxRaw) return null;
   const ctx = applyLockdownToHypothesisContext(ctxRaw);
@@ -7315,8 +7533,7 @@ async function buildHypothesisWorkspaceBundle(body) {
     ctx.spec,
     filteredPlan,
     hypothesisTemplate,
-    ctx.designSystemContent,
-    [...ctx.designSystemImages]
+    ctx.designSystemContent
   );
   const evaluationContext = evaluationPayloadFromHypothesisContext(ctx);
   const provenance = provenanceFromHypothesisContext(ctx);
@@ -7392,7 +7609,10 @@ hypothesis.post("/generate", async (c) => {
       rubricWeights: body.rubricWeights
     };
     const runLane = async (laneIndex, cred) => {
-      const laneThinking = resolveThinkingConfig("design", cred.modelId, { level: cred.thinkingLevel });
+      const laneThinking = resolveThinkingConfig("design", cred.modelId, {
+        level: cred.thinkingLevel,
+        budgetTokens: THINKING_BUDGET_BY_LEVEL[cred.thinkingLevel]
+      });
       const streamBody = GenerateStreamBodySchema.parse({
         ...base,
         thinkingLevel: laneThinking.level,
@@ -7695,9 +7915,6 @@ z.object({
 z.object({
   result: z.string()
 });
-z.object({
-  result: z.string()
-});
 const DefaultRubricWeightsSchema = z.object({
   design: z.number(),
   strategy: z.number(),
@@ -7706,9 +7923,6 @@ const DefaultRubricWeightsSchema = z.object({
 });
 const AppConfigResponseSchema = z.object({
   lockdown: z.boolean(),
-  lockdownProviderId: z.string().optional(),
-  lockdownModelId: z.string().optional(),
-  lockdownModelLabel: z.string().optional(),
   /** Server operator default; client Settings may override per session. */
   agenticMaxRevisionRounds: z.number().int().min(0).max(20),
   agenticMinOverallScore: z.number().min(0).max(5).nullable(),
@@ -7721,23 +7935,16 @@ const AppConfigResponseSchema = z.object({
 });
 const configRoute = new Hono();
 configRoute.get("/", (c) => {
-  const evaluator2 = {
-    agenticMaxRevisionRounds: env.AGENTIC_MAX_REVISION_ROUNDS,
-    agenticMinOverallScore: env.AGENTIC_MIN_OVERALL_SCORE ?? null,
-    defaultRubricWeights: { ...DEFAULT_RUBRIC_WEIGHTS },
-    maxConcurrentRuns: env.MAX_CONCURRENT_AGENTIC_RUNS,
-    autoImprove: FEATURE_AUTO_IMPROVE
-  };
-  if (!FEATURE_LOCKDOWN) {
-    return c.json(AppConfigResponseSchema.parse({ lockdown: false, ...evaluator2 }));
-  }
-  return c.json(AppConfigResponseSchema.parse({
-    lockdown: true,
-    lockdownProviderId: LOCKDOWN_PROVIDER_ID,
-    lockdownModelId: LOCKDOWN_MODEL_ID,
-    lockdownModelLabel: LOCKDOWN_MODEL_LABEL,
-    ...evaluator2
-  }));
+  return c.json(
+    AppConfigResponseSchema.parse({
+      lockdown: FEATURE_LOCKDOWN,
+      agenticMaxRevisionRounds: env.AGENTIC_MAX_REVISION_ROUNDS,
+      agenticMinOverallScore: env.AGENTIC_MIN_OVERALL_SCORE ?? null,
+      defaultRubricWeights: { ...DEFAULT_RUBRIC_WEIGHTS },
+      maxConcurrentRuns: env.MAX_CONCURRENT_AGENTIC_RUNS,
+      autoImprove: FEATURE_AUTO_IMPROVE
+    })
+  );
 });
 const OpenRouterKeyResponseSchema = z.object({
   data: z.object({
@@ -7832,7 +8039,7 @@ providerStatus.get("/openrouter", async (c) => {
   const status = await getOpenRouterBudgetStatus();
   return c.json(OpenRouterBudgetStatusResponseSchema.parse(status));
 });
-function appendBlock$1(lines, tag, body) {
+function appendBlock(lines, tag, body) {
   const t = body?.trim();
   if (!t) return;
   lines.push(`<${tag}>
@@ -7848,16 +8055,16 @@ ${input.designBrief.trim()}
 </design_brief>`
   ];
   if (input.targetInput !== "research-context") {
-    appendBlock$1(lines, "research_context", input.researchContext);
+    appendBlock(lines, "research_context", input.researchContext);
   }
   if (input.targetInput !== "objectives-metrics") {
-    appendBlock$1(lines, "objectives_metrics", input.objectivesMetrics);
+    appendBlock(lines, "objectives_metrics", input.objectivesMetrics);
   }
   if (input.targetInput !== "design-constraints") {
-    appendBlock$1(lines, "design_constraints", input.designConstraints);
+    appendBlock(lines, "design_constraints", input.designConstraints);
   }
   const targetDraft = input.targetInput === "research-context" ? input.researchContext : input.targetInput === "objectives-metrics" ? input.objectivesMetrics : input.designConstraints;
-  appendBlock$1(lines, "current_input_draft", targetDraft);
+  appendBlock(lines, "current_input_draft", targetDraft);
   return lines.join("\n\n");
 }
 const inputsGenerate = new Hono();
@@ -7866,10 +8073,15 @@ const INPUT_LABELS = {
   "objectives-metrics": "Objectives & Metrics",
   "design-constraints": "Design Constraints"
 };
+const INPUT_PROMPT_KEYS = {
+  "research-context": "inputs-gen-research-context",
+  "objectives-metrics": "inputs-gen-objectives-metrics",
+  "design-constraints": "inputs-gen-design-constraints"
+};
 inputsGenerate.post("/generate", async (c) => {
   const parsed = await parseRequestJson(c, InputsGenerateRequestSchema);
   if (!parsed.ok) return parsed.response;
-  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId);
+  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId, "inputs");
   const body = { ...parsed.data, providerId: pinned.providerId, modelId: pinned.modelId };
   const contextMessage = buildInputsGenerateUserMessage({
     targetInput: body.inputId,
@@ -7879,16 +8091,18 @@ inputsGenerate.post("/generate", async (c) => {
     designConstraints: body.designConstraints
   });
   const label = INPUT_LABELS[body.inputId] ?? body.inputId;
+  const promptKey = INPUT_PROMPT_KEYS[body.inputId];
+  const guidance = promptKey ? await inlineGuidance(promptKey, "input_generator_guidance") : "";
   const agentUserPrompt = `<task>
 Generate the **${label}** section content for a design specification.
 
 Write the result as plain text to \`result.txt\` in the workspace root.
 The output should be ready to paste into a textarea — no JSON wrapping, no markdown code fences, no meta commentary.
-
-Use the \`use_skill\` tool to load relevant skills before generating.
 </task>
 
-${contextMessage}`;
+${guidance ? `${guidance}
+
+` : ""}${contextMessage}`;
   return runTaskAgentRoute(c, {
     routeLabel: "inputs-generate",
     body,
@@ -7902,78 +8116,6 @@ ${contextMessage}`;
       inputId: b.inputId,
       designBriefChars: b.designBrief.length
     }),
-    onTaskResult: async (taskResult, { write }) => {
-      await write(SSE_EVENT_NAMES.task_result, { result: taskResult.result.trim() });
-    }
-  });
-});
-const SOURCE_SECTION_IDS = [
-  "design-brief",
-  "research-context",
-  "objectives-metrics",
-  "design-constraints"
-];
-function appendBlock(lines, tag, body) {
-  const t = body?.trim();
-  if (!t) return;
-  lines.push(`<${tag}>
-${t}
-</${tag}>`);
-}
-function appendImageBlock(lines, spec) {
-  const rows = [];
-  for (const sectionId of SOURCE_SECTION_IDS) {
-    const section = spec.sections[sectionId];
-    for (const image of section?.images ?? []) {
-      rows.push(
-        `- ${sectionId}: ${image.filename}${image.description ? ` — ${image.description}` : ""}${image.extractedContext ? ` (${image.extractedContext})` : ""}`
-      );
-    }
-  }
-  if (rows.length > 0) lines.push(`<reference_images>
-${rows.join("\n")}
-</reference_images>`);
-}
-function buildInternalContextUserMessage(spec) {
-  const lines = [
-    "Synthesize an internal design context document from the following user-provided inputs.",
-    `<canvas_title>${spec.title}</canvas_title>`
-  ];
-  appendBlock(lines, "design_brief", spec.sections["design-brief"]?.content);
-  appendBlock(lines, "research_context", spec.sections["research-context"]?.content);
-  appendBlock(lines, "objectives_metrics", spec.sections["objectives-metrics"]?.content);
-  appendBlock(lines, "design_constraints", spec.sections["design-constraints"]?.content);
-  appendImageBlock(lines, spec);
-  return lines.join("\n\n");
-}
-const internalContext = new Hono();
-internalContext.post("/generate", async (c) => {
-  const parsed = await parseRequestJson(c, InternalContextGenerateRequestSchema);
-  if (!parsed.ok) return parsed.response;
-  const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId);
-  const body = { ...parsed.data, providerId: pinned.providerId, modelId: pinned.modelId };
-  const contextMessage = buildInternalContextUserMessage(body.spec);
-  const agentUserPrompt = `<task>
-Create an internal design context document from the specification inputs below.
-
-Write the final Markdown document to \`result.md\` in the workspace root.
-The output should be ready for a designer to inspect and for the Incubator to use as context — no JSON wrapping, no markdown code fences around the whole document, no meta commentary before or after the document.
-
-Use the \`use_skill\` tool to load relevant skills before generating.
-</task>
-
-<source_hash>${body.sourceHash}</source_hash>
-
-${contextMessage}`;
-  return runTaskAgentRoute(c, {
-    routeLabel: "internal-context",
-    body,
-    userPrompt: agentUserPrompt,
-    sessionType: "internal-context",
-    thinkingTask: "internal-context",
-    resultFile: "result.md",
-    initialProgressMessage: "Synthesizing internal context…",
-    debugPayload: (b) => ({ sourceHash: b.sourceHash }),
     onTaskResult: async (taskResult, { write }) => {
       await write(SSE_EVENT_NAMES.task_result, { result: taskResult.result.trim() });
     }
@@ -8026,7 +8168,6 @@ app.route("/design-system", designSystem);
 app.route("/hypothesis", hypothesis);
 app.route("/preview", preview);
 app.route("/inputs", inputsGenerate);
-app.route("/internal-context", internalContext);
 const runtime = "nodejs";
 const maxDuration = 800;
 const vercelEntry = handle(app);
