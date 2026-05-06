@@ -44,7 +44,6 @@ function ctx(overrides: Partial<HypothesisGenerationContext>): HypothesisGenerat
       { providerId: 'openrouter', modelId: 'm', thinkingLevel: 'off' },
     ],
     designSystemContent: undefined,
-    designSystemImages: [],
     ...overrides,
   };
 }

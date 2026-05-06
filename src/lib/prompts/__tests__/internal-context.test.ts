@@ -65,7 +65,7 @@ describe('buildInternalContext', () => {
     expect(out).not.toContain('<design_constraints>');
   });
 
-  it('emits a reference-images manifest when images are attached', () => {
+  it('does not emit spec-section images into Incubator context', () => {
     const out = buildInternalContext(
       specWith({
         'design-brief': {
@@ -83,16 +83,9 @@ describe('buildInternalContext', () => {
         },
       }),
     );
-    expect(out).toContain('<reference_images>');
-    expect(out).toContain('design-brief: mock.png — mobile mockup (shows hero + CTA)');
-    expect(out).toContain('</reference_images>');
-  });
-
-  it('omits reference-images section entirely when no images exist', () => {
-    const out = buildInternalContext(
-      specWith({ 'design-brief': { content: 'Brief without images' } }),
-    );
+    expect(out).toContain('<design_brief>\nBrief\n</design_brief>');
     expect(out).not.toContain('<reference_images>');
+    expect(out).not.toContain('mock.png');
   });
 
   it('is deterministic — same input always produces the same output', () => {

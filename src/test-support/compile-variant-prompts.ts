@@ -2,7 +2,7 @@
  * Test / doc support: historical prompt assembly helper (not used in production bundle paths).
  * See `SYSTEM_OVERVIEW.md` — `compileVariantPrompts` is a code name for per-hypothesis template merge.
  */
-import type { DesignSpec, ReferenceImage } from '../types/spec';
+import type { DesignSpec } from '../types/spec';
 import type { CompiledPrompt, IncubationPlan, HypothesisStrategy } from '../types/incubator';
 import { buildHypothesisPrompt } from '../lib/prompts/hypothesis-prompt';
 import { generateId, now } from '../lib/utils';
@@ -13,19 +13,13 @@ export function compileVariantPrompts(
   incubationPlan: IncubationPlan,
   variantTemplate: string,
   designSystemOverride?: string,
-  extraImages?: ReferenceImage[],
 ): CompiledPrompt[] {
-  const allImages = [
-    ...Object.values(spec.sections).flatMap((s) => s.images),
-    ...(extraImages ?? []),
-  ];
-
   return incubationPlan.hypotheses.map((strategy: HypothesisStrategy) => ({
     id: generateId(),
     strategyId: strategy.id,
     specId: spec.id,
     prompt: buildHypothesisPrompt(spec, strategy, variantTemplate, designSystemOverride),
-    images: allImages,
+    images: [],
     compiledAt: now(),
   }));
 }

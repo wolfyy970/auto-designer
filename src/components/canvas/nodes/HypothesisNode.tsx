@@ -10,7 +10,6 @@ import { useEvaluatorDefaultsStore } from '../../../stores/evaluator-defaults-st
 import type { HypothesisNodeData } from '../../../types/canvas-data';
 import { useHypothesisGeneration } from '../../../hooks/useHypothesisGeneration';
 import { useAppConfig } from '../../../hooks/useAppConfig';
-import { useHypothesisAutoGenerate } from '../../../hooks/useHypothesisAutoGenerate';
 import { useNodeRemoval } from '../../../hooks/useNodeRemoval';
 import { useRequestPermanentDelete } from '../../../hooks/useRequestPermanentDelete';
 import { hypothesisDeleteCopy } from '../../../lib/canvas-permanent-delete-copy';
@@ -31,8 +30,6 @@ import GeneratingSkeleton from './GeneratingSkeleton';
 import { NodeErrorBlock } from './shared/NodeErrorBlock';
 import { HypothesisAutoImproveSettings } from './HypothesisAutoImproveSettings';
 import { HypothesisGenerateButton } from './HypothesisGenerateButton';
-import { useElapsedTimer } from '../../../hooks/useElapsedTimer';
-import TaskStreamMonitor from './TaskStreamMonitor';
 
 type HypothesisEditorTab = 'hypothesis' | 'why' | 'measurements';
 
@@ -93,9 +90,6 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
 
   const { handleGenerate, generationProgress, generationError } =
     useHypothesisGeneration({ nodeId, strategyId });
-
-  const hypoAutoGen = useHypothesisAutoGenerate({ nodeId, strategyId });
-  const hypoAutoGenElapsed = useElapsedTimer(hypoAutoGen.isGenerating);
 
   const handleStopGeneration = useCallback(() => {
     abortGenerationForStrategy(strategyId);
@@ -284,17 +278,6 @@ function HypothesisNode({ id: nodeId, data, selected }: NodeProps<HypothesisNode
           </div>
         )}
       </NodeHeader>
-
-      {hypoAutoGen.isGenerating ? (
-        <div className={`${RF_INTERACTIVE} border-b border-border-subtle px-3 py-2`}>
-          {hypoAutoGen.error ? <NodeErrorBlock variant="plain" message={hypoAutoGen.error} /> : null}
-          <TaskStreamMonitor
-            state={hypoAutoGen.taskStreamState}
-            elapsed={hypoAutoGenElapsed}
-            fallbackLabel="Generating hypothesis…"
-          />
-        </div>
-      ) : null}
 
       <div className="flex min-h-[var(--min-height-hypothesis-shell)] flex-col px-3 pb-2 pt-1">
         <div

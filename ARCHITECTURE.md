@@ -147,7 +147,7 @@ If all edits get a corrected `oldText` that differs from the model’s version, 
 ```mermaid
 flowchart TB
   ui["UI Layer — React components, Canvas"]
-  spec["1. Spec Model — DesignSpec, active input facets, images, types/spec.ts"]
+  spec["1. Spec Model — DesignSpec, active input facets, types/spec.ts"]
   api["2. API client + server prompt bundle — workspace DTOs go to /api/hypothesis/*; prompt text resolves server-side"]
   storage["3. Storage Abstraction — StoragePort interface, BrowserStorage, IndexedDB"]
   output["4. Output Rendering — iframe preview (URL-backed VFS or bundled fallback); preview node (React: VariantNode.tsx)"]
@@ -183,7 +183,7 @@ The **server** LLM engine stays UI-agnostic; client-only modules under `src/work
 
 ```mermaid
 flowchart TB
-  designSpec[DesignSpec text and images]
+  designSpec[DesignSpec text facets]
   incubationPlan[IncubationPlan dimensions and hypothesis strategies]
   workspaceDto["Workspace DTO — spec, graph snapshot, domain hypothesis, design-system payloads, settings credential"]
   compiledPrompt["CompiledPrompt[] — server-built prompt bundle, optionally mirrored into browser state"]

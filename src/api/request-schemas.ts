@@ -30,7 +30,7 @@ export const DesignSystemExtractRequestSchema = z
     Boolean(body.images?.length) ||
     Boolean(body.markdownSources?.some((source) => source.content.trim()))
   ), {
-    message: 'Provide design-system text, Markdown sources, reference images, or a combination.',
+    message: 'Provide design-system text, Markdown sources, design-system reference images, or a combination.',
   });
 
 export const InputsGenerateTargetSchema = z.enum([

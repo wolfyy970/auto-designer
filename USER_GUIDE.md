@@ -133,7 +133,7 @@ Edit these before generation. Remove strategies not worth exploring.
 The **Design System** node is a required source input. It starts in **Wireframe** mode, using Designer's built-in low-fidelity `DESIGN.md` source so early runs stay draft-like. It behaves like the other source inputs: connect it to the Incubator and/or hypotheses when you want that source included. Its model + thinking level (used when generating the linted DESIGN.md document from custom source material) come from **Settings → Reasoning → Design system**.
 
 - Switch to **Custom** to type or paste DESIGN.md, tokens, style-guide prose, or brand notes
-- Drag-and-drop screenshots, reference images, or DESIGN.md files when custom source material matters
+- Drag-and-drop design-system screenshots, reference images, or DESIGN.md files when custom source material matters
 - Switch to **None** to keep the node on the canvas but exclude design-system guidance
 - The Incubator prepares the linted Google DESIGN.md document from connected Design System sources before incubation; the Design System node itself stays focused on source material
 

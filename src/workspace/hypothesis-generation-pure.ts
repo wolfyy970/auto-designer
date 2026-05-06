@@ -6,7 +6,7 @@ import { getDesignSystemNodeData } from '../lib/canvas-node-data';
 import type { HypothesisStrategy } from '../types/incubator';
 import type { EvaluationContextPayload } from '../types/evaluation';
 import type { ProvenanceContext } from '../types/provenance-context';
-import type { DesignSpec, ReferenceImage } from '../types/spec';
+import type { DesignSpec } from '../types/spec';
 import type {
   DomainDesignSystemContent,
   DomainHypothesis,
@@ -43,40 +43,34 @@ export interface HypothesisGenerationContext {
   readonly spec: DesignSpec;
   readonly modelCredentials: readonly ModelCredential[];
   readonly designSystemContent: string | undefined;
-  readonly designSystemImages: readonly ReferenceImage[];
 }
 
 function collectDesignSystemFromDomain(
   hypothesis: DomainHypothesis | undefined,
   designSystems: Record<string, DomainDesignSystemContent>,
-): { content: string | undefined; images: ReferenceImage[] } {
-  if (!hypothesis) return { content: undefined, images: [] };
+): string | undefined {
+  if (!hypothesis) return undefined;
   const parts: string[] = [];
-  const images: ReferenceImage[] = [];
   for (const dsId of hypothesis.designSystemNodeIds) {
     const ds = designSystems[dsId];
     if (!ds) continue;
     const c = ds.designMdDocument?.content || formatDesignSystemSourceMarkdown(ds) || '';
     const t = ds.title || 'Design System';
     if (c.trim()) parts.push(`## ${t}\n${c}`);
-    images.push(...(ds.images ?? []));
   }
-  return {
-    content: parts.join('\n\n---\n\n') || undefined,
-    images,
-  };
+  return parts.join('\n\n---\n\n') || undefined;
 }
 
 function collectDesignSystemFromGraph(
   snapshot: WorkspaceGraphSnapshot,
   targetNodeId: string,
-): { content: string | undefined; images: ReferenceImage[] } {
+): string | undefined {
   const incomingEdges = snapshot.edges.filter((e) => e.target === targetNodeId);
   const dsNodes = incomingEdges
     .map((e) => snapshot.nodes.find((n) => n.id === e.source && n.type === NODE_TYPES.DESIGN_SYSTEM))
     .filter(Boolean) as WorkspaceNode[];
 
-  if (dsNodes.length === 0) return { content: undefined, images: [] };
+  if (dsNodes.length === 0) return undefined;
 
   const parts = dsNodes
     .map((n) => {
@@ -87,10 +81,7 @@ function collectDesignSystemFromGraph(
     })
     .filter(Boolean);
 
-  return {
-    content: parts.join('\n\n---\n\n') || undefined,
-    images: dsNodes.flatMap((n) => getDesignSystemNodeData(n)?.images ?? []),
-  };
+  return parts.join('\n\n---\n\n') || undefined;
 }
 
 export function buildHypothesisGenerationContextFromInputs(input: {
@@ -108,15 +99,10 @@ export function buildHypothesisGenerationContextFromInputs(input: {
   const modelCredentials: ModelCredential[] = [input.settingsCredential];
 
   let designSystemContent: string | undefined;
-  let designSystemImages: readonly ReferenceImage[] = [];
   if (domainHypothesis && domainHypothesis.designSystemNodeIds.length > 0) {
-    const ds = collectDesignSystemFromDomain(domainHypothesis, input.designSystems);
-    designSystemContent = ds.content;
-    designSystemImages = ds.images;
+    designSystemContent = collectDesignSystemFromDomain(domainHypothesis, input.designSystems);
   } else {
-    const g = collectDesignSystemFromGraph(snapshot, hypothesisNodeId);
-    designSystemContent = g.content;
-    designSystemImages = g.images;
+    designSystemContent = collectDesignSystemFromGraph(snapshot, hypothesisNodeId);
   }
 
   return {
@@ -125,7 +111,6 @@ export function buildHypothesisGenerationContextFromInputs(input: {
     spec,
     modelCredentials,
     designSystemContent,
-    designSystemImages,
   };
 }
 

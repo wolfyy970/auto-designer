@@ -56,7 +56,6 @@ export async function buildHypothesisWorkspaceBundle(
     filteredPlan,
     hypothesisTemplate,
     ctx.designSystemContent,
-    [...ctx.designSystemImages],
   );
   const evaluationContext = evaluationPayloadFromHypothesisContext(ctx);
   const provenance = provenanceFromHypothesisContext(ctx);

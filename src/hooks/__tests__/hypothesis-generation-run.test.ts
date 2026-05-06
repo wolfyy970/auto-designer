@@ -19,7 +19,6 @@ const minimalGenCtx = {
     { providerId: 'p', modelId: 'm', thinkingLevel: 'minimal' as const },
   ],
   designSystemContent: undefined,
-  designSystemImages: [],
 } satisfies HypothesisGenerationContext;
 
 describe('applyGenerationFailureToLanes', () => {

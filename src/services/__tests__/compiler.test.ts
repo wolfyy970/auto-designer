@@ -89,7 +89,7 @@ describe('compileVariantPrompts', () => {
     expect(results[0].prompt.length).toBeGreaterThan(0);
   });
 
-  it('collects images from all spec sections', () => {
+  it('does not attach legacy spec-section images to compiled design prompts', () => {
     const img: ReferenceImage = {
       id: 'img-1', filename: 'shot.png', dataUrl: 'data:image/png;base64,abc',
       description: 'A screenshot', createdAt: '2024-01-01T00:00:00Z',
@@ -107,34 +107,7 @@ describe('compileVariantPrompts', () => {
 
     const [result] = compileVariantPrompts(spec, plan, VARIANT_TEMPLATE);
 
-    expect(result.images).toHaveLength(1);
-    expect(result.images[0].id).toBe('img-1');
-  });
-
-  it('merges extraImages with spec images', () => {
-    const specImg: ReferenceImage = {
-      id: 'spec-img', filename: 'spec.png', dataUrl: 'data:...', description: '', createdAt: '2024-01-01T00:00:00Z',
-    };
-    const extraImg: ReferenceImage = {
-      id: 'extra-img', filename: 'design-system.png', dataUrl: 'data:...', description: '', createdAt: '2024-01-01T00:00:00Z',
-    };
-    const spec = makeSpec({
-      sections: {
-        'design-brief': { ...makeSection('design-brief'), images: [specImg] },
-        'research-context': makeSection('research-context'),
-        'objectives-metrics': makeSection('objectives-metrics'),
-        'design-constraints': makeSection('design-constraints'),
-        'design-system': makeSection('design-system'),
-      },
-    });
-    const plan = makeIncubationPlan([makeStrategy()]);
-
-    const [result] = compileVariantPrompts(spec, plan, VARIANT_TEMPLATE, undefined, [extraImg]);
-
-    expect(result.images).toHaveLength(2);
-    const ids = result.images.map((i) => i.id);
-    expect(ids).toContain('spec-img');
-    expect(ids).toContain('extra-img');
+    expect(result.images).toEqual([]);
   });
 
   it('returns empty array when there are no hypotheses', () => {

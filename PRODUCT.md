@@ -19,7 +19,7 @@ Every subsystem — the incubator, the agentic builder, the evaluator, the revis
 
 ## What Exists Today
 
-**Status:** Canvas interface complete. Hypothesis design uses the agentic Pi pipeline. With the checked-in `autoImprove: 0` flag, runs are single-pass builds; when that flag is enabled, the same pipeline adds post-build evaluation and bounded revision rounds. Vision support implemented. Prompt and skill roles live in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md); sandbox mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md).
+**Status:** Canvas interface complete. Hypothesis design uses the agentic Pi pipeline. With the checked-in `autoImprove: 0` flag, runs are single-pass builds; when that flag is enabled, the same pipeline adds post-build evaluation and bounded revision rounds. Prompt and skill roles live in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md); sandbox mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Canvas Interface (`/canvas` — working route)
 
@@ -91,7 +91,7 @@ Start a run with **Design** on the Hypothesis node. With **Auto-improve** disabl
 ## Providers
 
 
-| Provider   | Compilation | Generation | Vision                                                 |
+| Provider   | Compilation | Generation | Vision metadata                                        |
 | ---------- | ----------- | ---------- | ------------------------------------------------------ |
 | OpenRouter | Yes         | Yes        | Auto-detected from model metadata                      |
 | LM Studio  | Yes         | Yes        | Configurable via `VITE_LMSTUDIO_VISION_MODELS` env var |
@@ -100,7 +100,6 @@ Start a run with **Design** on the Hypothesis node. With **Auto-improve** disabl
 - Each task can carry its own provider, model, and thinking-level selection when lockdown is off.
 - Models fetched dynamically via each provider's API
 - Vision-capable models show an eye icon in the model selector
-- When vision is available, reference images are sent as multimodal content alongside text
 - LM Studio runs sequentially (returns 500 on concurrent requests); OpenRouter runs in parallel
 
 ## Persistence

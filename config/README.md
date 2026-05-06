@@ -135,7 +135,7 @@ Two groups of thresholds:
 - `consoleErrors` — how many JS console errors map to each score level (score5 = 0 errors, score3 = 1, score2 = 2, bulkPenalty applied at 3+)
 - `visibleText` — minimum visible character counts for excellent / good / minimal text scores
 - `bodyLayout` — minimum rendered body width/height to get a "strong" layout score
-- `screenshotJpegQuality` — JPEG quality for the viewport capture sent to vision evaluators (1–100)
+- `screenshotJpegQuality` — JPEG quality for the viewport capture stored in the browser QA report (1–100)
 
 **`qa.interactive.*`** — structural HTML element counts required to reach each score tier (total interactive elements, anchors, buttons, forms, nav elements)
 
