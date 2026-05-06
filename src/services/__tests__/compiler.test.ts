@@ -89,6 +89,31 @@ describe('compileVariantPrompts', () => {
     expect(results[0].prompt.length).toBeGreaterThan(0);
   });
 
+  it('includes global exploration axes and this hypothesis position in the prompt', () => {
+    const spec = makeSpec();
+    const strategy = makeStrategy();
+    const plan = makeIncubationPlan([strategy]);
+
+    const [result] = compileVariantPrompts(spec, plan, VARIANT_TEMPLATE);
+
+    expect(result.prompt).toContain('<exploration_axes>');
+    expect(result.prompt).toContain('- layout (variable): single to multi-column');
+    expect(result.prompt).toContain('<dimension_values>');
+    expect(result.prompt).toContain('- layout: single-column');
+    expect(result.prompt).toContain('- density: sparse');
+  });
+
+  it('uses explicit fallback text when no exploration axes or positions are available', () => {
+    const spec = makeSpec();
+    const strategy = makeStrategy({ dimensionValues: {} });
+    const plan = { ...makeIncubationPlan([strategy]), dimensions: [] };
+
+    const [result] = compileVariantPrompts(spec, plan, VARIANT_TEMPLATE);
+
+    expect(result.prompt).toContain('(No global exploration axes were provided)');
+    expect(result.prompt).toContain('(No selected hypothesis position was provided)');
+  });
+
   it('does not attach legacy spec-section images to compiled design prompts', () => {
     const img: ReferenceImage = {
       id: 'img-1', filename: 'shot.png', dataUrl: 'data:image/png;base64,abc',

@@ -1,7 +1,5 @@
 import { EDGE_STATUS, EDGE_TYPES, INPUT_NODE_TYPES, NODE_TYPES, buildEdgeId } from '../constants/canvas';
 import { dedupeEdgesById } from './canvas-connections';
-import { getDesignSystemEffectiveState } from './design-md';
-import type { DesignSystemNodeData } from '../types/canvas-data';
 import type { DesignSpec, SpecSectionId } from '../types/spec';
 import {
   NODE_TYPE_TO_SECTION,
@@ -17,7 +15,7 @@ export function isProtectedIncubatorSourceEdge(
   const source = nodes.find((node) => node.id === edge.source);
   const target = nodes.find((node) => node.id === edge.target);
   if (!source || !target || target.type !== NODE_TYPES.INCUBATOR) return false;
-  return INPUT_NODE_TYPES.has(source.type) || source.type === NODE_TYPES.DESIGN_SYSTEM;
+  return INPUT_NODE_TYPES.has(source.type);
 }
 
 function sectionHasMaterial(spec: DesignSpec, sectionId: SpecSectionId): boolean {
@@ -30,9 +28,6 @@ function sourceHasEffectiveMaterial(node: WorkspaceNode, spec: DesignSpec): bool
   if (INPUT_NODE_TYPES.has(node.type)) {
     const sectionId = NODE_TYPE_TO_SECTION[node.type as CanvasNodeType];
     return sectionId ? sectionHasMaterial(spec, sectionId) : false;
-  }
-  if (node.type === NODE_TYPES.DESIGN_SYSTEM) {
-    return getDesignSystemEffectiveState((node.data ?? {}) as DesignSystemNodeData).hasEffectiveSourceInput;
   }
   return false;
 }
@@ -52,7 +47,7 @@ export function repairIncubatorStructuralSourceEdges(input: {
   const addedEdges: WorkspaceEdge[] = [];
   for (const node of input.nodes) {
     if (!sourceHasEffectiveMaterial(node, input.spec)) continue;
-    if (!INPUT_NODE_TYPES.has(node.type) && node.type !== NODE_TYPES.DESIGN_SYSTEM) continue;
+    if (!INPUT_NODE_TYPES.has(node.type)) continue;
     const hasAnyIncubatorEdge = input.edges.some(
       (edge) => edge.source === node.id && input.nodes.some((target) => target.id === edge.target && target.type === NODE_TYPES.INCUBATOR),
     );

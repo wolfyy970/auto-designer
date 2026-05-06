@@ -14,6 +14,7 @@ const hypothesisStrategy = { id: 'vs-1' } as HypothesisStrategy;
 const minimalGenCtx = {
   hypothesisNodeId: 'hyp-1',
   hypothesisStrategy,
+  dimensions: [],
   spec: { id: 's1' } as HypothesisGenerationContext['spec'],
   modelCredentials: [
     { providerId: 'p', modelId: 'm', thinkingLevel: 'minimal' as const },

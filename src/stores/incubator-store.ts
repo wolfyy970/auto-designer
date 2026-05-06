@@ -40,6 +40,17 @@ export function findStrategy(
   return undefined;
 }
 
+/** Find the incubation plan that owns a hypothesis strategy. */
+export function findPlanForStrategy(
+  incubationPlans: Record<string, IncubationPlan>,
+  strategyId: string,
+): IncubationPlan | undefined {
+  for (const plan of Object.values(incubationPlans)) {
+    if (plan.hypotheses.some((h) => h.id === strategyId)) return plan;
+  }
+  return undefined;
+}
+
 /** Get all strategy IDs across all incubation plans */
 export function allStrategyIds(incubationPlans: Record<string, IncubationPlan>): Set<string> {
   const ids = new Set<string>();

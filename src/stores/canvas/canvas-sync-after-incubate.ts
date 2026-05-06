@@ -5,7 +5,6 @@ import {
 } from '../../lib/canvas-connections';
 import { EDGE_STATUS } from '../../constants/canvas';
 import { linkHypothesesAfterIncubate, syncDomainForNewEdge } from '../../workspace/domain-commands';
-import { useWorkspaceDomainStore } from '../workspace-domain-store';
 import {
   HYPOTHESIS_STACK_GAP,
   HYPOTHESIS_STACK_NODE_H,
@@ -35,10 +34,6 @@ export function applySyncAfterIncubate(
   const existingHypIds = new Set(
     state.nodes.filter((n) => n.type === 'hypothesis').map((n) => n.data.refId),
   );
-  const scopedDesignSystemIds =
-    useWorkspaceDomainStore.getState().incubatorWirings[incubatorNodeId]?.designSystemNodeIds ?? [];
-  const scopedDesignSystemSet = new Set(scopedDesignSystemIds);
-
   let maxY = incubatorY;
   for (const e of state.edges) {
     if (e.source !== incubatorNodeId) continue;
@@ -72,13 +67,6 @@ export function applySyncAfterIncubate(
 
     const structuralEdges = buildAutoConnectEdges(nodeId, 'hypothesis', addedNodes);
     for (const se of structuralEdges) {
-      if (
-        scopedDesignSystemSet.size > 0 &&
-        addedNodes.find((n) => n.id === se.source)?.type === 'designSystem' &&
-        !scopedDesignSystemSet.has(se.source)
-      ) {
-        continue;
-      }
       if (addedEdges.some((e) => e.id === se.id)) continue;
       const incubationComplete = se.source === incubatorNodeId && se.target === nodeId;
       addedEdges.push({

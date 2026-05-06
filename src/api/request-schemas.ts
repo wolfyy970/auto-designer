@@ -53,9 +53,6 @@ export const InputsGenerateRequestSchema = z.object({
 const IncubatorPromptOptionsSchema = z.object({
   count: z.number().int().positive().optional(),
   existingStrategies: z.array(HypothesisStrategySchema).optional(),
-  designSystemDocuments: z
-    .array(z.object({ nodeId: z.string(), title: z.string(), content: z.string() }))
-    .optional(),
 });
 
 export const IncubateRequestSchema = z.object({
@@ -71,9 +68,6 @@ export const IncubateRequestSchema = z.object({
     )
     .optional(),
   supportsVision: z.boolean().optional(),
-  designSystemDocuments: z
-    .array(z.object({ nodeId: z.string(), title: z.string(), content: z.string() }))
-    .optional(),
   promptOptions: IncubatorPromptOptionsSchema.optional(),
   thinking: ThinkingOverrideSchema.optional(),
 });

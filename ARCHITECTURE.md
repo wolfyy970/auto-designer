@@ -100,7 +100,7 @@ The package owns:
 1. **VFS + just-bash** — `packages/auto-designer-pi/src/sandbox/virtual-workspace.ts`. In-memory tree at `/home/user/project`; `bash.fs.*` and `bash.exec`. Optional runtimes (network, python, javascript) are **not** enabled — do not document `npm`, `curl`, etc. as available unless that constructor changes.
 2. **Tool surface registry** — `packages/auto-designer-pi/src/internal/pi-tool-surface.ts` declares every tool the model can call as a discriminated handler (`sandboxed-pi`, `excluded-pi`, or `auto-designer-extension`). `ToolSurface.build()` produces one `ExtensionFactory` that registers every handler through `pi.registerTool` — the canonical pattern from Pi's `extensions.md` "Overriding Built-in Tools". Sandboxed-pi handlers replace Pi's stock built-ins by name (Pi resolves the override in `agent-session.js:_refreshToolRegistry`). The build performs a runtime tripwire: it reads upstream Pi's `allToolNames` Set literal at session construction time and throws `ToolSurfaceError` if any built-in lacks a disposition. **The next time someone bumps `@mariozechner/pi-coding-agent` and Pi adds a tool, the very first attempt to start a hypothesis session throws a clear, actionable error pointing at the registry — no documentation-only promise to remember.** Per-tool builders live in `packages/auto-designer-pi/src/tools/virtual-tools.ts` (`buildSandboxedReadTool`, `buildSandboxedWriteTool`, …) and `tools/bash-tool.ts` (`buildSandboxedBashTool`); they all share a `SandboxToolContext` and inject VFS-backed `*Operations` into the matching Pi factory. The auto-designer extension tools (`todo_write`, `validate_js`, `validate_html`) live in `extension/designer-tools.ts`. The wrapped `edit` tool retries once on "could not find" via `tools/edit-match-cascade.ts`.
 3. **Resource loader + session factories** — `packages/auto-designer-pi/src/resource-loader.ts` filters skills by session-type tags (`SessionScopedResourceLoader`) and exposes `applyPathRemapping` so seeded skill files can have their `filePath`/`baseDir` rewritten to VFS paths before Pi's `formatSkillsForPrompt` prints `<location>`. `packages/auto-designer-pi/src/sandbox/seed-skills.ts` reads each filtered skill's SKILL.md from disk and writes it into the VFS at `/home/user/project/.skills/<name>/SKILL.md` at session start; the model loads skill bodies through Pi's stock skill flow (read tool against the VFS path) — no `use_skill` invention. `packages/auto-designer-pi/src/host.ts` exposes `createDesignSession` / `createEvaluationSession` / `createIncubationSession` / `createInputsGenSession` / `createDesignSystemSession`. Each wires the right tag set + extension factories.
-4. **Bundled prompt content** — `packages/auto-designer-pi/prompts/` and `packages/auto-designer-pi/skills/` hold the repo-owned prompt and skill bodies. Roles and runtime flow live in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md).
+4. **Bundled prompt content** — `packages/auto-designer-pi/prompts/` and `packages/auto-designer-pi/skills/` hold the repo-owned prompt and skill bodies. Roles and runtime flow live in [RUNTIME_FLOW.md](RUNTIME_FLOW.md).
 
 The host owns:
 - **Single entry point** — `server/services/pi-agent-runtime.ts` resolves provider config from env, calls the right session factory by `params.sessionType`, runs the session, and maps `SessionRunResult` → `DesignAgentSessionResult`. Re-exported as `runDesignAgentSession` from `server/services/agent-runtime.ts` so orchestrators import the facade.
@@ -108,7 +108,7 @@ The host owns:
 - **LLM logging** — `server/services/pi-llm-log.ts` wraps the package's `streamFn` to record each model turn into the dev `/api/logs` ring; `server/lib/pi-stream-budget.ts` chooses a per-turn `max_tokens` from prompt-token estimates.
 - **Skill catalog for UI** — `server/lib/build-agentic-system-context.ts` reads `packages/auto-designer-pi/skills/` via `discoverSkills` to emit the `skills_loaded` SSE; the agent's actual catalog comes from Pi's resource loader inside the package.
 
-Prompt and skill roles are cataloged in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md). At runtime, Pi receives the resolved system body plus Pi's stock `<available_skills>` block; route code supplies the task-specific user message; seeded SKILL.md files are loaded through the regular `read` tool. The Incubator's user message is assembled deterministically by `buildInternalContext(spec)` in [src/lib/prompts/internal-context.ts](src/lib/prompts/internal-context.ts), then wrapped by `buildIncubatorUserPrompt()` in [src/lib/prompts/incubator-user.ts](src/lib/prompts/incubator-user.ts).
+Prompt and skill roles are cataloged in [RUNTIME_FLOW.md](RUNTIME_FLOW.md). At runtime, Pi receives the resolved system body plus Pi's stock `<available_skills>` block; route code supplies the task-specific user message; seeded SKILL.md files are loaded through the regular `read` tool. The Incubator's user message is assembled deterministically by `buildInternalContext(spec)` in [src/lib/prompts/internal-context.ts](src/lib/prompts/internal-context.ts), then wrapped by `buildIncubatorUserPrompt()` in [src/lib/prompts/incubator-user.ts](src/lib/prompts/incubator-user.ts).
 
 ### Tool inventory
 
@@ -184,7 +184,7 @@ The **server** LLM engine stays UI-agnostic; client-only modules under `src/work
 ```mermaid
 flowchart TB
   designSpec[DesignSpec text facets]
-  incubationPlan[IncubationPlan dimensions and hypothesis strategies]
+  incubationPlan[IncubationPlan exploration axes and hypothesis strategies]
   workspaceDto["Workspace DTO — spec, graph snapshot, domain hypothesis, design-system payloads, settings credential"]
   compiledPrompt["CompiledPrompt[] — server-built prompt bundle, optionally mirrored into browser state"]
   generate[POST /api/generate or /api/hypothesis/generate SSE stream]
@@ -318,7 +318,7 @@ POST endpoints validate bodies with Zod (typically via `**parse-request**` / `sa
 
 Hypothesis and `/api/generate` traffic use the **agentic** orchestrator. `mode` in the request body is optional and defaults to agentic; `**single`** is still accepted as a **deprecated alias** (normalized server-side) for backward compatibility.
 
-`server/routes/generate.ts` delegates to `server/services/agentic-orchestrator.ts` -> `runAgenticWithEvaluation`. Prompt and skill flow for generation and revision lives in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md).
+`server/routes/generate.ts` delegates to `server/services/agentic-orchestrator.ts` -> `runAgenticWithEvaluation`. Prompt and skill flow for generation and revision lives in [RUNTIME_FLOW.md](RUNTIME_FLOW.md).
 
 **Orchestrator (`runAgenticWithEvaluation`):**
 
@@ -375,7 +375,7 @@ Model wiring is no longer a canvas concern. Each task reads `(providerId, modelI
 
 `computeLineage` performs a full connected-component walk (bidirectional BFS). Selecting a node highlights every node reachable through any chain of edges — including sibling inputs to shared targets. Unconnected nodes dim to 40%.
 
-`resolveIncubatorSourceState` (`src/lib/incubator-input-count.ts`) is the shared Incubator source resolver for UI counts and run assembly. It classifies filled spec inputs, connected preview references, and active connected Design System nodes, filters stale wiring ids, and lets content-bearing optional inputs participate even if an older graph is missing the repaired structural edge. `buildIncubateInputs` uses that resolved state to build the partial spec and reference designs for `/api/incubate`; DESIGN.md preparation uses the same active Design System ids.
+`resolveIncubatorSourceState` (`src/lib/incubator-input-count.ts`) is the shared Incubator source resolver for UI counts and run assembly. It classifies filled spec inputs and connected preview references, filters stale wiring ids, and lets content-bearing optional inputs participate even if an older graph is missing the repaired structural edge. `buildIncubateInputs` uses that resolved state to build the partial spec and reference designs for `/api/incubate`. Design-system context is not part of incubation; it attaches to hypotheses for design execution.
 
 ### Version Stacking
 
@@ -455,8 +455,7 @@ Multiple hypotheses can generate simultaneously. Within a single hypothesis the 
 | `useResultFiles.ts`          | Loads multi-file result from StoragePort (agentic results)                                                                                                                                                                                                                               |
 | `useProviderModels.ts`       | React Query hook — calls `apiClient.listModels()`                                                                                                                                                                                                                                        |
 | `useTaskModel.ts`            | Resolves provider/model + vision/reasoning support for a task from Settings, applying lockdown pins from `/api/config` when enabled. Replaces the legacy connected-model hooks.                                                                                                          |
-| `useIncubatorDocumentPreparation.ts` | Refreshes generated design specification and DESIGN.md documents before incubation; owns task-stream monitor state patches for those document jobs.                                                                                                                                 |
-| `useIncubatorRun.ts`         | Incubator **Generate** orchestration: placeholder hypotheses, DESIGN.md refresh prerequisites, `/api/incubate` task stream, domain/canvas sync, edge status, and post-run fitView.                                                                                                        |
+| `useIncubatorRun.ts`         | Incubator **Generate** orchestration: placeholder hypotheses, `/api/incubate` task stream, domain/canvas sync, edge status, and post-run fitView.                                                                                                        |
 | `useNodeRemoval.ts`          | Shared node + associated-edges removal logic                                                                                                                                                                                                                                             |
 
 
@@ -494,7 +493,7 @@ Single source of truth for string literals shared across the codebase. Eliminate
 
 **Why a Hono server with bounded synchronous streams.** All LLM orchestration runs server-side. API keys never reach the browser. V1 production uses Vercel Pro bounded streaming functions (`maxDuration = 800`) and requires the browser request to stay open until the run finishes. If the connection drops, the client marks the run as non-resumable and asks the user to start again. Durable async jobs are future v2 work, not part of the deployed V1 API surface.
 
-**Why the server resolves prompts from the package.** Prompt bodies ship with `@auto-designer/pi` under `packages/auto-designer-pi/{skills,prompts}/`. `server/lib/prompt-resolution.ts` resolves them per request through `loadDesignerSystemPrompt()` and `loadPackagePromptBody()`. The SPA sends workspace/spec payloads and model settings; prompt text is never client-editable. Prompt roles live in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md).
+**Why the server resolves prompts from the package.** Prompt bodies ship with `@auto-designer/pi` under `packages/auto-designer-pi/{skills,prompts}/`. `server/lib/prompt-resolution.ts` resolves them per request through `loadDesignerSystemPrompt()` and `loadPackagePromptBody()`. The SPA sends workspace/spec payloads and model settings; prompt text is never client-editable. Prompt roles live in [RUNTIME_FLOW.md](RUNTIME_FLOW.md).
 
 **Why prompt snapshots exist.** Prompt, skill, and rubric edits are tunable content, so they keep committed history through `pnpm snap` and the pre-commit hook. Snapshot workflow and storage locations live in [USER_GUIDE.md § Version history](USER_GUIDE.md#version-history).
 

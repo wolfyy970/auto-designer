@@ -9,11 +9,10 @@ import type { DesignSystemSourceMode } from './design-system-mode';
 
 export type { ThinkingLevel };
 
-/** Wired inputs for incubate: input + preview node ids feeding an incubator. */
+/** Wired inputs for incubate: spec input + preview node ids feeding an incubator. */
 export interface DomainIncubatorWiring {
   readonly inputNodeIds: string[];
   readonly previewNodeIds: string[];
-  readonly designSystemNodeIds: string[];
 }
 
 /** Hypothesis runtime settings and bindings (not graph topology). */
@@ -86,7 +85,7 @@ export interface WorkspaceDomainStateV1 {
 }
 
 export function defaultIncubatorWiring(): DomainIncubatorWiring {
-  return { inputNodeIds: [], previewNodeIds: [], designSystemNodeIds: [] };
+  return { inputNodeIds: [], previewNodeIds: [] };
 }
 
 /** Slot key used in previewSlots map */

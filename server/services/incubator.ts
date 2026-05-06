@@ -13,7 +13,13 @@ export function incubateHypothesisPrompts(
     id: generateId(),
     strategyId: strategy.id,
     specId: spec.id,
-    prompt: buildHypothesisPrompt(spec, strategy, hypothesisTemplate, designSystemOverride),
+    prompt: buildHypothesisPrompt(
+      spec,
+      strategy,
+      hypothesisTemplate,
+      incubationPlan.dimensions,
+      designSystemOverride,
+    ),
     images: [],
     compiledAt: now(),
   }));

@@ -38,7 +38,7 @@ Product flags live in [config/feature-flags.json](config/feature-flags.json). Se
 
 ## Canvas Workflow
 
-The primary working interface is a visual node-graph canvas (`/canvas`): source inputs feed the Incubator, hypothesis cards generate designs, and preview nodes show the results. For actual usage, use [USER_GUIDE.md](USER_GUIDE.md). For feature semantics, use [PRODUCT.md](PRODUCT.md). For routes, stores, and data flow, use [ARCHITECTURE.md](ARCHITECTURE.md). Token semantics live only in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
+The primary working interface is a visual node-graph canvas (`/canvas`): spec inputs feed the Incubator, hypothesis cards generate designs, and preview nodes show the results. For actual usage, use [USER_GUIDE.md](USER_GUIDE.md). For feature semantics, use [PRODUCT.md](PRODUCT.md). For routes, stores, and data flow, use [ARCHITECTURE.md](ARCHITECTURE.md). Token semantics live only in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
 
 ## Scripts
 
@@ -66,7 +66,7 @@ The primary working interface is a visual node-graph canvas (`/canvas`): source 
 | [AGENTS.md](AGENTS.md)                           | **Canonical** agent instructions: commands, architecture **pointers**, skill-based prompts, gotchas ([Pi sandbox detail](ARCHITECTURE.md#pi-design-sandbox) in **ARCHITECTURE**) |
 | [CLAUDE.md](CLAUDE.md)                           | Stub for Claude Code → links **AGENTS.md**                                                                                                                                                            |
 | [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md)         | Narrative: canvas, prompts, agentic loop, evaluation                                                                                                                                                  |
-| [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md)   | Canonical prompt/skill inventory and runtime flow                                                                                                                                                     |
+| [RUNTIME_FLOW.md](RUNTIME_FLOW.md)               | Canonical runtime flow, prompt/skill inventory, and internal exploration-axis model                                                                                                                   |
 | [PRODUCT.md](PRODUCT.md)                         | **North Star** + feature-level description: modes, nodes, providers                                                                                                                                   |
 | [USER_GUIDE.md](USER_GUIDE.md)                   | Setup and day-to-day canvas workflow                                                                                                                                                                  |
 | [config/README.md](config/README.md)             | Human-editable JSON knobs for feature flags, defaults, evaluator thresholds, browser scoring, and content limits                                                                                       |

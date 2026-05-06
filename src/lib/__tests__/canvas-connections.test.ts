@@ -14,8 +14,8 @@ describe('isValidConnection', () => {
     }
   });
 
-  it('allows designSystem to connect to compiler and hypothesis', () => {
-    expect(isValidConnection('designSystem', 'incubator')).toBe(true);
+  it('allows designSystem to connect to hypothesis only', () => {
+    expect(isValidConnection('designSystem', 'incubator')).toBe(false);
     expect(isValidConnection('designSystem', 'hypothesis')).toBe(true);
   });
 

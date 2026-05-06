@@ -7,9 +7,9 @@ This document is the **narrative** companion to [ARCHITECTURE.md](ARCHITECTURE.m
 ## What the user does on the canvas
 
 1. **Source inputs (left column)** — Four spec facets hold structured text (Design Brief, Research Context, Objectives & Metrics, Design Constraints), and the required Design System node holds either the built-in Wireframe source, custom visual-system text/Markdown/images, or an explicit None state. Spec-facet content is mirrored into the **spec store**; Design System content stays on the node.
-2. **Incubator** — Connects **source input nodes** and optional **preview → incubator** reference designs. It turns the connected context into an **incubation plan**: differentiated hypothesis strategies.
+2. **Incubator** — Connects **spec input nodes** and optional **preview → incubator** reference designs. It turns the connected context into an **incubation plan**: differentiated hypothesis strategies.
 3. **Hypothesis nodes** — Each card is one strategy. **Design** runs the agentic generation loop. Domain state owns workflow relations, and the graph is a projection kept in sync by app commands.
-4. **Design system node** — Required source input. It controls whether generated work receives the built-in Wireframe design system, custom source material, or no design-system guidance.
+4. **Design system node** — Required source input for design execution. It controls whether generated work receives the built-in Wireframe design system, custom source material, or no design-system guidance.
 5. **Preview nodes** — Show iframe previews (URL-backed virtual FS for agentic multi-file), zip downloads, and evaluation summaries. Versions stack per strategy; previews can feed the Incubator as prior-output reference designs.
 
 Generation runs as a browser-held stream in the hosted v1 path; durable background jobs remain a future boundary.
@@ -18,7 +18,7 @@ Generation runs as a browser-held stream in the hosted v1 path; durable backgrou
 
 ## Prompts and where they come from
 
-Prompt and skill bodies are repo-owned package content, resolved server-side for each task. This overview only names that boundary; prompt roles and runtime flow live in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md). Implementation mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md), and editing workflow plus version snapshots live in [USER_GUIDE.md](USER_GUIDE.md#prompts-and-skills-editing-the-repo).
+Prompt and skill bodies are repo-owned package content, resolved server-side for each task. This overview only names that boundary; prompt roles and runtime flow live in [RUNTIME_FLOW.md](RUNTIME_FLOW.md). Implementation mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md), and editing workflow plus version snapshots live in [USER_GUIDE.md](USER_GUIDE.md#prompts-and-skills-editing-the-repo).
 
 ---
 
@@ -50,7 +50,7 @@ Prompt and skill bodies are repo-owned package content, resolved server-side for
 | ----------------------------- | ------------------------------------ |
 | API routes, stores, file map  | [ARCHITECTURE.md](ARCHITECTURE.md)   |
 | Feature list and modes        | [PRODUCT.md](PRODUCT.md)             |
-| Prompt/skill roles and flow   | [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md) |
+| Runtime flow and prompt/skill roles | [RUNTIME_FLOW.md](RUNTIME_FLOW.md) |
 | Step-by-step canvas usage     | [USER_GUIDE.md](USER_GUIDE.md)       |
 | Repo commands / agent gotchas | [AGENTS.md](AGENTS.md)               |
 | How we maintain docs          | [DOCUMENTATION.md](DOCUMENTATION.md) |

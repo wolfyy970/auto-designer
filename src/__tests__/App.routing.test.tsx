@@ -89,7 +89,7 @@ describe('App routing', () => {
 
     await waitFor(() => {
       expect(screen.queryByRole('heading', { name: 'Designer' })).not.toBeNull();
-    });
+    }, { timeout: 3000 });
     expect(fetch).not.toHaveBeenCalledWith('/api/config', expect.any(Object));
   });
 

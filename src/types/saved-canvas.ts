@@ -127,9 +127,9 @@ const IncubatorWiringSchema = z
   .object({
     inputNodeIds: z.array(z.string()),
     previewNodeIds: z.array(z.string()),
-    designSystemNodeIds: z.array(z.string()),
   })
-  .strict();
+  .passthrough()
+  .transform(({ inputNodeIds, previewNodeIds }) => ({ inputNodeIds, previewNodeIds }));
 
 const HypothesisSchema = z
   .object({

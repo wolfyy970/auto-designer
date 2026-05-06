@@ -39,6 +39,7 @@ function ctx(overrides: Partial<HypothesisGenerationContext>): HypothesisGenerat
   return {
     hypothesisNodeId: 'h1',
     hypothesisStrategy: baseStrategy({}),
+    dimensions: [],
     spec: baseSpec,
     modelCredentials: [
       { providerId: 'openrouter', modelId: 'm', thinkingLevel: 'off' },
@@ -49,27 +50,15 @@ function ctx(overrides: Partial<HypothesisGenerationContext>): HypothesisGenerat
 }
 
 describe('evaluationPayloadFromHypothesisContext', () => {
-  it('maps format dimension to outputFormat', () => {
+  it('keeps hypothesis positions as strategy context without deriving outputFormat', () => {
     const p = evaluationPayloadFromHypothesisContext(
       ctx({ hypothesisStrategy: baseStrategy({ format: 'html' }) }),
     );
-    expect(p.outputFormat).toBe('html');
+    expect(p.outputFormat).toBeUndefined();
+    expect(p.dimensionValues).toEqual({ format: 'html' });
     expect(p.hypothesis).toBe('H');
     expect(p.objectivesMetrics).toBe('Obj content');
     expect(p.designConstraints).toBe('Constraint content');
-  });
-
-  it('accepts output_format and Output Format keys', () => {
-    expect(
-      evaluationPayloadFromHypothesisContext(
-        ctx({ hypothesisStrategy: baseStrategy({ output_format: 'react' }) }),
-      ).outputFormat,
-    ).toBe('react');
-    expect(
-      evaluationPayloadFromHypothesisContext(
-        ctx({ hypothesisStrategy: baseStrategy({ 'Output Format': '  html  ' }) }),
-      ).outputFormat,
-    ).toBe('html');
   });
 
   it('omits outputFormat when no format keys set', () => {

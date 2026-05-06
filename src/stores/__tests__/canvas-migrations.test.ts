@@ -834,8 +834,8 @@ describe('v29 → v30: retire existing design nodes', () => {
   });
 });
 
-describe('v30 → v31: remove direct model links to Design System', () => {
-  it('strips model→designSystem edges while preserving input and incubator model links', () => {
+describe('v30 → latest: remove retired model and Design System-to-Incubator links', () => {
+  it('strips model edges and Design System edges into Incubator', () => {
     const result = migrateCanvasState(
       {
         nodes: [
@@ -852,9 +852,7 @@ describe('v30 → v31: remove direct model links to Design System', () => {
       30,
     );
     const edges = result.edges as Array<Record<string, unknown>>;
-    // v31 keeps these edges; v32 (next migration) is what strips Model nodes
-    // entirely. We assert v31's behaviour by isolating its output.
-    expect(edges.map((e) => e.id).sort()).toContain('ds-inc');
+    expect(edges.map((e) => e.id).sort()).toEqual([]);
   });
 });
 
@@ -892,5 +890,29 @@ describe('v31 → v32: strip Model nodes from saved canvases', () => {
       31,
     );
     expect((result.nodes as Array<Record<string, unknown>>)).toHaveLength(1);
+  });
+});
+
+describe('v32 → v33: remove Design System links into Incubator', () => {
+  it('strips Design System→Incubator edges while preserving Incubator sources and hypothesis design-system links', () => {
+    const result = migrateCanvasState(
+      {
+        nodes: [
+          makeNode('brief', 'designBrief'),
+          makeNode('ds', 'designSystem'),
+          makeNode('inc', 'incubator'),
+          makeNode('hyp', 'hypothesis'),
+        ],
+        edges: [
+          makeEdge('brief-inc', 'brief', 'inc'),
+          makeEdge('ds-inc', 'ds', 'inc'),
+          makeEdge('ds-hyp', 'ds', 'hyp'),
+        ],
+      },
+      32,
+    );
+
+    const edges = result.edges as Array<Record<string, unknown>>;
+    expect(edges.map((e) => e.id).sort()).toEqual(['brief-inc', 'ds-hyp']);
   });
 });

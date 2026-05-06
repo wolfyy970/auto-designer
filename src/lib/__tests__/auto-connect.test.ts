@@ -51,9 +51,9 @@ describe('buildAutoConnectEdges', () => {
       makeNode('c1', 'incubator'),
     ];
     const edges = buildAutoConnectEdges('ds1', 'designSystem', existing);
-    expect(edges).toHaveLength(3);
+    expect(edges).toHaveLength(2);
     expect(edges.every((e) => e.source === 'ds1')).toBe(true);
-    expect(edges.map((e) => e.target).sort()).toEqual(['c1', 'h1', 'h2']);
+    expect(edges.map((e) => e.target).sort()).toEqual(['h1', 'h2']);
   });
 
   it('connects current designSystems to new hypothesis and sole compiler', () => {
@@ -92,4 +92,3 @@ describe('buildAutoConnectEdges', () => {
     expect(edges[0].data).toEqual({ status: 'idle' });
   });
 });
-

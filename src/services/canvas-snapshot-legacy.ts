@@ -1,4 +1,5 @@
 import { normaliseImportedSpec } from '../lib/spec-legacy';
+import { NODE_TYPES } from '../constants/canvas';
 import type { DesignSpec } from '../types/spec';
 import type { WorkspaceEdge, WorkspaceNode } from '../types/workspace-graph';
 import { snapshotClone } from './canvas-snapshot-serialization';
@@ -30,6 +31,13 @@ export function stripLegacyExistingDesignGraph(
     if (remove) removedNodeIds.add(node.id);
     return !remove;
   });
-  const nextEdges = edges.filter((edge) => !removedNodeIds.has(edge.source) && !removedNodeIds.has(edge.target));
+  const nodeTypeById = new Map(nextNodes.map((node) => [node.id, node.type]));
+  const nextEdges = edges.filter((edge) => {
+    if (removedNodeIds.has(edge.source) || removedNodeIds.has(edge.target)) return false;
+    return !(
+      nodeTypeById.get(edge.source) === NODE_TYPES.DESIGN_SYSTEM
+      && nodeTypeById.get(edge.target) === NODE_TYPES.INCUBATOR
+    );
+  });
   return { nodes: nextNodes, edges: nextEdges, removedNodeIds };
 }

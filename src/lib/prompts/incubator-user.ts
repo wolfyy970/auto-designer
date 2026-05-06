@@ -34,7 +34,7 @@ export function formatExistingHypothesesBlock(
     if (s.measurements) block += `   - Measurements: ${s.measurements}\n`;
     const dims = Object.entries(s.dimensionValues);
     if (dims.length > 0) {
-      block += `   - Dimension values: ${dims.map(([k, v]) => `${k}: ${v}`).join(', ')}\n`;
+      block += `   - Hypothesis positions: ${dims.map(([k, v]) => `${k}: ${v}`).join(', ')}\n`;
     }
     block += '\n';
   }
@@ -50,7 +50,6 @@ export function formatIncubatorHypothesisCountLine(count: number | undefined): s
 export interface IncubatorPromptOptions {
   count?: number;
   existingStrategies?: HypothesisStrategy[];
-  designSystemDocuments?: { nodeId: string; title: string; content: string }[];
 }
 
 export function buildIncubatorUserPrompt(
@@ -61,23 +60,8 @@ export function buildIncubatorUserPrompt(
 ): string {
   return interpolate(incubatorUserTemplate, {
     INTERNAL_CONTEXT: buildInternalContext(spec),
-    DESIGN_SYSTEM_DOCUMENTS_BLOCK: formatDesignSystemDocumentsBlock(options?.designSystemDocuments),
     REFERENCE_DESIGNS_BLOCK: formatReferenceDesignsBlock(referenceDesigns),
     EXISTING_HYPOTHESES_BLOCK: formatExistingHypothesesBlock(options?.existingStrategies),
     INCUBATOR_HYPOTHESIS_COUNT_LINE: formatIncubatorHypothesisCountLine(options?.count),
   });
-}
-
-export function formatDesignSystemDocumentsBlock(
-  documents?: { nodeId: string; title: string; content: string }[],
-): string {
-  const docs = documents?.filter((doc) => doc.content.trim());
-  if (!docs || docs.length === 0) return '';
-  let block = '\n\n## DESIGN.md Documents (optional visual-system context)\n';
-  block +=
-    'Use these generated DESIGN.md documents as optional visual-system context while forming hypotheses. Respect their tokens, component guidance, and documented uncertainty when present; do not assume a DESIGN.md exists when this block is absent.\n\n';
-  for (const doc of docs) {
-    block += `### Source: ${doc.title || 'Design System'} (${doc.nodeId})\n\n${doc.content.trim()}\n\n`;
-  }
-  return block;
 }

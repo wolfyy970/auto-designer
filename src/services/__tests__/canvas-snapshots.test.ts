@@ -77,7 +77,7 @@ describe('canvas-snapshots', () => {
       colGap: 420,
     });
     mocks.mockDomainState.mockReturnValue({
-      incubatorWirings: { inc: { inputNodeIds: ['brief'], previewNodeIds: [], designSystemNodeIds: [] } },
+      incubatorWirings: { inc: { inputNodeIds: ['brief'], previewNodeIds: [] } },
       incubatorModelNodeIds: { inc: ['model'] },
       hypotheses: { hyp: { id: 'hyp', incubatorId: 'inc', strategyId: 's1', modelNodeIds: [], designSystemNodeIds: [], placeholder: false } },
       modelProfiles: { model: { nodeId: 'model', providerId: 'openrouter', modelId: 'm' } },
@@ -155,13 +155,16 @@ describe('canvas-snapshots', () => {
           { id: 'design-system', type: 'designSystem', position: { x: 40, y: 1020 }, data: {} },
           { id: 'inc', type: 'incubator', position: { x: 520, y: 560 }, data: {} },
         ],
-        edges: [{ id: 'e-brief-inc', source: 'brief', target: 'inc', type: 'dataFlow', data: { status: 'idle' } }],
+        edges: [
+          { id: 'e-brief-inc', source: 'brief', target: 'inc', type: 'dataFlow', data: { status: 'idle' } },
+          { id: 'e-ds-inc', source: 'design-system', target: 'inc', type: 'dataFlow', data: { status: 'idle' } },
+        ],
         viewport: { x: 10, y: 20, zoom: 0.8 },
         showMiniMap: true,
         colGap: 160,
       },
       workspaceDomain: {
-        incubatorWirings: { inc: { inputNodeIds: ['brief', 'research'], previewNodeIds: [], designSystemNodeIds: ['design-system'] } },
+        incubatorWirings: { inc: { inputNodeIds: ['brief', 'research'], previewNodeIds: [] } },
         incubatorModelNodeIds: {},
         hypotheses: {},
         modelProfiles: {},
@@ -175,12 +178,14 @@ describe('canvas-snapshots', () => {
 
     const restored = vi.mocked(useCanvasStore.setState).mock.calls.at(-1)?.[0] as {
       nodes: Array<{ id: string; type: string; position: { x: number; y: number }; data: { targetType?: string } }>;
+      edges: Array<{ id: string }>;
     };
     const ghosts = restored.nodes.filter((node) => node.type === 'inputGhost');
     expect(ghosts.map((node) => node.data.targetType)).toEqual(['objectivesMetrics', 'designConstraints']);
     expect(ghosts.every((node) => node.position.x === 40)).toBe(true);
     expect(ghosts.every((node) => node.position.y > 1020)).toBe(true);
     expect(restored.nodes.some((node) => node.type === 'researchContext')).toBe(true);
+    expect(restored.edges.map((edge) => edge.id)).toEqual(['e-brief-inc']);
   });
 
   it('restores a design system with uploaded custom material as Custom style', async () => {

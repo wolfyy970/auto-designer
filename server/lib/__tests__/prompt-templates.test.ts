@@ -7,7 +7,6 @@ import {
 /** Placeholders that structural templates must retain for prompt assembly. */
 const INCUBATOR_PLACEHOLDERS = [
   '{{INTERNAL_CONTEXT}}',
-  '{{DESIGN_SYSTEM_DOCUMENTS_BLOCK}}',
   '{{REFERENCE_DESIGNS_BLOCK}}',
   '{{EXISTING_HYPOTHESES_BLOCK}}',
   '{{INCUBATOR_HYPOTHESIS_COUNT_LINE}}',
@@ -18,6 +17,7 @@ const HYPOTHESIS_PLACEHOLDERS = [
   '{{HYPOTHESIS}}',
   '{{RATIONALE}}',
   '{{MEASUREMENTS}}',
+  '{{EXPLORATION_AXES}}',
   '{{DIMENSION_VALUES}}',
   '{{DESIGN_BRIEF}}',
   '{{RESEARCH_CONTEXT}}',
@@ -33,7 +33,7 @@ describe('prompt-templates', () => {
       expect(INCUBATOR_USER_INPUTS_TEMPLATE, ph).toContain(ph);
     }
     expect(INCUBATOR_USER_INPUTS_TEMPLATE).toContain('<specification');
-    expect(INCUBATOR_USER_INPUTS_TEMPLATE).toContain('Produce the dimension map as JSON');
+    expect(INCUBATOR_USER_INPUTS_TEMPLATE).toContain('Produce the exploration-axis map as JSON');
   });
 
   it('DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE contains all expected placeholders', () => {

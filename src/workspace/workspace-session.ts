@@ -43,6 +43,7 @@ export function buildHypothesisGenerationContext(input: {
   return buildHypothesisGenerationContextFromInputs({
     hypothesisNodeId: input.hypothesisNodeId,
     hypothesisStrategy: input.hypothesisStrategy,
+    dimensions: [],
     spec: input.spec,
     snapshot: input.snapshot,
     domainHypothesis: domainHyp ?? null,

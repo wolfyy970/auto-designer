@@ -144,6 +144,44 @@ describe('POST /api/incubate SSE wire', () => {
     expect(text).toContain('Time on page; Bounce rate; Pages per session');
   });
 
+  it('normalizes exploration axes and hypothesis positions before streaming the plan', async () => {
+    vi.mocked(executeTaskAgentStream).mockResolvedValueOnce({
+      result: JSON.stringify({
+        dimensions: [
+          { name: ' Information density ', range: ' sparse to dense ', isConstant: false },
+          { name: 'information   density', range: 'duplicate', isConstant: false },
+          { name: 'Trust posture', range: 'implicit to explicit', isConstant: false },
+          { name: 'Brand', range: 'Acme', isConstant: true },
+        ],
+        hypotheses: [
+          {
+            name: 'Sparse Proof',
+            hypothesis: 'Lead with sparse proof.',
+            rationale: 'r',
+            measurements: 'm',
+            dimensionValues: {
+              'information density': ' sparse ',
+              output_format: 'react',
+            },
+          },
+        ],
+      }),
+      resultFile: 'result.json',
+      files: {},
+    });
+    const res = await app.request('http://localhost/api/incubate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyWithSpec()),
+    });
+    const text = await res.text();
+    expect(text).toContain('"name":"Information density","range":"sparse to dense"');
+    expect(text).not.toContain('duplicate');
+    expect(text).not.toContain('output_format');
+    expect(text).toContain('"Information density":"sparse"');
+    expect(text).toContain('"Trust posture":"not specified"');
+  });
+
   it('injects the bundled gen-hypotheses guidance into the agent user prompt', async () => {
     vi.mocked(executeTaskAgentStream).mockClear();
     await app.request('http://localhost/api/incubate', {

@@ -17,6 +17,7 @@ import { env } from '../env.ts';
 import { appendIncubateParsedLogEntry } from '../log-store.ts';
 import { runTaskAgentRoute } from '../lib/task-agent-route-runner.ts';
 import { IncubateRequestSchema } from '../../src/api/request-schemas.ts';
+import { normalizeIncubationPlanExplorationAxes } from '../../src/lib/exploration-axis-normalizer.ts';
 
 const incubate = new Hono();
 
@@ -90,16 +91,12 @@ incubate.post('/', async (c) => {
     body.spec,
     userPromptTemplate,
     body.referenceDesigns,
-    {
-      ...body.promptOptions,
-      designSystemDocuments:
-        body.promptOptions?.designSystemDocuments ?? body.designSystemDocuments,
-    },
+    body.promptOptions,
   );
 
   const guidance = await inlineGuidance('hypotheses-generator-system', 'hypotheses_generator_guidance');
   const agentUserPrompt = `<task>
-Analyze the design specification below and produce a dimension map with hypothesis strategies.
+Analyze the design specification below and produce global exploration axes with hypothesis strategies.
 
 Write the complete JSON result to \`result.json\` in the workspace root. The JSON must contain:
 - "dimensions": array of { name, range, isConstant }
@@ -128,14 +125,14 @@ ${assembledSpec}`;
       const { dimensions, hypotheses } = LLMResponseSchema.parse(
         typeof raw === 'object' && raw !== null ? raw : {},
       );
-      const plan = {
+      const plan = normalizeIncubationPlanExplorationAxes({
         id: generateId(),
         specId: body.spec.id,
         dimensions,
         hypotheses,
         generatedAt: now(),
         incubatorModel: body.modelId,
-      };
+      });
       if (incubationLooksLikeTemplateEcho(plan)) {
         if (env.isDev) {
           console.debug('[incubate] validation failed: template echo', {

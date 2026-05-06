@@ -18,7 +18,13 @@ export function compileVariantPrompts(
     id: generateId(),
     strategyId: strategy.id,
     specId: spec.id,
-    prompt: buildHypothesisPrompt(spec, strategy, variantTemplate, designSystemOverride),
+    prompt: buildHypothesisPrompt(
+      spec,
+      strategy,
+      variantTemplate,
+      incubationPlan.dimensions,
+      designSystemOverride,
+    ),
     images: [],
     compiledAt: now(),
   }));

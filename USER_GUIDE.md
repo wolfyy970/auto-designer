@@ -44,7 +44,7 @@ In **development** only, the API keeps an in-memory `**/api/logs`** ring (LLM ro
 
 ## Prompts and skills (editing the repo)
 
-There is no in-app prompt editor. Change prompt and skill files in the repo, restart the API if needed, run tests, and snapshot the tuned content with `pnpm snap`. Prompt roles and locations live in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md); server mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md).
+There is no in-app prompt editor. Change prompt and skill files in the repo, restart the API if needed, run tests, and snapshot the tuned content with `pnpm snap`. Runtime flow, prompt roles, and skill locations live in [RUNTIME_FLOW.md](RUNTIME_FLOW.md); server mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ### Version history
 
@@ -94,7 +94,7 @@ The working canvas lives at `/canvas`. Nodes connect left-to-right. You need a *
 
 ### 1. Fill in Input Nodes
 
-The canvas starts with a **Design Brief**, a **Design System**, and an **Incubator**. Source nodes connect into the Incubator. Optional input facets appear as ghost cards; use the circular **Add to canvas** control on a ghost to materialize that input node.
+The canvas starts with a **Design Brief**, a **Design System**, and an **Incubator**. Spec input nodes connect into the Incubator; the Design System stays in the input column and connects to hypotheses for design execution. Optional input facets appear as ghost cards; use the circular **Add to canvas** control on a ghost to materialize that input node.
 
 - **Design Brief** — The primary directive. What are you designing and why?
 - **Research Context** — User research, behavioral insights, qualitative findings.
@@ -114,9 +114,9 @@ Open **Settings → Reasoning** to choose, per task, the **provider + model** an
 
 ### 3. Incubate
 
-Connect source nodes to the **Incubator** (structural edges auto-connect on add and stay protected). With at least a minimal **Design Brief** written, click **Generate** and choose how many new hypotheses to create. The Incubator uses **Settings → Reasoning → Incubator** for the model + thinking level. It sends active sources — filled spec inputs, connected preview references, and active Design System context — to the LLM and produces that many hypothesis strategy cards. **blank hypothesis** does the same readiness check (brief + model) but adds a single empty strategy card without calling the LLM, for hand-editing.
+Connect spec input nodes to the **Incubator** (structural edges auto-connect on add and stay protected). With at least a minimal **Design Brief** written, click **Generate** and choose how many new hypotheses to create. The Incubator uses **Settings → Reasoning → Incubator** for the model + thinking level. It sends active sources — filled spec inputs and connected preview references — to the LLM and produces that many hypothesis strategy cards. **blank hypothesis** does the same readiness check (brief + model) but adds a single empty strategy card without calling the LLM, for hand-editing.
 
-The Incubator shows **DESIGN.md** readiness before it runs: it follows the active Design System style — Wireframe is already ready, Custom only participates when custom source material exists, and None is ignored. The user's spec inputs (Design Brief, Research, Objectives, Constraints) are passed verbatim to the Incubator at run time — there is no separate "Design specification" document to generate or review.
+The Design System is intentionally outside hypothesis incubation. It applies later when a hypothesis is designed, so hypothesis quality is judged against the problem framing before visual-system execution.
 
 ### 4. Edit Hypotheses
 
@@ -130,12 +130,11 @@ Edit these before generation. Remove strategies not worth exploring.
 
 ### 5. Design System
 
-The **Design System** node is a required source input. It starts in **Wireframe** mode, using Designer's built-in low-fidelity `DESIGN.md` source so early runs stay draft-like. It behaves like the other source inputs: connect it to the Incubator and/or hypotheses when you want that source included. Its model + thinking level (used when generating the linted DESIGN.md document from custom source material) come from **Settings → Reasoning → Design system**.
+The **Design System** node is a required visual-system input for design execution. It starts in **Wireframe** mode, using Designer's built-in low-fidelity `DESIGN.md` source so early runs stay draft-like. It connects to hypotheses when that source should guide the generated design; it does not connect to the Incubator.
 
 - Switch to **Custom** to type or paste DESIGN.md, tokens, style-guide prose, or brand notes
 - Drag-and-drop design-system screenshots, reference images, or DESIGN.md files when custom source material matters
 - Switch to **None** to keep the node on the canvas but exclude design-system guidance
-- The Incubator prepares the linted Google DESIGN.md document from connected Design System sources before incubation; the Design System node itself stays focused on source material
 
 ### 6. Generate Designs
 
@@ -144,8 +143,6 @@ Each hypothesis has built-in generation controls at the bottom. Click **Design**
 **Auto-improve** (when enabled by `config/feature-flags.json`): when **off**, the run stops after that **single** agent build—**no** evaluator, no scorecard. When **on**, the server runs **evaluation** (LLM rubrics plus browser QA) and can apply **revision passes** from that feedback, up to the max rounds and optional target score (overridable per node; **Settings → Evaluator defaults** sets the baseline). With the checked-in `autoImprove: 0` flag, this control is hidden and all runs are single-pass. See **[PRODUCT.md](PRODUCT.md)** for the full pipeline.
 
 Runs often take several minutes (shorter when Auto-improve is off). **Server at capacity:** the API enforces a cap of `MAX_CONCURRENT_AGENTIC_RUNS` (default 5) parallel agentic runs; when every slot is busy, **Design** turns into a greyed **“Server busy (N/M)”** hint — wait for a run to finish instead of retrying. When Auto-improve was on, the preview includes an **evaluation summary** and, if Playwright is installed, a small **browser capture** under Runtime QA. Generated HTML may use **Google Fonts** only via `fonts.googleapis.com` / `fonts.gstatic.com` (needs network in your browser for preview); other CDNs stay disallowed — see [ARCHITECTURE.md](ARCHITECTURE.md).
-
-**Output format hint:** If your **incubation plan** strategy dimensions include a value for **format** (or `output_format`), it is sent as evaluation context so the server can pick matching **skills** for the agent. Details live in [PRODUCT.md](PRODUCT.md), [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md), and [ARCHITECTURE.md](ARCHITECTURE.md) — you do not need to set this unless you use those dimensions.
 
 Running generation again adds new versions — use the version navigation arrows on the preview card to browse previous results.
 

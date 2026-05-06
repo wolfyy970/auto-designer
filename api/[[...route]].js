@@ -93,7 +93,7 @@ function formatExistingHypothesesBlock(existingStrategies) {
 `;
     const dims = Object.entries(s.dimensionValues);
     if (dims.length > 0) {
-      block += `   - Dimension values: ${dims.map(([k, v]) => `${k}: ${v}`).join(", ")}
+      block += `   - Hypothesis positions: ${dims.map(([k, v]) => `${k}: ${v}`).join(", ")}
 `;
     }
     block += "\n";
@@ -109,25 +109,10 @@ Produce exactly ${count} new hypothesis strategies.
 function buildIncubatorUserPrompt(spec, incubatorUserTemplate, referenceDesigns, options) {
   return interpolate(incubatorUserTemplate, {
     INTERNAL_CONTEXT: buildInternalContext(spec),
-    DESIGN_SYSTEM_DOCUMENTS_BLOCK: formatDesignSystemDocumentsBlock(options?.designSystemDocuments),
     REFERENCE_DESIGNS_BLOCK: formatReferenceDesignsBlock(referenceDesigns),
     EXISTING_HYPOTHESES_BLOCK: formatExistingHypothesesBlock(options?.existingStrategies),
     INCUBATOR_HYPOTHESIS_COUNT_LINE: formatIncubatorHypothesisCountLine(options?.count)
   });
-}
-function formatDesignSystemDocumentsBlock(documents) {
-  const docs = documents?.filter((doc) => doc.content.trim());
-  if (!docs || docs.length === 0) return "";
-  let block = "\n\n## DESIGN.md Documents (optional visual-system context)\n";
-  block += "Use these generated DESIGN.md documents as optional visual-system context while forming hypotheses. Respect their tokens, component guidance, and documented uncertainty when present; do not assume a DESIGN.md exists when this block is absent.\n\n";
-  for (const doc of docs) {
-    block += `### Source: ${doc.title || "Design System"} (${doc.nodeId})
-
-${doc.content.trim()}
-
-`;
-  }
-  return block;
 }
 const SANDBOX_PROJECT_ROOT = "/home/user/project";
 function sandboxProjectAbsPath(rel) {
@@ -1640,15 +1625,13 @@ function loadPackagePromptBody(filename) {
   const full = resolve(PACKAGE_PROMPTS_DIR, safe);
   return stripFrontmatter(readFileSync(full, "utf8")).trim();
 }
-const INCUBATOR_USER_INPUTS_TEMPLATE = `Analyze the following design specification and produce a dimension map with hypothesis strategies.
+const INCUBATOR_USER_INPUTS_TEMPLATE = `Analyze the following design specification and produce global exploration axes with hypothesis strategies.
 
 <specification>
 {{INTERNAL_CONTEXT}}
-
-{{DESIGN_SYSTEM_DOCUMENTS_BLOCK}}
 </specification>
 
-Produce the dimension map as JSON.{{REFERENCE_DESIGNS_BLOCK}}{{EXISTING_HYPOTHESES_BLOCK}}{{INCUBATOR_HYPOTHESIS_COUNT_LINE}}`;
+Produce the exploration-axis map as JSON.{{REFERENCE_DESIGNS_BLOCK}}{{EXISTING_HYPOTHESES_BLOCK}}{{INCUBATOR_HYPOTHESIS_COUNT_LINE}}`;
 const DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE = `Generate a design implementing the following hypothesis, grounded in the specification context below.
 
 <hypothesis>
@@ -1656,6 +1639,9 @@ const DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE = `Generate a design implementing the 
 <bet>{{HYPOTHESIS}}</bet>
 <rationale>{{RATIONALE}}</rationale>
 <measurements>{{MEASUREMENTS}}</measurements>
+<exploration_axes>
+{{EXPLORATION_AXES}}
+</exploration_axes>
 <dimension_values>
 {{DIMENSION_VALUES}}
 </dimension_values>
@@ -4718,11 +4704,17 @@ const HypothesisStrategySchema = z.object({
   measurements: z.string(),
   dimensionValues: z.record(z.string(), z.string())
 });
+const DimensionSchema$2 = z.object({
+  name: z.string(),
+  range: z.string(),
+  isConstant: z.boolean()
+});
 const HypothesisWorkspaceCoreObjectSchema = z.object({
   hypothesisNodeId: z.string().min(1),
   strategy: HypothesisStrategySchema.optional(),
   hypothesisStrategy: HypothesisStrategySchema.optional(),
   variantStrategy: HypothesisStrategySchema.optional(),
+  dimensions: z.array(DimensionSchema$2).optional(),
   spec: DesignSpecSchema,
   snapshot: WorkspaceSnapshotSchema,
   domainHypothesis: DomainHypothesisSchema.nullish(),
@@ -4796,8 +4788,7 @@ const InputsGenerateRequestSchema = z.object({
 });
 const IncubatorPromptOptionsSchema = z.object({
   count: z.number().int().positive().optional(),
-  existingStrategies: z.array(HypothesisStrategySchema).optional(),
-  designSystemDocuments: z.array(z.object({ nodeId: z.string(), title: z.string(), content: z.string() })).optional()
+  existingStrategies: z.array(HypothesisStrategySchema).optional()
 });
 const IncubateRequestSchema = z.object({
   spec: DesignSpecSchema,
@@ -4810,10 +4801,60 @@ const IncubateRequestSchema = z.object({
     })
   ).optional(),
   supportsVision: z.boolean().optional(),
-  designSystemDocuments: z.array(z.object({ nodeId: z.string(), title: z.string(), content: z.string() })).optional(),
   promptOptions: IncubatorPromptOptionsSchema.optional(),
   thinking: ThinkingOverrideSchema.optional()
 });
+const MISSING_EXPLORATION_AXIS_POSITION = "not specified";
+function normalizeExplorationAxisKey(value) {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+function normalizeDisplayText(value) {
+  return value.trim().replace(/\s+/g, " ");
+}
+function normalizeExplorationAxes(dimensions) {
+  const seen = /* @__PURE__ */ new Set();
+  const normalized = [];
+  for (const dimension of dimensions) {
+    const name = normalizeDisplayText(dimension.name);
+    if (!name) continue;
+    const key = normalizeExplorationAxisKey(name);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push({
+      name,
+      range: normalizeDisplayText(dimension.range),
+      isConstant: dimension.isConstant
+    });
+  }
+  return normalized;
+}
+function normalizeHypothesisAxisPositions(strategy2, dimensions) {
+  const axes = normalizeExplorationAxes(dimensions);
+  const axisNamesByKey = new Map(axes.map((axis) => [normalizeExplorationAxisKey(axis.name), axis.name]));
+  const values = {};
+  for (const [rawKey, rawValue] of Object.entries(strategy2.dimensionValues)) {
+    const key = normalizeExplorationAxisKey(rawKey);
+    if (!key || !axisNamesByKey.has(key)) continue;
+    const axisName = axisNamesByKey.get(key);
+    if (Object.prototype.hasOwnProperty.call(values, axisName)) continue;
+    values[axisName] = normalizeDisplayText(rawValue);
+  }
+  for (const axis of axes) {
+    if (axis.isConstant) continue;
+    if (!values[axis.name]) values[axis.name] = MISSING_EXPLORATION_AXIS_POSITION;
+  }
+  return { ...strategy2, dimensionValues: values };
+}
+function normalizeIncubationPlanExplorationAxes(plan) {
+  const dimensions = normalizeExplorationAxes(plan.dimensions);
+  return {
+    ...plan,
+    dimensions,
+    hypotheses: plan.hypotheses.map(
+      (strategy2) => normalizeHypothesisAxisPositions(strategy2, dimensions)
+    )
+  };
+}
 const incubate = new Hono();
 const dimensionRangeSchema$1 = z.union([
   z.string(),
@@ -4867,14 +4908,11 @@ incubate.post("/", async (c) => {
     body.spec,
     userPromptTemplate,
     body.referenceDesigns,
-    {
-      ...body.promptOptions,
-      designSystemDocuments: body.promptOptions?.designSystemDocuments ?? body.designSystemDocuments
-    }
+    body.promptOptions
   );
   const guidance = await inlineGuidance("hypotheses-generator-system", "hypotheses_generator_guidance");
   const agentUserPrompt = `<task>
-Analyze the design specification below and produce a dimension map with hypothesis strategies.
+Analyze the design specification below and produce global exploration axes with hypothesis strategies.
 
 Write the complete JSON result to \`result.json\` in the workspace root. The JSON must contain:
 - "dimensions": array of { name, range, isConstant }
@@ -4902,14 +4940,14 @@ ${assembledSpec}`;
       const { dimensions, hypotheses } = LLMResponseSchema.parse(
         typeof raw === "object" && raw !== null ? raw : {}
       );
-      const plan = {
+      const plan = normalizeIncubationPlanExplorationAxes({
         id: generateId(),
         specId: body.spec.id,
         dimensions,
         hypotheses,
         generatedAt: now(),
         incubatorModel: body.modelId
-      };
+      });
       if (incubationLooksLikeTemplateEcho(plan)) {
         if (env.isDev) {
           console.debug("[incubate] validation failed: template echo", {
@@ -7444,6 +7482,7 @@ function buildHypothesisGenerationContextFromInputs(input) {
   return {
     hypothesisNodeId,
     hypothesisStrategy,
+    dimensions: input.dimensions ?? [],
     spec,
     modelCredentials,
     designSystemContent
@@ -7465,8 +7504,6 @@ function provenanceFromHypothesisContext(ctx) {
 }
 function evaluationPayloadFromHypothesisContext(ctx) {
   const s = ctx.hypothesisStrategy;
-  const dv = s.dimensionValues;
-  const outputFormat = dv["format"] ?? dv["output_format"] ?? dv["Output format"] ?? dv["Output Format"];
   return {
     strategyName: s.name,
     hypothesis: s.hypothesis,
@@ -7475,8 +7512,7 @@ function evaluationPayloadFromHypothesisContext(ctx) {
     dimensionValues: s.dimensionValues,
     objectivesMetrics: ctx.spec.sections["objectives-metrics"]?.content,
     designConstraints: ctx.spec.sections["design-constraints"]?.content,
-    designSystemSnapshot: ctx.designSystemContent || void 0,
-    ...outputFormat ? { outputFormat: String(outputFormat).trim() } : {}
+    designSystemSnapshot: ctx.designSystemContent || void 0
   };
 }
 function getSectionContent(spec, sectionId) {
@@ -7484,14 +7520,22 @@ function getSectionContent(spec, sectionId) {
   if (!section) return "(Not provided)";
   return section.content.trim() || "(Not provided)";
 }
-function buildHypothesisPrompt(spec, strategy2, hypothesisTemplate, designSystemOverride) {
+function formatExplorationAxes(dimensions) {
+  if (dimensions.length === 0) return "(No global exploration axes were provided)";
+  return dimensions.map((dimension) => {
+    const constancy = dimension.isConstant ? "constant" : "variable";
+    return `- ${dimension.name} (${constancy}): ${dimension.range}`;
+  }).join("\n");
+}
+function buildHypothesisPrompt(spec, strategy2, hypothesisTemplate, dimensions = [], designSystemOverride) {
   const dimensionValuesList = Object.entries(strategy2.dimensionValues).map(([dim, val]) => `- ${dim}: ${val}`).join("\n");
   return interpolate(hypothesisTemplate, {
     STRATEGY_NAME: strategy2.name,
     HYPOTHESIS: strategy2.hypothesis,
     RATIONALE: strategy2.rationale,
     MEASUREMENTS: strategy2.measurements,
-    DIMENSION_VALUES: dimensionValuesList || "(Use your judgment within the exploration space ranges)",
+    EXPLORATION_AXES: formatExplorationAxes(dimensions),
+    DIMENSION_VALUES: dimensionValuesList || "(No selected hypothesis position was provided)",
     DESIGN_BRIEF: getSectionContent(spec, "design-brief"),
     RESEARCH_CONTEXT: getSectionContent(spec, "research-context"),
     IMAGE_BLOCK: "",
@@ -7505,7 +7549,13 @@ function incubateHypothesisPrompts(spec, incubationPlan, hypothesisTemplate, des
     id: generateId(),
     strategyId: strategy2.id,
     specId: spec.id,
-    prompt: buildHypothesisPrompt(spec, strategy2, hypothesisTemplate, designSystemOverride),
+    prompt: buildHypothesisPrompt(
+      spec,
+      strategy2,
+      hypothesisTemplate,
+      incubationPlan.dimensions,
+      designSystemOverride
+    ),
     images: [],
     compiledAt: now()
   }));
@@ -7514,6 +7564,7 @@ async function buildHypothesisWorkspaceBundle(body) {
   const ctxRaw = buildHypothesisGenerationContextFromInputs({
     hypothesisNodeId: body.hypothesisNodeId,
     hypothesisStrategy: body.strategy,
+    dimensions: body.dimensions ?? [],
     spec: body.spec,
     snapshot: workspaceSnapshotWireToGraph(body.snapshot),
     domainHypothesis: body.domainHypothesis ?? void 0,
@@ -7526,6 +7577,7 @@ async function buildHypothesisWorkspaceBundle(body) {
   const filteredPlan = {
     id: generateId(),
     specId: ctx.spec.id,
+    dimensions: [...ctx.dimensions],
     hypotheses: [ctx.hypothesisStrategy],
     generatedAt: now()
   };

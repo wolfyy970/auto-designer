@@ -45,7 +45,7 @@ function makeSpec(overrides: Partial<Record<SpecSectionId, string>> = {}): Desig
 }
 
 describe('resolveIncubatorSourceState', () => {
-  it('counts the default Wireframe Design System while the empty brief is not active yet', () => {
+  it('ignores Design System edges because visual-system context belongs to design generation', () => {
     const state = resolveIncubatorSourceState(
       [incubatorNode, brief, designSystem],
       [
@@ -56,12 +56,11 @@ describe('resolveIncubatorSourceState', () => {
       makeSpec(),
     );
 
-    expect(state.connectedSourceCount).toBe(1);
+    expect(state.connectedSourceCount).toBe(0);
     expect(state.activeSpecInputNodeIds).toEqual([]);
-    expect(state.activeDesignSystemNodeIds).toEqual([designSystem.id]);
   });
 
-  it('counts filled Design Brief plus Wireframe Design System as two active sources', () => {
+  it('counts a filled Design Brief without counting the Design System', () => {
     const state = resolveIncubatorSourceState(
       [incubatorNode, brief, designSystem],
       [
@@ -72,7 +71,7 @@ describe('resolveIncubatorSourceState', () => {
       makeSpec({ 'design-brief': 'Ship a calmer onboarding.' }),
     );
 
-    expect(state.connectedSourceCount).toBe(2);
+    expect(state.connectedSourceCount).toBe(1);
     expect(state.activeSpecSectionIds).toEqual(['design-brief']);
     expect(countConnectedIncubatorInputs(
       [incubatorNode, brief, designSystem],
@@ -82,7 +81,7 @@ describe('resolveIncubatorSourceState', () => {
       ],
       INC,
       makeSpec({ 'design-brief': 'Ship a calmer onboarding.' }),
-    )).toBe(2);
+    )).toBe(1);
   });
 
   it('lets filled optional input nodes act as active sources even when an old graph is missing the edge', () => {
@@ -99,14 +98,14 @@ describe('resolveIncubatorSourceState', () => {
       }),
     );
 
-    expect(state.connectedSourceCount).toBe(3);
+    expect(state.connectedSourceCount).toBe(2);
     expect(state.specInputs.find((source) => source.nodeId === research.id)).toMatchObject({
       active: true,
       structurallyConnected: false,
     });
   });
 
-  it('excludes Design System when mode is none or custom has no source material', () => {
+  it('excludes Design System regardless of source mode or material', () => {
     const base = [incubatorNode, brief];
     const edges = [{ source: designSystem.id, target: INC }];
     expect(
@@ -134,26 +133,13 @@ describe('resolveIncubatorSourceState', () => {
         INC,
         makeSpec(),
       ).connectedSourceCount,
-    ).toBe(1);
-  });
-
-  it('does not count an active Design System unless it is scoped to the incubator', () => {
-    const state = resolveIncubatorSourceState(
-      [incubatorNode, { ...designSystem, data: { sourceMode: 'custom', content: 'Use sharp editorial typography.' } }],
-      [],
-      INC,
-      makeSpec(),
-    );
-
-    expect(state.connectedSourceCount).toBe(0);
-    expect(state.activeDesignSystemNodeIds).toEqual([]);
+    ).toBe(0);
   });
 
   it('ignores stale wiring ids but keeps live wired and active content-bearing sources', () => {
     const wiring: DomainIncubatorWiring = {
       inputNodeIds: [brief.id, 'ghost-research'],
       previewNodeIds: ['ghost-preview'],
-      designSystemNodeIds: [designSystem.id, 'ghost-ds'],
     };
 
     const state = resolveIncubatorSourceState(
@@ -167,9 +153,8 @@ describe('resolveIncubatorSourceState', () => {
       wiring,
     );
 
-    expect(state.connectedSourceCount).toBe(3);
+    expect(state.connectedSourceCount).toBe(2);
     expect(state.activeSpecInputNodeIds.sort()).toEqual([brief.id, objectives.id].sort());
-    expect(state.activeDesignSystemNodeIds).toEqual([designSystem.id]);
   });
 
   it('counts preview references only when scoped to the incubator', () => {

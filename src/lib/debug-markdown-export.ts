@@ -193,7 +193,7 @@ function formatDimensionContext(map: IncubationPlan | undefined, strategy: Hypot
   if (!map) {
     return (
       '_No incubation plan found for this strategy._\n\n' +
-      '### Strategy dimensions (flat)\n\n' +
+      '### Hypothesis position in exploration map\n\n' +
       fenced(
         'json',
         JSON.stringify(strategy.dimensionValues, null, 2),
@@ -204,12 +204,12 @@ function formatDimensionContext(map: IncubationPlan | undefined, strategy: Hypot
   body += `- **specId:** \`${map.specId}\`\n`;
   body += `- **incubatorModel:** ${map.incubatorModel}\n`;
   body += `- **generatedAt:** ${map.generatedAt}\n\n`;
-  body += '### Dimensions\n\n';
+  body += '### Exploration axes\n\n';
   body +=
     map.dimensions
       .map((d) => `- **${d.name}** (${d.isConstant ? 'constant' : 'variable'}): ${d.range}`)
       .join('\n') + '\n\n';
-  body += '### This strategy’s dimension values\n\n';
+  body += '### This hypothesis position\n\n';
   body += fenced('json', JSON.stringify(strategy.dimensionValues, null, 2));
   return body;
 }

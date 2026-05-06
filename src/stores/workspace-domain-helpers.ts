@@ -19,6 +19,5 @@ export function ensureWiring(
   return {
     inputNodeIds: w.inputNodeIds ?? [],
     previewNodeIds: w.previewNodeIds ?? [],
-    designSystemNodeIds: w.designSystemNodeIds ?? [],
   };
 }

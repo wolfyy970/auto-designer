@@ -1,12 +1,23 @@
 import type { DesignSpec } from '../../types/spec';
-import type { HypothesisStrategy } from '../../types/incubator';
+import type { Dimension, HypothesisStrategy } from '../../types/incubator';
 import { interpolate } from '../utils';
 import { getSectionContent } from './helpers';
+
+function formatExplorationAxes(dimensions: readonly Dimension[]): string {
+  if (dimensions.length === 0) return '(No global exploration axes were provided)';
+  return dimensions
+    .map((dimension) => {
+      const constancy = dimension.isConstant ? 'constant' : 'variable';
+      return `- ${dimension.name} (${constancy}): ${dimension.range}`;
+    })
+    .join('\n');
+}
 
 export function buildHypothesisPrompt(
   spec: DesignSpec,
   strategy: HypothesisStrategy,
   hypothesisTemplate: string,
+  dimensions: readonly Dimension[] = [],
   designSystemOverride?: string,
 ): string {
   const dimensionValuesList = Object.entries(strategy.dimensionValues)
@@ -18,7 +29,8 @@ export function buildHypothesisPrompt(
     HYPOTHESIS: strategy.hypothesis,
     RATIONALE: strategy.rationale,
     MEASUREMENTS: strategy.measurements,
-    DIMENSION_VALUES: dimensionValuesList || '(Use your judgment within the exploration space ranges)',
+    EXPLORATION_AXES: formatExplorationAxes(dimensions),
+    DIMENSION_VALUES: dimensionValuesList || '(No selected hypothesis position was provided)',
     DESIGN_BRIEF: getSectionContent(spec, 'design-brief'),
     RESEARCH_CONTEXT: getSectionContent(spec, 'research-context'),
     IMAGE_BLOCK: '',

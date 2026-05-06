@@ -9,7 +9,7 @@ export interface HypothesisStrategy {
   dimensionValues: Record<string, string>;
 }
 
-interface Dimension {
+export interface Dimension {
   name: string;
   range: string;
   isConstant: boolean;

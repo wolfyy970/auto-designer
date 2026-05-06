@@ -50,7 +50,7 @@ Vitest excludes `server/services/__tests__/browser-playwright-evaluator.test.ts`
 
 **Full technical reference:** [ARCHITECTURE.md](ARCHITECTURE.md) — routes, server modules, client stores, canvas, generation (agentic Pi sandbox + optional auto-improve loop), preview URLs, Pi package boundary. **Pi design sandbox** (the `@auto-designer/pi` package: virtual filesystem, tool inventory, edit cascade, designer extension): [ARCHITECTURE.md § Pi design sandbox](ARCHITECTURE.md#pi-design-sandbox).
 
-**Prompts and skills:** Treat [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md) as the canonical inventory and flow reference. Implementation mechanics remain in [ARCHITECTURE.md](ARCHITECTURE.md); editing workflow and snapshots are in [USER_GUIDE.md § Prompts and skills](USER_GUIDE.md#prompts-and-skills-editing-the-repo).
+**Runtime flow and prompts:** Treat [RUNTIME_FLOW.md](RUNTIME_FLOW.md) as the canonical runtime flow, prompt/skill inventory, and exploration-axis model reference. Implementation mechanics remain in [ARCHITECTURE.md](ARCHITECTURE.md); editing workflow and snapshots are in [USER_GUIDE.md § Prompts and skills](USER_GUIDE.md#prompts-and-skills-editing-the-repo).
 
 **Upgrading `@mariozechner/pi-coding-agent`.** Follow [ARCHITECTURE.md § Pi design sandbox](ARCHITECTURE.md#pi-design-sandbox) for the tool-surface contract. After bumping the dependency, run `pnpm -F @auto-designer/pi test`; the package tests catch upstream tool-surface drift.
 

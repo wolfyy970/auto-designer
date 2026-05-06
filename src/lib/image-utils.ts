@@ -31,7 +31,7 @@ export function readFileAsReferenceImage(file: File): Promise<ReferenceImage> {
 
 /**
  * Read a Markdown source file for Design System normalization.
- * The uploaded file is source evidence; the Incubator still prepares the canonical DESIGN.md artifact.
+ * The uploaded file is source evidence for design-stage visual-system context.
  */
 export async function readFileAsDesignSystemMarkdownSource(
   file: File,

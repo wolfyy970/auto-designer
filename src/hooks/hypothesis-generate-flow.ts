@@ -4,6 +4,7 @@ import type { DesignSpec } from '../types/spec';
 import type { HypothesisStrategy } from '../types/incubator';
 import { useCanvasStore } from '../stores/canvas-store';
 import { useWorkspaceDomainStore } from '../stores/workspace-domain-store';
+import { findPlanForStrategy, useIncubatorStore } from '../stores/incubator-store';
 import { useTaskConfigStore } from '../stores/task-config-store';
 import { useGenerationStore, nextRunNumber } from '../stores/generation-store';
 import { scheduleCanvasFitViewToNodes } from '../lib/canvas-fit-view';
@@ -91,6 +92,8 @@ export async function runHypothesisGenerateFlow({
   setGenerationError,
 }: HypothesisGenerateFlowParams): Promise<void> {
   const snapshot = useCanvasStore.getState();
+  const incubationPlans = useIncubatorStore.getState().incubationPlans;
+  const incubationPlan = findPlanForStrategy(incubationPlans, strategyId);
 
   const runId = crypto.randomUUID();
 
@@ -111,6 +114,7 @@ export async function runHypothesisGenerateFlow({
   const workspacePayload: HypothesisGenerateApiPayload = {
     hypothesisNodeId: nodeId,
     hypothesisStrategy: strategy,
+    dimensions: incubationPlan?.dimensions ?? [],
     spec,
     snapshot: { nodes: snapshot.nodes, edges: snapshot.edges },
     domainHypothesis: domain.hypotheses[nodeId] ?? null,
@@ -127,6 +131,7 @@ export async function runHypothesisGenerateFlow({
   const genCtxRaw = buildHypothesisGenerationContextFromInputs({
     hypothesisNodeId: workspacePayload.hypothesisNodeId,
     hypothesisStrategy: workspacePayload.hypothesisStrategy,
+    dimensions: workspacePayload.dimensions,
     spec: workspacePayload.spec,
     snapshot: workspaceSnapshotWireToGraph(workspacePayload.snapshot),
     domainHypothesis: workspacePayload.domainHypothesis ?? undefined,

@@ -37,11 +37,18 @@ export const HypothesisStrategySchema = z.object({
   dimensionValues: z.record(z.string(), z.string()),
 });
 
+const DimensionSchema = z.object({
+  name: z.string(),
+  range: z.string(),
+  isConstant: z.boolean(),
+});
+
 const HypothesisWorkspaceCoreObjectSchema = z.object({
   hypothesisNodeId: z.string().min(1),
   strategy: HypothesisStrategySchema.optional(),
   hypothesisStrategy: HypothesisStrategySchema.optional(),
   variantStrategy: HypothesisStrategySchema.optional(),
+  dimensions: z.array(DimensionSchema).optional(),
   spec: DesignSpecSchema,
   snapshot: WorkspaceSnapshotSchema,
   domainHypothesis: DomainHypothesisSchema.nullish(),

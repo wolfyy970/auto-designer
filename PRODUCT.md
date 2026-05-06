@@ -19,7 +19,7 @@ Every subsystem — the incubator, the agentic builder, the evaluator, the revis
 
 ## What Exists Today
 
-**Status:** Canvas interface complete. Hypothesis design uses the agentic Pi pipeline. With the checked-in `autoImprove: 0` flag, runs are single-pass builds; when that flag is enabled, the same pipeline adds post-build evaluation and bounded revision rounds. Prompt and skill roles live in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md); sandbox mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md).
+**Status:** Canvas interface complete. Hypothesis design uses the agentic Pi pipeline. With the checked-in `autoImprove: 0` flag, runs are single-pass builds; when that flag is enabled, the same pipeline adds post-build evaluation and bounded revision rounds. Runtime flow and prompt/skill roles live in [RUNTIME_FLOW.md](RUNTIME_FLOW.md); sandbox mechanics live in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Canvas Interface (`/canvas` — working route)
 
@@ -34,8 +34,8 @@ A visual node-graph workspace built on @xyflow/react v12. Nodes connect left-to-
 | Research Context     | Input      | User research, behavioral insights                                                                                                                                                                                                                                                                                                                             |
 | Objectives & Metrics | Input      | Success criteria and evaluation measures                                                                                                                                                                                                                                                                                                                       |
 | Design Constraints   | Input      | Non-negotiable boundaries + exploration ranges                                                                                                                                                                                                                                                                                                                 |
-| Design System        | Input      | Required visual-system source. Defaults to Designer's built-in Wireframe DESIGN.md source, can switch to Custom text, DESIGN.md files, and images, or None. Source material stays in node data; the Incubator prepares a linted Google DESIGN.md document for downstream prompts when connected sources are missing or stale. |
-| Incubator            | Processing | **Incubates** active sources into hypothesis strategies via LLM: filled spec inputs, connected preview references, and connected active Design System context. It assembles those sources deterministically and can refresh connected DESIGN.md docs before generation. **Generate** (batch count) and **blank hypothesis** both require a non-empty **Design Brief**; blank adds an empty strategy card without calling the LLM. |
+| Design System        | Input      | Required visual-system source for design execution. Defaults to Designer's built-in Wireframe DESIGN.md source, can switch to Custom text, DESIGN.md files, and images, or None. Source material stays in node data and connects to hypotheses, not to the Incubator. |
+| Incubator            | Processing | **Incubates** active sources into hypothesis strategies via LLM: filled spec inputs and connected preview references. It assembles those sources deterministically. **Generate** (batch count) and **blank hypothesis** both require a non-empty **Design Brief**; blank adds an empty strategy card without calling the LLM. |
 | Hypothesis           | Processing | Editable strategy card with **Design** (always **agentic** Pi). **Auto-improve** disabled/off: single build, no evaluator. **On:** evaluation and optional revision rounds. |
 | Preview              | Output     | Rendered design preview. Single-file results show an HTML iframe. Multi-file (agentic) results show a file explorer + preview/code tabs + zip download. When Auto-improve ran, completed agentic runs show an **evaluation scorecard**. Version navigation across all results. |
 
@@ -44,7 +44,7 @@ A visual node-graph workspace built on @xyflow/react v12. Nodes connect left-to-
 
 - **Desktop viewport gate** — Viewports under **1024px** width show a full-screen fallback (design-system styled) explaining the canvas workspace requires a larger display.
 - **Auto-layout** — Edge-driven Sugiyama-style layout runs as implicit canvas behavior. Column spacing remains adjustable; layout itself is no longer a persisted toggle.
-- **Auto-connect** — Fresh canvases start from the core pipeline, and graph/domain rules keep structural edges consistent (inputs/design systems/previews→incubator, design systems→hypotheses).
+- **Auto-connect** — Fresh canvases start from the core pipeline, and graph/domain rules keep structural edges consistent (spec inputs/previews→incubator, design systems→hypotheses).
 - **Lineage highlighting** — Select a node to highlight its full connected component (siblings, ancestors, descendants). Unconnected nodes dim to 40% opacity.
 - **Edge animations** — Custom DataFlowEdge with status indicators (idle/processing/complete/error)
 - **Full-screen preview** — Expand any preview to full-screen overlay: primary arrows step **other preview nodes on the same hypothesis** (domain `previewSlots`; falls back to canvas-wide if no slot). Inner control steps **version stack** (v1, v2, …) for that hypothesis strategy. When **Auto-improve** is enabled, **Mark as best** / **Clear best pick** lets the user override the computed best result for that lane (persisted in `generation-store`).
@@ -70,7 +70,7 @@ Structured critique on **Auto-improve** runs comes from the **evaluator** (score
 
 ## Generation Engine
 
-Each hypothesis produces a design through the **agentic** pipeline. **Evaluation** and **revision** run only when **Auto-improve** is enabled and on for that hypothesis. Prompt and skill flow is documented in [PROMPTS_AND_SKILLS.md](PROMPTS_AND_SKILLS.md); server routes, SSE events, and store boundaries are documented in [ARCHITECTURE.md](ARCHITECTURE.md); day-to-day controls are documented in [USER_GUIDE.md](USER_GUIDE.md).
+Each hypothesis produces a design through the **agentic** pipeline. **Evaluation** and **revision** run only when **Auto-improve** is enabled and on for that hypothesis. Runtime prompt and skill flow is documented in [RUNTIME_FLOW.md](RUNTIME_FLOW.md); server routes, SSE events, and store boundaries are documented in [ARCHITECTURE.md](ARCHITECTURE.md); day-to-day controls are documented in [USER_GUIDE.md](USER_GUIDE.md).
 
 **Parallel generation.** Multiple hypotheses generate simultaneously. Progress and completion update independently per preview.
 

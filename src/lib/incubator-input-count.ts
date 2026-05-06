@@ -1,6 +1,4 @@
 import { INPUT_NODE_TYPES, NODE_TYPES } from '../constants/canvas';
-import { getDesignSystemEffectiveState } from './design-md';
-import type { DesignSystemNodeData } from '../types/canvas-data';
 import type { DesignSpec, SpecSectionId } from '../types/spec';
 import { NODE_TYPE_TO_SECTION, type CanvasNodeType } from '../types/workspace-graph';
 import type { DomainIncubatorWiring } from '../types/workspace-domain';
@@ -28,13 +26,6 @@ export interface IncubatorSpecInputSource {
   active: boolean;
 }
 
-export interface IncubatorDesignSystemSource {
-  kind: 'design-system';
-  nodeId: string;
-  structurallyConnected: boolean;
-  active: boolean;
-}
-
 export interface IncubatorPreviewSource {
   kind: 'preview';
   nodeId: string;
@@ -44,11 +35,9 @@ export interface IncubatorPreviewSource {
 
 export interface IncubatorSourceState {
   specInputs: IncubatorSpecInputSource[];
-  designSystems: IncubatorDesignSystemSource[];
   previews: IncubatorPreviewSource[];
   activeSpecInputNodeIds: string[];
   activePreviewNodeIds: string[];
-  activeDesignSystemNodeIds: string[];
   activeSpecSectionIds: SpecSectionId[];
   connectedSourceCount: number;
 }
@@ -75,7 +64,6 @@ function liveScopedSourceIds(
   if (wiring) {
     for (const id of wiring.inputNodeIds ?? []) if (liveIds.has(id)) sourceIds.add(id);
     for (const id of wiring.previewNodeIds ?? []) if (liveIds.has(id)) sourceIds.add(id);
-    for (const id of wiring.designSystemNodeIds ?? []) if (liveIds.has(id)) sourceIds.add(id);
   }
   return sourceIds;
 }
@@ -89,7 +77,6 @@ export function resolveIncubatorSourceState(
 ): IncubatorSourceState {
   const scopedIds = liveScopedSourceIds(nodes, edges, incubatorId, wiring);
   const specInputs: IncubatorSpecInputSource[] = [];
-  const designSystems: IncubatorDesignSystemSource[] = [];
   const previews: IncubatorPreviewSource[] = [];
 
   for (const node of nodes) {
@@ -113,19 +100,6 @@ export function resolveIncubatorSourceState(
       continue;
     }
 
-    if (nodeType === NODE_TYPES.DESIGN_SYSTEM) {
-      const data = (node.data ?? {}) as DesignSystemNodeData;
-      if (structurallyConnected) {
-        designSystems.push({
-          kind: 'design-system',
-          nodeId: node.id,
-          structurallyConnected,
-          active: getDesignSystemEffectiveState(data).hasEffectiveSourceInput,
-        });
-      }
-      continue;
-    }
-
     if (nodeType === NODE_TYPES.PREVIEW && structurallyConnected) {
       previews.push({
         kind: 'preview',
@@ -138,25 +112,22 @@ export function resolveIncubatorSourceState(
 
   const activeSpecInputNodeIds = specInputs.filter((source) => source.active).map((source) => source.nodeId);
   const activePreviewNodeIds = previews.map((source) => source.nodeId);
-  const activeDesignSystemNodeIds = designSystems.filter((source) => source.active).map((source) => source.nodeId);
   const activeSpecSectionIds = specInputs.filter((source) => source.active).map((source) => source.sectionId);
 
   return {
     specInputs,
-    designSystems,
     previews,
     activeSpecInputNodeIds,
     activePreviewNodeIds,
-    activeDesignSystemNodeIds,
     activeSpecSectionIds,
     connectedSourceCount:
-      activeSpecInputNodeIds.length + activePreviewNodeIds.length + activeDesignSystemNodeIds.length,
+      activeSpecInputNodeIds.length + activePreviewNodeIds.length,
   };
 }
 
 /**
  * Compatibility wrapper for older callers. Prefer `resolveIncubatorSourceState`
- * when a caller needs to distinguish spec inputs, Design System, and previews.
+ * when a caller needs to distinguish spec inputs and previews.
  */
 export function countConnectedIncubatorInputs(
   nodes: CountableNode[],

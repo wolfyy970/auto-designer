@@ -86,11 +86,12 @@ describe('canvas-store smoke', () => {
     expect(nodes.some((n) => n.type === 'inputGhost' && n.data.targetType === NODE_TYPES.RESEARCH_CONTEXT)).toBe(true);
   });
 
-  it('initializes new canvases with a connected Design System node', () => {
+  it('initializes new canvases with a Design System node in the input column', () => {
     useCanvasStore.getState().initializeCanvas();
 
     const { nodes, edges } = useCanvasStore.getState();
     const model = nodes.find((node) => node.type === NODE_TYPES.MODEL);
+    const brief = nodes.find((node) => node.type === NODE_TYPES.DESIGN_BRIEF);
     const designSystem = nodes.find((node) => node.type === NODE_TYPES.DESIGN_SYSTEM);
     const incubator = nodes.find((node) => node.type === NODE_TYPES.INCUBATOR);
 
@@ -98,8 +99,11 @@ describe('canvas-store smoke', () => {
     expect(designSystem?.data.sourceMode).toBe('wireframe');
     expect(nodes.some((node) => node.type === 'inputGhost' && node.data.targetType === NODE_TYPES.DESIGN_SYSTEM)).toBe(false);
     expect(edges.some((edge) => edge.source === model?.id && edge.target === designSystem?.id)).toBe(false);
-    expect(edges.some((edge) => edge.source === designSystem?.id && edge.target === incubator?.id)).toBe(true);
-    expect(useWorkspaceDomainStore.getState().incubatorWirings[incubator!.id]?.designSystemNodeIds).toEqual([designSystem!.id]);
+    expect(edges.some((edge) => edge.source === designSystem?.id && edge.target === incubator?.id)).toBe(false);
+    expect(useWorkspaceDomainStore.getState().incubatorWirings[incubator!.id]).toEqual({
+      inputNodeIds: [brief!.id],
+      previewNodeIds: [],
+    });
   });
 
   it('adds the required Design System node when initializing an older canvas without one', () => {
@@ -117,7 +121,7 @@ describe('canvas-store smoke', () => {
     const designSystem = nodes.find((node) => node.type === NODE_TYPES.DESIGN_SYSTEM);
     expect(designSystem?.data.sourceMode).toBe('wireframe');
     expect(nodes.some((node) => node.type === 'inputGhost' && node.data.targetType === NODE_TYPES.DESIGN_SYSTEM)).toBe(false);
-    expect(edges.some((edge) => edge.source === designSystem?.id && edge.target === 'inc-1')).toBe(true);
+    expect(edges.some((edge) => edge.source === designSystem?.id && edge.target === 'inc-1')).toBe(false);
   });
 
   it('repairs a missing filled input edge when initializing an older canvas', () => {
@@ -128,16 +132,19 @@ describe('canvas-store smoke', () => {
         { id: 'inc-1', type: NODE_TYPES.INCUBATOR, position: { x: 0, y: 0 }, data: {} },
         { id: 'ds-1', type: NODE_TYPES.DESIGN_SYSTEM, position: { x: 0, y: 0 }, data: { sourceMode: 'wireframe' } },
       ],
-      edges: [],
+      edges: [{ id: 'e-ds-inc', source: 'ds-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } }],
     });
 
     useCanvasStore.getState().initializeCanvas();
 
     const { edges } = useCanvasStore.getState();
     expect(edges.some((edge) => edge.source === 'brief-1' && edge.target === 'inc-1')).toBe(true);
-    expect(edges.some((edge) => edge.source === 'ds-1' && edge.target === 'inc-1')).toBe(true);
+    expect(edges.some((edge) => edge.source === 'ds-1' && edge.target === 'inc-1')).toBe(false);
     expect(useWorkspaceDomainStore.getState().incubatorWirings['inc-1']?.inputNodeIds).toEqual(['brief-1']);
-    expect(useWorkspaceDomainStore.getState().incubatorWirings['inc-1']?.designSystemNodeIds).toEqual(['ds-1']);
+    expect(useWorkspaceDomainStore.getState().incubatorWirings['inc-1']).toEqual({
+      inputNodeIds: ['brief-1'],
+      previewNodeIds: [],
+    });
   });
 
   it('records and consumes an ephemeral node focus request', () => {
@@ -204,31 +211,28 @@ describe('canvas-store smoke', () => {
     expect(useWorkspaceDomainStore.getState().hypotheses['hyp-1']?.designSystemNodeIds).toEqual([]);
   });
 
-  it('removeEdge and disconnectOutputs preserve structural incubator source wiring', () => {
+  it('removeEdge and disconnectOutputs preserve structural incubator spec-input wiring', () => {
     useCanvasStore.setState({
       nodes: [
         { id: 'brief-1', type: NODE_TYPES.DESIGN_BRIEF, position: { x: 0, y: 0 }, data: {} },
-        { id: 'ds-1', type: NODE_TYPES.DESIGN_SYSTEM, position: { x: 0, y: 0 }, data: {} },
         { id: 'inc-1', type: NODE_TYPES.INCUBATOR, position: { x: 0, y: 0 }, data: {} },
       ],
-      edges: [
-        { id: 'e-brief-inc', source: 'brief-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } },
-        { id: 'e-ds-inc', source: 'ds-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } },
-      ],
+      edges: [{ id: 'e-brief-inc', source: 'brief-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } }],
     });
     const domain = useWorkspaceDomainStore.getState();
     domain.ensureIncubatorWiring('inc-1');
     domain.attachIncubatorInput('inc-1', 'brief-1', NODE_TYPES.DESIGN_BRIEF);
-    domain.attachIncubatorInput('inc-1', 'ds-1', NODE_TYPES.DESIGN_SYSTEM);
 
     useCanvasStore.getState().removeEdge('e-brief-inc');
     useCanvasStore.getState().disconnectOutputs('brief-1');
-    useCanvasStore.getState().disconnectOutputs('ds-1');
 
     const nextDomain = useWorkspaceDomainStore.getState();
-    expect(useCanvasStore.getState().edges.map((edge) => edge.id).sort()).toEqual(['e-brief-inc', 'e-ds-inc']);
+    expect(useCanvasStore.getState().edges.map((edge) => edge.id).sort()).toEqual(['e-brief-inc']);
     expect(nextDomain.incubatorWirings['inc-1']?.inputNodeIds).toEqual(['brief-1']);
-    expect(nextDomain.incubatorWirings['inc-1']?.designSystemNodeIds).toEqual(['ds-1']);
+    expect(nextDomain.incubatorWirings['inc-1']).toEqual({
+      inputNodeIds: ['brief-1'],
+      previewNodeIds: [],
+    });
   });
 
   it('onEdgesChange ignores removal of structural incubator source edges', () => {

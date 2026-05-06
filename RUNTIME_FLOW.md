@@ -1,6 +1,6 @@
-# Prompts and Skills
+# Runtime Flow
 
-This is the canonical reference for prompt and skill roles. Code remains the authority:
+This is the canonical reference for the app's server-side runtime flow, including prompt and skill roles. Code remains the authority:
 
 - Prompt keys: [`src/lib/prompts/defaults.ts`](src/lib/prompts/defaults.ts)
 - Prompt resolution: [`server/lib/prompt-resolution.ts`](server/lib/prompt-resolution.ts)
@@ -60,7 +60,6 @@ flowchart TD
   NormalizeDs -- "No" --> DesignSystem
 
   Spec --> Incubate
-  DesignSystem --> Incubate
   Incubate --> Plan
 
   Plan --> DesignPrompt
@@ -82,6 +81,17 @@ flowchart TD
 
 The current canvas UI stores and edits the source material, then calls the server routes above. It does not own prompt order or prompt semantics. UI nodes map to server inputs and outputs; they are not the canonical prompt pipeline.
 
+## Exploration-Axis Model
+
+The Incubator does not merely return a list of ideas. It returns an `IncubationPlan` with a global exploration map and positioned hypothesis strategies:
+
+- `dimensions` are the global exploration axes for the whole incubation plan.
+- `dimensionValues` are one hypothesis's position on those shared axes.
+- The server normalizes that relationship after parsing: blank and duplicate axes are dropped, matching position keys are canonicalized to the global axis name, unknown position keys are removed, and missing variable-axis positions become `not specified`.
+- These fields keep their historical wire names for compatibility, but product language should call them **exploration axes** and **hypothesis positions**.
+
+The model is internal: alpha users do not edit a strategy map. It exists to make hypotheses meaningfully distinct, to give the design agent the full strategic context for one selected hypothesis, and to let strategy evaluation check whether the generated artifact expressed the intended position. `dimensionValues` must not be used for output format, implementation metadata, design-system tokens, metrics, or arbitrary notes.
+
 ## Prompt Inventory
 
 Rows follow the runtime flow above. Shared prompts appear before the task-specific steps they wrap; bundled prompts that are not currently in the active route path appear last.
@@ -93,11 +103,11 @@ Rows follow the runtime flow above. Shared prompts appear before the task-specif
 | Optional spec-section generation | `inputs-gen-objectives-metrics` / `gen-objectives.md` | Guidance for drafting Objectives & Metrics from the design brief without inventing numeric targets. | Inlined by `/api/inputs/generate` for `objectives-metrics`. |
 | Optional spec-section generation | `inputs-gen-design-constraints` / `gen-constraints.md` | Guidance for drafting Design Constraints from the design brief, separating non-negotiables from exploration space. | Inlined by `/api/inputs/generate` for `design-constraints`. |
 | Optional design-system normalization | `design-system-extract-system` / `ds-extract.md` | Authoritative guidance for converting design-system source material into lint-friendly Google/Stitch `DESIGN.md`. | Inlined by `/api/design-system/extract` inside `<design_md_extraction_guidance>`. |
-| Incubation | `incubator-user-inputs` / glue template | Structural wrapper for assembled spec context, design-system documents, reference designs, existing hypotheses, and requested hypothesis count. It contains no behavioral guidance. | Loaded by `/api/incubate`, then filled by `buildIncubatorUserPrompt()`. |
-| Incubation | `hypotheses-generator-system` / `gen-hypotheses.md` | Behavioral guidance for turning the assembled spec into dimensions and hypothesis strategies. | Inlined by `/api/incubate` inside `<hypotheses_generator_guidance>`. |
-| Hypothesis prompt bundle | `designer-hypothesis-inputs` / glue template | Structural wrapper for one selected hypothesis, spec sections, and design-system content. It contains no behavioral guidance. | Loaded by `buildHypothesisWorkspaceBundle()` for `/api/hypothesis/prompt-bundle` and `/api/hypothesis/generate`. |
+| Incubation | `incubator-user-inputs` / glue template | Structural wrapper for assembled spec context, reference designs, existing hypotheses, and requested hypothesis count. It contains no behavioral guidance. | Loaded by `/api/incubate`, then filled by `buildIncubatorUserPrompt()`. |
+| Incubation | `hypotheses-generator-system` / `gen-hypotheses.md` | Behavioral guidance for turning the assembled spec into global exploration axes and positioned hypothesis strategies. | Inlined by `/api/incubate` inside `<hypotheses_generator_guidance>`. |
+| Hypothesis prompt bundle | `designer-hypothesis-inputs` / glue template | Structural wrapper for one selected hypothesis, its exploration-axis position, spec sections, and design-system content. It contains no behavioral guidance. | Loaded by `buildHypothesisWorkspaceBundle()` for `/api/hypothesis/prompt-bundle` and `/api/hypothesis/generate`. |
 | Evaluation | `evaluator-design-quality` / `eval-design-quality.md` | LLM evaluator rubric for subjective design quality, originality, craft, and usability. | Loaded by `runEvaluationWorkers()` when evaluation is active. |
-| Evaluation | `evaluator-strategy-fidelity` / `eval-strategy-fidelity.md` | LLM evaluator rubric for fidelity to hypothesis, objectives, constraints, dimensions, and design-system guidance. | Loaded by `runEvaluationWorkers()` when evaluation is active. |
+| Evaluation | `evaluator-strategy-fidelity` / `eval-strategy-fidelity.md` | LLM evaluator rubric for fidelity to hypothesis, objectives, constraints, exploration-axis position, and design-system guidance. | Loaded by `runEvaluationWorkers()` when evaluation is active. |
 | Evaluation | `evaluator-implementation` / `eval-implementation.md` | LLM evaluator rubric for static frontend implementation quality: structure, semantics, responsiveness, JavaScript hygiene, and whether the code expresses the bet. | Loaded by `runEvaluationWorkers()` when evaluation is active. |
 | Revision | `designer-agentic-revision-user` / `revise.md` | Guidance for editing an existing generated design in response to evaluation feedback while preserving the hypothesis. | Loaded by `runAgenticWithEvaluation()` before revision rounds. |
 | Bundled, currently inactive | `design-system-extract-user-input` / `ds-extract-input.md` | User-message wording for design-system extraction from written material and screenshots. | PromptKey-resolvable package content; the current `/api/design-system/extract` route assembles its user message in route code. |

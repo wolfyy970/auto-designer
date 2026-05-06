@@ -118,7 +118,6 @@ export function migrateWorkspaceDomainPersist(persisted: unknown, fromVersion: n
       incubatorWirings[k] = {
         inputNodeIds: (w.sectionNodeIds as string[] | undefined) ?? (w.inputNodeIds as string[] | undefined) ?? [],
         previewNodeIds: (w.previewNodeIds as string[] | undefined) ?? (w.variantNodeIds as string[] | undefined) ?? [],
-        designSystemNodeIds: (w.designSystemNodeIds as string[] | undefined) ?? [],
       };
     }
     p = { ...rest, incubatorWirings };
@@ -157,7 +156,6 @@ export function migrateWorkspaceDomainPersist(persisted: unknown, fromVersion: n
       incubatorWirings[k] = {
         inputNodeIds: (w.sectionNodeIds as string[] | undefined) ?? (w.inputNodeIds as string[] | undefined) ?? [],
         previewNodeIds: (w.previewNodeIds as string[] | undefined) ?? (w.variantNodeIds as string[] | undefined) ?? [],
-        designSystemNodeIds: (w.designSystemNodeIds as string[] | undefined) ?? [],
       };
     }
     p = { ...p, incubatorWirings };
@@ -171,7 +169,6 @@ export function migrateWorkspaceDomainPersist(persisted: unknown, fromVersion: n
       incubatorWirings[k] = {
         inputNodeIds,
         previewNodeIds: (w.previewNodeIds as string[] | undefined) ?? [],
-        designSystemNodeIds: (w.designSystemNodeIds as string[] | undefined) ?? [],
       };
     }
     p = { ...p, incubatorWirings };
@@ -211,7 +208,6 @@ export function migrateWorkspaceDomainPersist(persisted: unknown, fromVersion: n
       incubatorWirings[k] = {
         inputNodeIds: (w.inputNodeIds as string[] | undefined) ?? [],
         previewNodeIds: (w.previewNodeIds as string[] | undefined) ?? [],
-        designSystemNodeIds: (w.designSystemNodeIds as string[] | undefined) ?? [],
       };
     }
     p = { ...p, incubatorWirings };
@@ -253,10 +249,27 @@ function recordOrEmpty(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {};
 }
 
+function normalizeIncubatorWirings(value: unknown): Record<string, DomainIncubatorWiring> {
+  const raw = recordOrEmpty(value);
+  const wirings: Record<string, DomainIncubatorWiring> = {};
+  for (const [id, wiring] of Object.entries(raw)) {
+    if (!isRecord(wiring)) continue;
+    wirings[id] = {
+      inputNodeIds: Array.isArray(wiring.inputNodeIds)
+        ? wiring.inputNodeIds.filter((v): v is string => typeof v === 'string')
+        : [],
+      previewNodeIds: Array.isArray(wiring.previewNodeIds)
+        ? wiring.previewNodeIds.filter((v): v is string => typeof v === 'string')
+        : [],
+    };
+  }
+  return wirings;
+}
+
 function normalizeWorkspaceDomainPersistShape(p: Record<string, unknown>): Record<string, unknown> {
   return {
     ...p,
-    incubatorWirings: recordOrEmpty(p.incubatorWirings),
+    incubatorWirings: normalizeIncubatorWirings(p.incubatorWirings),
     hypotheses: recordOrEmpty(p.hypotheses),
     designSystems: recordOrEmpty(p.designSystems),
     previewSlots: recordOrEmpty(p.previewSlots),

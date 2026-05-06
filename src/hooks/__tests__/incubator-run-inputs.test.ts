@@ -79,7 +79,6 @@ describe('incubator run input assembly', () => {
     const wiring: DomainIncubatorWiring = {
       inputNodeIds: ['brief-1'],
       previewNodeIds: [],
-      designSystemNodeIds: [],
     };
 
     const out = await buildIncubatorRunInputs({
@@ -94,11 +93,9 @@ describe('incubator run input assembly', () => {
         hypotheses: {},
       },
       hypothesisCount: 3,
-      designSystemDocuments: [{ nodeId: 'ds-1', title: 'DS', content: '# DS' }],
     });
 
     expect(out.spec.id).toBe('spec-1');
-    expect(out.designSystemDocuments).toEqual([{ nodeId: 'ds-1', title: 'DS', content: '# DS' }]);
     expect(out.promptOptions).toEqual({ count: 3, existingStrategies: [] });
   });
 });

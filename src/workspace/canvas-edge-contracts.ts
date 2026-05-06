@@ -97,24 +97,6 @@ export const CANVAS_EDGE_CONTRACTS: readonly CanvasEdgeContract[] = [
     },
   }),
   makeContract({
-    id: 'designSystem-compiler',
-    sourceTypes: [NODE_TYPES.DESIGN_SYSTEM],
-    targetTypes: [NODE_TYPES.INCUBATOR],
-    manual: true,
-    structuralAutoConnect: ['new-source-to-sole-target'],
-    onAdd: ({ d, src, tgt }) => {
-      d.ensureIncubatorWiring(tgt.id);
-      d.attachIncubatorInput(tgt.id, src.id, NODE_TYPES.DESIGN_SYSTEM);
-    },
-    onRemove: ({ d, src, tgt }) => {
-      d.detachIncubatorInput(tgt.id, src.id, NODE_TYPES.DESIGN_SYSTEM);
-    },
-    onHydrate: ({ store, src, tgt }) => {
-      store.ensureIncubatorWiring(tgt.id);
-      store.attachIncubatorInput(tgt.id, src.id, NODE_TYPES.DESIGN_SYSTEM);
-    },
-  }),
-  makeContract({
     id: 'designSystem-hypothesis',
     sourceTypes: [NODE_TYPES.DESIGN_SYSTEM],
     targetTypes: [NODE_TYPES.HYPOTHESIS],
@@ -249,4 +231,3 @@ export function buildStructuralAutoConnectEdges(
 
   return edges;
 }
-

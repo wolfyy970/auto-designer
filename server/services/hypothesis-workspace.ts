@@ -32,6 +32,7 @@ export async function buildHypothesisWorkspaceBundle(
   const ctxRaw = buildHypothesisGenerationContextFromInputs({
     hypothesisNodeId: body.hypothesisNodeId,
     hypothesisStrategy: body.strategy,
+    dimensions: body.dimensions ?? [],
     spec: body.spec,
     snapshot: workspaceSnapshotWireToGraph(body.snapshot),
     domainHypothesis: body.domainHypothesis ?? undefined,
@@ -45,7 +46,7 @@ export async function buildHypothesisWorkspaceBundle(
   const filteredPlan = {
     id: generateId(),
     specId: ctx.spec.id,
-    dimensions: [],
+    dimensions: [...ctx.dimensions],
     hypotheses: [ctx.hypothesisStrategy],
     generatedAt: now(),
     incubatorModel: HYPOTHESIS_INCUBATOR_MODEL,

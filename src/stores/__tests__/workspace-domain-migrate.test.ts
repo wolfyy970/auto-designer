@@ -55,9 +55,33 @@ describe('migrateWorkspaceDomainPersist', () => {
       },
     };
     const out = migrateWorkspaceDomainPersist(v10, 10) as {
-      incubatorWirings: Record<string, { inputNodeIds: string[] }>;
+      incubatorWirings: Record<string, Record<string, unknown> & { inputNodeIds: string[] }>;
     };
     expect(out.incubatorWirings.inc1!.inputNodeIds).toEqual(['designBrief-1']);
+    expect(out.incubatorWirings.inc1).not.toHaveProperty('designSystemNodeIds');
+  });
+
+  it('v12 → v13 strips retired incubator design-system wiring', () => {
+    const v12 = {
+      hypotheses: {},
+      previewSlots: {},
+      designSystems: {},
+      incubatorWirings: {
+        inc1: {
+          inputNodeIds: ['brief-1'],
+          previewNodeIds: ['preview-1'],
+          designSystemNodeIds: ['design-system-1'],
+        },
+      },
+    };
+    const out = migrateWorkspaceDomainPersist(v12, 12) as {
+      incubatorWirings: Record<string, Record<string, unknown>>;
+    };
+
+    expect(out.incubatorWirings.inc1).toEqual({
+      inputNodeIds: ['brief-1'],
+      previewNodeIds: ['preview-1'],
+    });
   });
 
   it('normalizes malformed top-level collections to empty records', () => {

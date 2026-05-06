@@ -29,10 +29,6 @@ interface UseIncubatorRunParams {
   modelId: string | null | undefined;
   supportsVision: boolean | undefined;
   hypothesisCount: number;
-  designMdGeneratingNodeId: string | null;
-  ensureDesignSystemDocuments: () => Promise<
-    { nodeId: string; title: string; content: string }[]
-  >;
   fitView: Parameters<typeof scheduleCanvasFitView>[0];
   setTaskStreamState: Dispatch<SetStateAction<TaskStreamState>>;
 }
@@ -45,8 +41,6 @@ export function useIncubatorRun({
   modelId,
   supportsVision,
   hypothesisCount,
-  designMdGeneratingNodeId,
-  ensureDesignSystemDocuments,
   fitView,
   setTaskStreamState,
 }: UseIncubatorRunParams): () => Promise<void> {
@@ -60,8 +54,7 @@ export function useIncubatorRun({
 
   return useCallback(async () => {
     if (
-      useIncubatorStore.getState().isCompiling ||
-      designMdGeneratingNodeId
+      useIncubatorStore.getState().isCompiling
     ) {
       return;
     }
@@ -81,8 +74,6 @@ export function useIncubatorRun({
 
     let session: ReturnType<typeof createTaskStreamSession> | undefined;
     try {
-      const designSystemDocumentsForPrompt = await ensureDesignSystemDocuments();
-
       const runInputs = await buildIncubatorRunInputs({
         snapshot: {
           incubatorId,
@@ -95,7 +86,6 @@ export function useIncubatorRun({
           hypotheses: domainState.hypotheses,
         },
         hypothesisCount,
-        designSystemDocuments: designSystemDocumentsForPrompt,
       });
 
       const taskSession = createTaskStreamSession({
@@ -114,7 +104,6 @@ export function useIncubatorRun({
           modelId: modelId!,
           referenceDesigns: runInputs.referenceDesigns,
           supportsVision,
-          designSystemDocuments: runInputs.designSystemDocuments,
           promptOptions: runInputs.promptOptions,
           thinking: thinkingOverride,
         },
@@ -143,9 +132,7 @@ export function useIncubatorRun({
   }, [
     addPlaceholderHypotheses,
     appendStrategiesToNode,
-    designMdGeneratingNodeId,
     edges,
-    ensureDesignSystemDocuments,
     fitView,
     hypothesisCount,
     incubatorId,

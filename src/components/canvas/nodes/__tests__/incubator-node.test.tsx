@@ -1,14 +1,13 @@
 /** @vitest-environment jsdom */
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { render, cleanup, screen } from '@testing-library/react';
 import type { NodeProps } from '@xyflow/react';
 import IncubatorNode from '../IncubatorNode';
 import { useSpecStore } from '../../../../stores/spec-store';
 import { useCanvasStore } from '../../../../stores/canvas-store';
 import { useIncubatorStore } from '../../../../stores/incubator-store';
 import { useWorkspaceDomainStore } from '../../../../stores/workspace-domain-store';
-import { computeDesignMdSourceHash } from '../../../../lib/design-md';
 
 const apiMocks = vi.hoisted(() => ({
   extractDesignSystem: vi.fn(),
@@ -101,7 +100,7 @@ describe('IncubatorNode', () => {
     expect(blank.disabled).toBe(false);
   });
 
-  it('counts active Incubator sources including the default Wireframe Design System', () => {
+  it('counts active Incubator sources without treating Design System as Incubator input', () => {
     useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
     useCanvasStore.setState({
       nodes: [
@@ -117,237 +116,7 @@ describe('IncubatorNode', () => {
 
     render(<IncubatorNode {...minimalIncubatorProps()} />);
 
-    expect(screen.getByText('2 sources connected')).toBeTruthy();
-  });
-
-  it('shows connected DESIGN.md as needing generation before a document exists', () => {
-    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
-    useCanvasStore.setState({
-      nodes: [
-        { id: 'inc-1', type: 'incubator', position: { x: 0, y: 0 }, data: {} },
-        {
-          id: 'ds-1',
-          type: 'designSystem',
-          position: { x: 0, y: 0 },
-          data: { title: 'Brand DS', content: 'Use red buttons.', images: [] },
-        },
-      ],
-      edges: [{ id: 'e-ds-inc', source: 'ds-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } }],
-    });
-    render(<IncubatorNode {...minimalIncubatorProps()} />);
-
-    expect(screen.getByText('DESIGN.md')).toBeTruthy();
-    expect(screen.getByText('ready to generate')).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Generate DESIGN.md' }) as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.queryByRole('button', { name: 'View DESIGN.md' })).toBeNull();
-  });
-
-  it('shows ready scoped DESIGN.md as green-dot-only with view action', () => {
-    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
-    const source = { mode: 'custom' as const, title: 'Brand DS', content: 'Use red buttons.', images: [] };
-    useCanvasStore.setState({
-      nodes: [
-        { id: 'inc-1', type: 'incubator', position: { x: 0, y: 0 }, data: {} },
-        {
-          id: 'ds-1',
-          type: 'designSystem',
-          position: { x: 0, y: 0 },
-          data: {
-            ...source,
-            designMdDocument: {
-              content: '---\nname: Brand\n---\n# Brand',
-              sourceHash: computeDesignMdSourceHash(source),
-              generatedAt: '2026-01-01T00:00:00Z',
-              providerId: 'openrouter',
-              modelId: 'test-model',
-            },
-          },
-        },
-      ],
-      edges: [{ id: 'e-ds-inc', source: 'ds-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } }],
-    });
-    const { container } = render(<IncubatorNode {...minimalIncubatorProps()} />);
-    expect(screen.getByText('DESIGN.md')).toBeTruthy();
-    expect(container.querySelector('.bg-success')).toBeTruthy();
-    expect(screen.queryByText('ready')).toBeNull();
-    expect(screen.getByRole('button', { name: 'View DESIGN.md' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Regenerate DESIGN.md' })).toBeNull();
-  });
-
-  it('does not show stale DESIGN.md for custom style with no source material', () => {
-    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
-    useCanvasStore.setState({
-      nodes: [
-        { id: 'inc-1', type: 'incubator', position: { x: 0, y: 0 }, data: {} },
-        {
-          id: 'ds-1',
-          type: 'designSystem',
-          position: { x: 0, y: 0 },
-          data: {
-            sourceMode: 'custom',
-            content: '',
-            images: [],
-            markdownSources: [],
-            designMdDocument: {
-              content: '---\nname: Old\n---\n# Old',
-              sourceHash: 'old',
-              generatedAt: '2026-01-01T00:00:00Z',
-              providerId: 'openrouter',
-              modelId: 'test-model',
-            },
-          },
-        },
-      ],
-      edges: [{ id: 'e-ds-inc', source: 'ds-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } }],
-    });
-
-    render(<IncubatorNode {...minimalIncubatorProps()} />);
-
-    expect(screen.queryByText('stale')).toBeNull();
-    expect(screen.getByText('optional')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'View DESIGN.md' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Regenerate DESIGN.md' })).toBeNull();
-  });
-
-  it('does not show stale DESIGN.md when style is none even if saved sources exist', () => {
-    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
-    useCanvasStore.setState({
-      nodes: [
-        { id: 'inc-1', type: 'incubator', position: { x: 0, y: 0 }, data: {} },
-        {
-          id: 'ds-1',
-          type: 'designSystem',
-          position: { x: 0, y: 0 },
-          data: {
-            sourceMode: 'none',
-            content: 'Saved custom notes.',
-            images: [],
-            designMdDocument: {
-              content: '---\nname: Old\n---\n# Old',
-              sourceHash: 'old',
-              generatedAt: '2026-01-01T00:00:00Z',
-              providerId: 'openrouter',
-              modelId: 'test-model',
-            },
-          },
-        },
-      ],
-      edges: [{ id: 'e-ds-inc', source: 'ds-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } }],
-    });
-
-    render(<IncubatorNode {...minimalIncubatorProps()} />);
-
-    expect(screen.queryByText('stale')).toBeNull();
-    expect(screen.getByText('optional')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'View DESIGN.md' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Regenerate DESIGN.md' })).toBeNull();
-  });
-
-  it('shows needs-update and error states for scoped design-system DESIGN.md documents', () => {
-    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
-    useCanvasStore.setState({
-      nodes: [
-        { id: 'inc-1', type: 'incubator', position: { x: 0, y: 0 }, data: {} },
-        {
-          id: 'stale-ds',
-          type: 'designSystem',
-          position: { x: 0, y: 0 },
-          data: {
-            title: 'Stale DS',
-            content: 'Use red buttons.',
-            images: [],
-            designMdDocument: {
-              content: '---\nname: Old\n---\n# Old',
-              sourceHash: 'old',
-              generatedAt: '2026-01-01T00:00:00Z',
-              providerId: 'openrouter',
-              modelId: 'test-model',
-            },
-          },
-        },
-        {
-          id: 'error-ds',
-          type: 'designSystem',
-          position: { x: 0, y: 0 },
-          data: {
-            title: 'Error DS',
-            content: 'Use blue buttons.',
-            images: [],
-            designMdDocument: {
-              content: '',
-              sourceHash: 'old',
-              generatedAt: '2026-01-01T00:00:00Z',
-              providerId: 'openrouter',
-              modelId: 'test-model',
-              error: 'DESIGN.md failed',
-            },
-          },
-        },
-      ],
-      edges: [
-        { id: 'e-stale-inc', source: 'stale-ds', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } },
-        { id: 'e-error-inc', source: 'error-ds', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } },
-      ],
-    });
-    render(<IncubatorNode {...minimalIncubatorProps()} />);
-
-    expect(screen.getByText('needs update')).toBeTruthy();
-    expect(screen.getByText('error')).toBeTruthy();
-    expect(screen.getByText('DESIGN.md failed')).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Regenerate DESIGN.md' }) as HTMLButtonElement).disabled).toBe(false);
-    expect((screen.getByRole('button', { name: 'Retry DESIGN.md' }) as HTMLButtonElement).disabled).toBe(false);
-  });
-
-  it('shows generating state while refreshing a scoped DESIGN.md document', async () => {
-    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
-    let resolveExtract: (value: unknown) => void = () => {};
-    apiMocks.extractDesignSystem.mockReturnValueOnce(new Promise((resolve) => {
-      resolveExtract = resolve;
-    }));
-    useCanvasStore.setState({
-      nodes: [
-        { id: 'inc-1', type: 'incubator', position: { x: 0, y: 0 }, data: {} },
-        {
-          id: 'ds-1',
-          type: 'designSystem',
-          position: { x: 0, y: 0 },
-          data: { title: 'Brand DS', content: 'Use red buttons.', images: [] },
-        },
-      ],
-      edges: [{ id: 'e-ds-inc', source: 'ds-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } }],
-    });
-    render(<IncubatorNode {...minimalIncubatorProps()} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Generate DESIGN.md' }));
-    expect(await screen.findByText('generating...')).toBeTruthy();
-    resolveExtract({
-      result: '---\nname: Generated\n---\n# Generated',
-      lint: { errors: 0, warnings: 0, infos: 0, findings: [] },
-    });
-    await waitFor(() => expect(screen.queryByText('generating...')).toBeNull());
-  });
-
-  it('refreshes missing DESIGN.md before incubating', async () => {
-    useSpecStore.getState().updateSection('design-brief', 'Ship a calmer onboarding.');
-    useCanvasStore.setState({
-      nodes: [
-        { id: 'inc-1', type: 'incubator', position: { x: 0, y: 0 }, data: {} },
-        {
-          id: 'ds-1',
-          type: 'designSystem',
-          position: { x: 0, y: 0 },
-          data: { title: 'Brand DS', content: 'Use red buttons.', images: [] },
-        },
-      ],
-      edges: [{ id: 'e-ds-inc', source: 'ds-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } }],
-    });
-    render(<IncubatorNode {...minimalIncubatorProps()} />);
-
-    fireEvent.click(screen.getByRole('button', { name: /Generate hypotheses/ }));
-    await waitFor(() => expect(apiMocks.extractDesignSystem).toHaveBeenCalled());
-    await waitFor(() => expect(apiMocks.incubateStream).toHaveBeenCalled());
-    expect(apiMocks.extractDesignSystem.mock.invocationCallOrder[0]).toBeLessThan(
-      apiMocks.incubateStream.mock.invocationCallOrder[0],
-    );
+    expect(screen.getByText('1 source connected')).toBeTruthy();
+    expect(screen.queryByText('DESIGN.md')).toBeNull();
   });
 });

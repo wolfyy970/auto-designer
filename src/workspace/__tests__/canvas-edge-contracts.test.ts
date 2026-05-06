@@ -15,7 +15,6 @@ describe('canvas edge contracts', () => {
       'designBrief->incubator',
       'designConstraints->incubator',
       'designSystem->hypothesis',
-      'designSystem->incubator',
       'hypothesis->preview',
       'incubator->hypothesis',
       'objectivesMetrics->incubator',
@@ -31,7 +30,7 @@ describe('canvas edge contracts', () => {
     }
   });
 
-  it('keeps Design System as source material with implicit model access through Incubator', () => {
+  it('keeps Design System independent of model-node connections', () => {
     const contract = CANVAS_EDGE_CONTRACTS.find((entry) =>
       entry.match(NODE_TYPES.MODEL, NODE_TYPES.DESIGN_SYSTEM),
     );

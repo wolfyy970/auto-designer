@@ -11,9 +11,16 @@ import type { CanvasStore } from './canvas-store-types';
 
 function ensureRequiredDesignSystem(state: Pick<CanvasStore, 'nodes' | 'edges' | 'colGap'>) {
   const nodesWithoutGhosts = reconcileEphemeralGhostNodes(state.nodes);
+  const nodeTypeById = new Map(nodesWithoutGhosts.map((node) => [node.id, node.type]));
+  const edgesWithoutRetiredDesignSystemLinks = state.edges.filter(
+    (edge) => !(
+      nodeTypeById.get(edge.source) === NODE_TYPES.DESIGN_SYSTEM
+      && nodeTypeById.get(edge.target) === NODE_TYPES.INCUBATOR
+    ),
+  );
   const designSystem = nodesWithoutGhosts.find((node) => node.type === NODE_TYPES.DESIGN_SYSTEM);
   if (designSystem) {
-    return { nodes: nodesWithoutGhosts, edges: state.edges };
+    return { nodes: nodesWithoutGhosts, edges: edgesWithoutRetiredDesignSystemLinks };
   }
 
   const col = columnX(state.colGap);
@@ -24,19 +31,9 @@ function ensureRequiredDesignSystem(state: Pick<CanvasStore, 'nodes' | 'edges' |
     position: snap({ x: col.inputs, y: 1180 }),
     data: { sourceMode: DEFAULT_DESIGN_SYSTEM_SOURCE_MODE },
   };
-  const incubatorEdges = nodesWithoutGhosts
-    .filter((node) => node.type === NODE_TYPES.INCUBATOR)
-    .map((node) => ({
-      id: buildEdgeId(designSystemId, node.id),
-      source: designSystemId,
-      target: node.id,
-      type: EDGE_TYPES.DATA_FLOW,
-      data: { status: EDGE_STATUS.IDLE },
-    }));
-
   return {
     nodes: [...nodesWithoutGhosts, designSystemNode],
-    edges: [...state.edges, ...incubatorEdges],
+    edges: edgesWithoutRetiredDesignSystemLinks,
   };
 }
 
@@ -101,13 +98,6 @@ export const createLayoutSlice: StateCreator<
         {
           id: buildEdgeId(briefId, incubatorId),
           source: briefId,
-          target: incubatorId,
-          type: EDGE_TYPES.DATA_FLOW,
-          data: { status: EDGE_STATUS.IDLE },
-        },
-        {
-          id: buildEdgeId(designSystemId, incubatorId),
-          source: designSystemId,
           target: incubatorId,
           type: EDGE_TYPES.DATA_FLOW,
           data: { status: EDGE_STATUS.IDLE },

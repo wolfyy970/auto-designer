@@ -32,11 +32,9 @@ export function collectExistingIncubatorStrategies(
 export async function buildIncubatorRunInputs(input: {
   snapshot: IncubatorRunSnapshot;
   hypothesisCount: number;
-  designSystemDocuments: { nodeId: string; title: string; content: string }[];
 }): Promise<{
   spec: DesignSpec;
   referenceDesigns: { name: string; code: string }[];
-  designSystemDocuments: { nodeId: string; title: string; content: string }[];
   promptOptions: {
     count: number;
     existingStrategies: HypothesisStrategy[];
@@ -54,7 +52,6 @@ export async function buildIncubatorRunInputs(input: {
   return {
     spec: partialSpec,
     referenceDesigns,
-    designSystemDocuments: input.designSystemDocuments,
     promptOptions: {
       count: input.hypothesisCount,
       existingStrategies: collectExistingIncubatorStrategies(input.snapshot),

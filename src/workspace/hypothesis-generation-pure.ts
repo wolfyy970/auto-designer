@@ -3,7 +3,7 @@
  * No Zustand, no Vite env, no IndexedDB.
  */
 import { getDesignSystemNodeData } from '../lib/canvas-node-data';
-import type { HypothesisStrategy } from '../types/incubator';
+import type { Dimension, HypothesisStrategy } from '../types/incubator';
 import type { EvaluationContextPayload } from '../types/evaluation';
 import type { ProvenanceContext } from '../types/provenance-context';
 import type { DesignSpec } from '../types/spec';
@@ -40,6 +40,7 @@ export interface ModelCredential {
 export interface HypothesisGenerationContext {
   readonly hypothesisNodeId: string;
   readonly hypothesisStrategy: HypothesisStrategy;
+  readonly dimensions: readonly Dimension[];
   readonly spec: DesignSpec;
   readonly modelCredentials: readonly ModelCredential[];
   readonly designSystemContent: string | undefined;
@@ -87,6 +88,7 @@ function collectDesignSystemFromGraph(
 export function buildHypothesisGenerationContextFromInputs(input: {
   hypothesisNodeId: string;
   hypothesisStrategy: HypothesisStrategy;
+  dimensions?: readonly Dimension[];
   spec: DesignSpec;
   snapshot: WorkspaceGraphSnapshot;
   domainHypothesis?: DomainHypothesis | null;
@@ -108,6 +110,7 @@ export function buildHypothesisGenerationContextFromInputs(input: {
   return {
     hypothesisNodeId,
     hypothesisStrategy,
+    dimensions: input.dimensions ?? [],
     spec,
     modelCredentials,
     designSystemContent,
@@ -135,9 +138,6 @@ export function evaluationPayloadFromHypothesisContext(
   ctx: HypothesisGenerationContext,
 ): EvaluationContextPayload {
   const s = ctx.hypothesisStrategy;
-  const dv = s.dimensionValues;
-  const outputFormat =
-    dv['format'] ?? dv['output_format'] ?? dv['Output format'] ?? dv['Output Format'];
 
   return {
     strategyName: s.name,
@@ -148,6 +148,5 @@ export function evaluationPayloadFromHypothesisContext(
     objectivesMetrics: ctx.spec.sections['objectives-metrics']?.content,
     designConstraints: ctx.spec.sections['design-constraints']?.content,
     designSystemSnapshot: ctx.designSystemContent || undefined,
-    ...(outputFormat ? { outputFormat: String(outputFormat).trim() } : {}),
   };
 }

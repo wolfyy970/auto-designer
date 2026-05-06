@@ -13,15 +13,13 @@
  * skill, not here.
  */
 
-export const INCUBATOR_USER_INPUTS_TEMPLATE = `Analyze the following design specification and produce a dimension map with hypothesis strategies.
+export const INCUBATOR_USER_INPUTS_TEMPLATE = `Analyze the following design specification and produce global exploration axes with hypothesis strategies.
 
 <specification>
 {{INTERNAL_CONTEXT}}
-
-{{DESIGN_SYSTEM_DOCUMENTS_BLOCK}}
 </specification>
 
-Produce the dimension map as JSON.{{REFERENCE_DESIGNS_BLOCK}}{{EXISTING_HYPOTHESES_BLOCK}}{{INCUBATOR_HYPOTHESIS_COUNT_LINE}}`;
+Produce the exploration-axis map as JSON.{{REFERENCE_DESIGNS_BLOCK}}{{EXISTING_HYPOTHESES_BLOCK}}{{INCUBATOR_HYPOTHESIS_COUNT_LINE}}`;
 
 export const DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE = `Generate a design implementing the following hypothesis, grounded in the specification context below.
 
@@ -30,6 +28,9 @@ export const DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE = `Generate a design implementi
 <bet>{{HYPOTHESIS}}</bet>
 <rationale>{{RATIONALE}}</rationale>
 <measurements>{{MEASUREMENTS}}</measurements>
+<exploration_axes>
+{{EXPLORATION_AXES}}
+</exploration_axes>
 <dimension_values>
 {{DIMENSION_VALUES}}
 </dimension_values>

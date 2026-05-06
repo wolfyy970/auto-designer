@@ -1,5 +1,5 @@
 import type { DesignSpec, ReferenceImage } from '../types/spec';
-import type { CompiledPrompt, IncubationPlan, HypothesisStrategy } from '../types/incubator';
+import type { CompiledPrompt, Dimension, IncubationPlan, HypothesisStrategy } from '../types/incubator';
 import type {
   DomainDesignSystemContent,
   DomainHypothesis,
@@ -47,6 +47,7 @@ export interface SettingsModelCredential {
 export interface HypothesisWorkspaceApiPayload {
   hypothesisNodeId: string;
   hypothesisStrategy: HypothesisStrategy;
+  dimensions?: Dimension[];
   spec: DesignSpec;
   snapshot: WorkspaceSnapshotWire;
   domainHypothesis: DomainHypothesis | null;
