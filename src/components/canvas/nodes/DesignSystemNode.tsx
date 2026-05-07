@@ -23,6 +23,7 @@ import {
   DESIGN_SYSTEM_SOURCE_MODES,
   type DesignSystemSourceMode,
 } from '../../../types/design-system-mode';
+import { CanvasNodeSelect } from './CanvasNodeSelect';
 
 type DesignSystemNodeType = Node<DesignSystemNodeData, 'designSystem'>;
 
@@ -152,6 +153,10 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
     wireframe: 'Wireframe',
     custom: 'Custom',
   };
+  const sourceModeOptions = DESIGN_SYSTEM_SOURCE_MODES.map((mode) => ({
+    value: mode,
+    label: sourceModeLabels[mode],
+  }));
 
   return (
     <NodeShell
@@ -177,19 +182,12 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
       <div className="px-3 py-2.5">
         <div className={`${RF_INTERACTIVE} mb-2 flex items-center justify-between gap-2`}>
           <span className="text-nano font-medium text-fg-muted">Style</span>
-          <select
+          <CanvasNodeSelect
             value={sourceMode}
-            onPointerDown={(e) => e.stopPropagation()}
-            onChange={(e) => setSourceMode(e.target.value as DesignSystemSourceMode)}
-            className="nodrag nowheel rounded border border-border bg-bg px-2 py-1 text-nano font-semibold text-fg-secondary outline-none input-focus"
-            aria-label="Design system style"
-          >
-            {DESIGN_SYSTEM_SOURCE_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {sourceModeLabels[mode]}
-              </option>
-            ))}
-          </select>
+            options={sourceModeOptions}
+            onChange={setSourceMode}
+            ariaLabel="Design system style"
+          />
         </div>
 
         <div className="mb-2 text-nano leading-snug text-fg-muted">

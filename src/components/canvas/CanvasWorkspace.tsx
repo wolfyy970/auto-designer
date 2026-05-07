@@ -24,12 +24,11 @@ import {
   DEFAULT_FIT_VIEW_OPTIONS,
   fitViewOptionsWithInspectorDock,
   NODE_FOCUS_MIN_ZOOM,
-  fitViewWithDefaults,
 } from '../../lib/canvas-fit-view';
 import {
-  canvasKeyboardZoomCommand,
-  isEditableZoomShortcutTarget,
-} from '../../lib/canvas-keyboard-zoom';
+  CANVAS_MAX_ZOOM,
+  CANVAS_MIN_ZOOM,
+} from '../../lib/canvas-zoom';
 import type { WorkspaceNode } from '../../types/workspace-graph';
 import { toReactFlowEdges, toReactFlowNodes } from '../../workspace/reactflow-adapter';
 import { nodeTypes } from './nodes/node-types';
@@ -43,6 +42,7 @@ import OptionalInputsTip from './OptionalInputsTip';
 import { useCanvasOrchestrator } from './hooks/useCanvasOrchestrator';
 import { useNodeDeletion } from './hooks/useNodeDeletion';
 import { useFeedbackLoopConnection } from './hooks/useFeedbackLoopConnection';
+import { useCanvasZoomInput } from './hooks/useCanvasZoomInput';
 import { PermanentDeleteConfirmProvider } from '../../contexts/PermanentDeleteConfirmProvider';
 import { useAppConfig } from '../../hooks/useAppConfig';
 import { useSyncEvaluatorDefaultsFromConfig } from '../../hooks/useSyncEvaluatorDefaultsFromConfig';
@@ -51,9 +51,28 @@ import { useTheme } from '@ds/lib/use-theme';
 function CanvasInner() {
   useCanvasOrchestrator();
   const theme = useTheme();
-  const { setCenter, getNodes, getEdges, getViewport, fitView, zoomIn, zoomOut } = useReactFlow();
+  const {
+    setCenter,
+    getNodes,
+    getEdges,
+    getViewport,
+    fitView,
+    zoomIn,
+    zoomOut,
+    setViewport: setFlowViewport,
+  } = useReactFlow();
   const rfStore = useStoreApi();
-  const isPointerOverCanvasRef = useRef(false);
+  const {
+    canvasZoomRootRef,
+    markPointerOverCanvas,
+    markPointerOutsideCanvas,
+  } = useCanvasZoomInput({
+    getViewport,
+    setFlowViewport,
+    fitView,
+    zoomIn,
+    zoomOut,
+  });
   useNodeDeletion({ getNodes, getEdges });
   useSyncEvaluatorDefaultsFromConfig();
 
@@ -187,27 +206,6 @@ function CanvasInner() {
     [setViewport]
   );
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (!isPointerOverCanvasRef.current) return;
-      if (isEditableZoomShortcutTarget(event.target)) return;
-      const command = canvasKeyboardZoomCommand(event);
-      if (!command) return;
-
-      event.preventDefault();
-      if (command === 'zoom-in') {
-        void zoomIn({ duration: 120 });
-      } else if (command === 'zoom-out') {
-        void zoomOut({ duration: 120 });
-      } else {
-        fitViewWithDefaults(fitView);
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fitView, zoomIn, zoomOut]);
-
   const handleSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
       computeLineage(selected.length === 1 ? selected[0].id : null);
@@ -276,13 +274,10 @@ function CanvasInner() {
       <div className="flex min-h-0 min-w-0 flex-1">
         <div className="relative min-h-0 min-w-0 flex-1">
           <div
-            className="h-full w-full"
-            onPointerEnter={() => {
-              isPointerOverCanvasRef.current = true;
-            }}
-            onPointerLeave={() => {
-              isPointerOverCanvasRef.current = false;
-            }}
+            ref={canvasZoomRootRef}
+            className="h-full w-full touch-none"
+            onPointerEnter={markPointerOverCanvas}
+            onPointerLeave={markPointerOutsideCanvas}
           >
             <ReactFlow
               className="h-full w-full"
@@ -306,8 +301,10 @@ function CanvasInner() {
               snapGrid={[GRID_SIZE, GRID_SIZE]}
               fitViewOptions={{ padding: 0.15 }}
               connectionRadius={40}
-              minZoom={0.15}
-              maxZoom={2}
+              minZoom={CANVAS_MIN_ZOOM}
+              maxZoom={CANVAS_MAX_ZOOM}
+              zoomOnScroll={false}
+              zoomOnPinch={false}
               proOptions={{ hideAttribution: true }}
               deleteKeyCode={null}
             >
@@ -333,9 +330,7 @@ function CanvasInner() {
           </div>
           <VariantPreviewOverlay />
           <VariantRunInspector
-            onPointerEnter={() => {
-              isPointerOverCanvasRef.current = false;
-            }}
+            onPointerEnter={markPointerOutsideCanvas}
           />
         </div>
       </div>

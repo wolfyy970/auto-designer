@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, cleanup, screen } from '@testing-library/react';
+import { render, cleanup, fireEvent, screen } from '@testing-library/react';
 import type { NodeProps } from '@xyflow/react';
 import IncubatorNode from '../IncubatorNode';
 import { useSpecStore } from '../../../../stores/spec-store';
@@ -118,5 +118,19 @@ describe('IncubatorNode', () => {
 
     expect(screen.getByText('1 source connected')).toBeTruthy();
     expect(screen.queryByText('DESIGN.md')).toBeNull();
+  });
+
+  it('uses an in-canvas count control that updates hypothesisCount', () => {
+    useCanvasStore.setState({
+      nodes: [{ id: 'inc-1', type: 'incubator', position: { x: 0, y: 0 }, data: { hypothesisCount: 3 } }],
+      edges: [],
+    });
+
+    render(<IncubatorNode {...minimalIncubatorProps()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'New hypotheses' }));
+    fireEvent.click(screen.getByRole('option', { name: /5/ }));
+
+    expect(useCanvasStore.getState().nodes.find((n) => n.id === 'inc-1')?.data.hypothesisCount).toBe(5);
   });
 });

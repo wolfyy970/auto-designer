@@ -12,7 +12,7 @@ type PreviewState = {
 
 /**
  * Registers virtual files with the API for URL-backed iframe preview (multi-page-safe).
- * Falls back to bundled srcDoc when the API is unreachable (e.g. API down).
+ * Falls back to bundled srcDoc when registration or the first preview load fails.
  */
 export function useArtifactPreviewUrl(
   files: Record<string, string> | null | undefined,
@@ -65,12 +65,21 @@ export function useArtifactPreviewUrl(
           }
           sessionRef.current = body.id;
           const pathEnc = encodeVirtualPathForUrl(body.entry);
+          const previewSrc = `/api/preview/sessions/${body.id}/${pathEnc}`;
+          const verifyRes = await fetch(previewSrc, { method: 'GET' });
+          if (!verifyRes.ok) throw new Error(`preview load ${verifyRes.status}`);
+          if (cancelled) return;
           setState({
-            previewSrc: `/api/preview/sessions/${body.id}/${pathEnc}`,
+            previewSrc,
             fallbackSrcDoc: bundledFallback,
             isPending: false,
           });
         } catch (registerErr) {
+          const sid = sessionRef.current;
+          if (sid) {
+            cleanupPreviewSession(sid);
+            sessionRef.current = null;
+          }
           console.warn(
             '[preview] session registration failed, using srcDoc fallback:',
             normalizeError(registerErr),

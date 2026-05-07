@@ -356,12 +356,12 @@ The primary interface is a node-graph canvas built on `@xyflow/react` v12.
 When a result has files (agentic output), the preview UI (`VariantNode` / canvas type `preview`) shows:
 
 - **Generating state:** file explorer sidebar (planned + written files with status dots) + activity log (**Streamdown** markdown in `variant-run/StreamdownTimeline.tsx`; table copy/download/fullscreen controls off by default) + progress bar
-- **Complete state:** Preview/Code tab bar. **Preview** registers the file map with `**/api/preview/sessions`** and loads the default entry in a sandboxed iframe via `**src`** (real relative URLs between HTML/CSS/JS). If the API is unreachable, `**bundleVirtualFS()**` inlines linked assets into `**srcDoc**` as a fallback. Code tab shows the file explorer + raw file content.
+- **Complete state:** Preview/Code tab bar. **Preview** registers the file map with `**/api/preview/sessions`** and verifies the default entry before loading a sandboxed iframe via `**src`** (real relative URLs between HTML/CSS/JS). If registration or verification fails, `**bundleVirtualFS()**` inlines linked assets into `**srcDoc**` as a fallback. Canvas preview iframes are thumbnails, so pointer gestures pass through to graph zoom; full interaction lives in expanded preview and the run workspace. Code tab shows the file explorer + raw file content.
 - **Download:** produces a `.zip` via `fflate`.
 
 ### Preview run workspace (`VariantRunInspector`)
 
-`runInspectorPreviewNodeId` in `canvas-store` selects which preview's workspace to show. `CanvasWorkspace` mounts `VariantRunInspector` as a non-modal **overlay** on the canvas column (not a layout sibling) with no dimmer, scrim, or click-capturing layer; canvas zoom shortcuts and wheel gestures stay scoped to the canvas, so the inspector cannot accidentally zoom the graph. **`src/lib/canvas-fit-view.ts`** owns shared camera commands: starter-canvas framing, single-node focus, subset fit, full fit, and inspector-dock padding. The starter command uses the actual React Flow pane size to keep the Design Brief + Design System readable while leaving the Incubator visible; hypothesis **Design** syncs use subset fit for the **hypothesis + its preview node(s)** instead of the whole graph.
+`runInspectorPreviewNodeId` in `canvas-store` selects which preview's workspace to show. `CanvasWorkspace` mounts `VariantRunInspector` as a non-modal **overlay** on the canvas column (not a layout sibling) with no dimmer, scrim, or click-capturing layer; canvas zoom shortcuts and gestures are owned by `useCanvasZoomInput`, so the inspector cannot accidentally zoom the graph. **`src/lib/canvas-fit-view.ts`** owns shared camera commands: starter-canvas framing, single-node focus, subset fit, full fit, and inspector-dock padding. The starter command uses the actual React Flow pane size to keep the Design Brief + Design System readable while leaving the Incubator visible; hypothesis **Design** syncs use subset fit for the **hypothesis + its preview node(s)** instead of the whole graph.
 
 ### Auto-Connection Logic (`src/lib/canvas-connections.ts`)
 
@@ -475,7 +475,8 @@ Single source of truth for string literals shared across the codebase. Eliminate
 
 | File                    | Purpose                                                                                                                                                                                           |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `iframe-utils.ts`       | Re-exports `bundleVirtualFS` — optional **fallback** for multi-file `srcDoc` when preview API registration fails; `prepareIframeContent(code)` — single-file pass-through; `renderErrorHtml(msg)` |
+| `iframe-utils.ts`       | Re-exports `bundleVirtualFS` — optional **fallback** for multi-file `srcDoc` when preview API registration or URL verification fails; `prepareIframeContent(code)` — single-file pass-through; `renderErrorHtml(msg)` |
+| `canvas-zoom.ts`        | Pure canvas zoom helpers for pinch-wheel detection, clamping, cursor-anchored viewport math, and canvas-root target checks                                                                        |
 | `preview-entry.ts`      | `resolvePreviewEntryPath`, `encodeVirtualPathForUrl`, `preferredArtifactFileOrder` — shared by bundler, preview URLs, and eval                                                                    |
 | `zip-utils.ts`          | `downloadFilesAsZip(files, filename)` — bundles virtual FS into a `.zip` via `fflate` and triggers browser download                                                                               |
 | `node-status.ts`        | `filledOrEmpty`, `processingOrFilled`, `previewNodeStatus` (preview card ring/border state) — pure helpers                                                                                        |
@@ -511,7 +512,9 @@ Single source of truth for string literals shared across the codebase. Eliminate
 
 **Why URL-backed preview.** Agentic runs produce a **virtual file tree**. The API validates and canonicalizes relative file keys before serving them at `**/api/preview/sessions/:id/...`** so iframe `**src`** uses real relative URLs (multi-page `a href` works) without accepting absolute, traversal, duplicate-normalized, or no-entry file maps. Sessions are behind a `PreviewSessionStore` port; the default implementation is still ephemeral in-memory TTL storage.
 
-**Why `bundleVirtualFS` still exists.** Fallback when preview registration fails, and for **evaluator** `bundled_preview_html` context. It inlines `<link>` / `<script src>` from the entry HTML determined by `**resolvePreviewEntryPath`**.
+**Why `bundleVirtualFS` still exists.** Fallback when preview registration or URL verification fails, and for **evaluator** `bundled_preview_html` context. It inlines `<link>` / `<script src>` from the entry HTML determined by `**resolvePreviewEntryPath`**.
+
+**Why canvas zoom is explicit.** React Flow's scroll/pinch zoom is disabled. `useCanvasZoomInput` captures browser pinch-wheel/native gesture events for the canvas page, prevents split browser zoom state, and applies graph zoom only when the event target belongs to the canvas work area. Native browser controls are avoided inside transformed canvas nodes; node-local menus use React-rendered controls such as `CanvasNodeSelect` so they scale with the graph.
 
 **Why StoragePort.** Generated code currently lives in IndexedDB (browser-local). The `StoragePort` abstraction allows swapping to a server-backed database later without changing any consuming code. The files store (agentic output) is added alongside the existing code and provenance stores.
 

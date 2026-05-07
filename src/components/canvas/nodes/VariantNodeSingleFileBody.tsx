@@ -44,7 +44,8 @@ export function VariantNodeSingleFileBody({
             height: `${100 / zoom}%`,
             transform: `scale(${zoom})`,
             transformOrigin: '0 0',
-            pointerEvents: 'auto',
+            // Canvas cards are thumbnails; expanded preview/run workspace own design interaction.
+            pointerEvents: 'none',
           }}
         />
       )}

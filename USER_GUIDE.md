@@ -149,13 +149,13 @@ Running generation again adds new versions — use the version navigation arrows
 
 **While a run is in flight:** Use **Stop** on the **hypothesis** card to abort the in-flight request for that strategy lane (same as ending the SSE stream).
 
-**Progress and workspace:** Starting **Design** does **not** auto-open the run workspace—the preview card shows progress first. Use **Watch agent** or the **panel** icon on the preview toolbar to open the **run workspace** (an overlay on the right); canvas zoom shortcuts and gestures apply only while the pointer is over the canvas, not while it is over the workspace. The preview card footer summarizes live status with a **three-state chip** that shows what the model is doing right now: 🧠 Brain for extended reasoning, 💬 for narrating (visible text between tool calls), and 🔧 Wrench for an active tool call; the token count keeps ticking through every phase. When a thinking turn ends, a transient **`🧠 Xs`** badge briefly shows how long it reasoned. **Skills in use** and the full **Monitor** timeline—including tool traces—live in the workspace. The timeline’s **Tool use** block shows the active tool in the header when collapsed; when expanded, each streaming tool row uses the same pulse + `Nk tok` pattern as the chip.
+**Progress and workspace:** Starting **Design** does **not** auto-open the run workspace—the preview card shows progress first. Use **Watch agent** or the **panel** icon on the preview toolbar to open the **run workspace** (an overlay on the right). Canvas zoom shortcuts and pinch gestures belong to the canvas area, including preview cards; the run workspace does not zoom the graph. The preview card footer summarizes live status with a **three-state chip** that shows what the model is doing right now: 🧠 Brain for extended reasoning, 💬 for narrating (visible text between tool calls), and 🔧 Wrench for an active tool call; the token count keeps ticking through every phase. When a thinking turn ends, a transient **`🧠 Xs`** badge briefly shows how long it reasoned. **Skills in use** and the full **Monitor** timeline—including tool traces—live in the workspace. The timeline’s **Tool use** block shows the active tool in the header when collapsed; when expanded, each streaming tool row uses the same pulse + `Nk tok` pattern as the chip.
 
 **Removing nodes from the canvas:** Use **Backspace** or **Delete** with one or more nodes selected. A short confirmation appears for nodes that can be removed (input cards and structural nodes like the incubator stay protected). Removing a hypothesis also drops its preview nodes. Optional selected connections, such as preview-reference edges, delete with the same keys and no extra dialog; structural source-to-Incubator edges stay protected. The shared spec document is separate; text in section cards may still exist there until you edit it elsewhere.
 
 ### 7. Review Designs
 
-Preview nodes render the generated code in sandboxed iframes. Open the **run workspace** (panel icon or **Watch agent** while generating) for the full timeline, tasks, **Design**/**Evaluation** tabs (when evaluation ran), and—when a run had several evaluator rounds—a shared **Eval round** control on Design and Evaluation to preview that round’s files and scores.
+Preview nodes render generated designs as canvas thumbnails. They show the result and version controls, but generated-design interaction belongs in full-screen preview or the **run workspace**. Open the **run workspace** (panel icon or **Watch agent** while generating) for the full timeline, tasks, **Design**/**Evaluation** tabs (when evaluation ran), and—when a run had several evaluator rounds—a shared **Eval round** control on Design and Evaluation to preview that round’s files and scores.
 
 **Best pick** *(Auto-improve enabled only)*: Use **Mark as best** (star on the preview toolbar or “Mark as best” in full-screen) to pin a preferred result. **Clear best pick** restores the computed default for that strategy lane (highest evaluator score when available, otherwise newest complete run). Full-screen **prev/next design** moves between preview nodes **for the same hypothesis** when domain slots are present.
 
@@ -167,7 +167,7 @@ Preview nodes render the generated code in sandboxed iframes. Open the **run wor
 
 **Multi-file (agentic) results:**
 
-- **Preview tab** — Serves the virtual tree from `**/api/preview/sessions`** in the iframe (relative links work). If registration fails, falls back to a bundled `**srcDoc`**. See [PRODUCT.md](PRODUCT.md).
+- **Preview tab** — Serves the virtual tree from `**/api/preview/sessions`** in the iframe (relative links work). If registration or URL verification fails, falls back to a bundled `**srcDoc`**. See [PRODUCT.md](PRODUCT.md).
 - **Code tab** — File explorer on the left, raw file content on the right
 - **Download** — Zip button downloads all files as a `.zip` archive
 - **Eval strip** — When Auto-improve ran, aggregate score, suggested fixes, and runtime QA (including optional headless screenshot)
@@ -184,7 +184,7 @@ To iterate on results:
 
 ### Layout
 
-Auto-layout is implicit canvas behavior. The graph repositions after structural changes such as adding/removing nodes, connecting nodes, incubation, generation, and measured node-size changes. The left canvas toolbar controls canvas zoom, fit view, minimap visibility, and **Column spacing**; there is no persisted Auto layout toggle.
+Auto-layout is implicit canvas behavior. The graph repositions after structural changes such as adding/removing nodes, connecting nodes, incubation, generation, and measured node-size changes. The left canvas toolbar controls canvas zoom, fit view, minimap visibility, and **Column spacing**; trackpad pinch over the canvas also zooms the graph. There is no persisted Auto layout toggle.
 
 ## Managing Canvases
 

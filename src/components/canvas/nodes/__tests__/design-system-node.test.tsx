@@ -64,8 +64,9 @@ describe('DesignSystemNode', () => {
 
   it('defaults to Default source mode and has no delete affordance', () => {
     render(<DesignSystemNode {...props()} />);
-    expect(screen.getAllByText('Default').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Wireframe').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Design system style' }).textContent).toContain('Default');
+    fireEvent.click(screen.getByRole('button', { name: 'Design system style' }));
+    expect(screen.getByRole('option', { name: /Wireframe/ })).toBeTruthy();
     expect(screen.getByText(/Using default model behavior/)).toBeTruthy();
     expect(screen.queryByPlaceholderText(/Paste tokens, component guidance, patterns/)).toBeNull();
     expect(screen.queryByText('Drop images or DESIGN.md')).toBeNull();
@@ -94,9 +95,8 @@ describe('DesignSystemNode', () => {
 
     expect(screen.getByText('Using Wireframe. Custom sources are saved.')).toBeTruthy();
     expect(screen.getByText('Style')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Design system style'), {
-      target: { value: 'custom' },
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Design system style' }));
+    fireEvent.click(screen.getByRole('option', { name: /Custom/ }));
 
     expect(useCanvasStore.getState().nodes.find((n) => n.id === 'ds-1')?.data.sourceMode).toBe('custom');
   });

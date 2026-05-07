@@ -25,6 +25,7 @@ import {
   type TaskStreamState,
 } from '../../../hooks/task-stream-state';
 import { NodeErrorBlock } from './shared/NodeErrorBlock';
+import { CanvasNodeSelect } from './CanvasNodeSelect';
 
 const COUNT_OPTIONS = [1, 2, 3, 5];
 const DEFAULT_COUNT = 3;
@@ -71,11 +72,12 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
   }, [edges, nodes, id]);
 
   const handleCountChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      updateNodeData(id, { hypothesisCount: Number(e.target.value) });
+    (value: string) => {
+      updateNodeData(id, { hypothesisCount: Number(value) });
     },
     [id, updateNodeData],
   );
+  const countOptions = COUNT_OPTIONS.map((n) => ({ value: String(n), label: String(n) }));
 
   const handleAddBlank = useCallback(
     (e: React.MouseEvent) => {
@@ -155,16 +157,13 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
             {/* Hypothesis count selector */}
             <div className="flex items-center justify-between">
               <label className="text-nano text-fg-secondary">New hypotheses</label>
-              <select
-                value={hypothesisCount}
+              <CanvasNodeSelect
+                value={String(hypothesisCount)}
+                options={countOptions}
                 onChange={handleCountChange}
                 disabled={isCompiling}
-                className="rounded border border-border bg-surface px-1.5 py-0.5 text-nano text-fg"
-              >
-                {COUNT_OPTIONS.map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
+                ariaLabel="New hypotheses"
+              />
             </div>
 
             {hint && (

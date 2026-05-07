@@ -45,12 +45,12 @@ export function VariantNodeMultiFileBody({
             files={currentFiles}
             title={`Preview: ${variantName}`}
             className="absolute left-0 top-0 border-0 bg-preview-canvas"
+            interactive={false}
             style={{
               width: `${100 / zoom}%`,
               height: `${100 / zoom}%`,
               transform: `scale(${zoom})`,
               transformOrigin: '0 0',
-              pointerEvents: 'auto',
             }}
           />
         </div>

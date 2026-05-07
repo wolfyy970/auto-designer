@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -8,6 +8,16 @@ const repoRoot = resolve(__dirname, '../../../..');
 
 function readRepoFile(path: string): string {
   return readFileSync(resolve(repoRoot, path), 'utf8');
+}
+
+function readCanvasNodeSources(): string[] {
+  const nodesDir = resolve(repoRoot, 'src/components/canvas/nodes');
+  return readdirSync(nodesDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.tsx'))
+    .map((entry) => {
+      const path = `src/components/canvas/nodes/${entry.name}`;
+      return `${path}\n${readRepoFile(path)}`;
+    });
 }
 
 describe('canvas UI surface regressions', () => {
@@ -38,6 +48,12 @@ describe('canvas UI surface regressions', () => {
       for (const token of forbidden) {
         expect(source).not.toContain(token);
       }
+    }
+  });
+
+  it('does not use native select controls inside transformed canvas nodes', () => {
+    for (const source of readCanvasNodeSources()) {
+      expect(source).not.toContain('<select');
     }
   });
 });

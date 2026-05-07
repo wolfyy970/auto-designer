@@ -7,14 +7,24 @@ type Props = {
   title: string;
   className?: string;
   style?: CSSProperties;
+  interactive?: boolean;
 };
 
 /**
  * Multi-file design preview: URL-backed virtual FS when API is available; bundled srcDoc fallback.
  */
-export default function ArtifactPreviewFrame({ files, title, className, style }: Props) {
+export default function ArtifactPreviewFrame({
+  files,
+  title,
+  className,
+  style,
+  interactive = true,
+}: Props) {
   const { previewSrc, fallbackSrcDoc, isPending } = useArtifactPreviewUrl(files);
   const [urlPreviewFailed, setUrlPreviewFailed] = useState(false);
+  const frameStyle: CSSProperties | undefined = interactive
+    ? style
+    : { ...style, pointerEvents: 'none' };
 
   useEffect(() => {
     setUrlPreviewFailed(false);
@@ -41,7 +51,7 @@ export default function ArtifactPreviewFrame({ files, title, className, style }:
         sandbox="allow-scripts allow-same-origin"
         title={title}
         className={className}
-        style={style}
+        style={frameStyle}
         onLoad={(event) => {
           const doc = event.currentTarget.contentDocument;
           const text = doc?.body?.textContent?.trim();
@@ -60,7 +70,7 @@ export default function ArtifactPreviewFrame({ files, title, className, style }:
         sandbox="allow-scripts"
         title={title}
         className={className}
-        style={style}
+        style={frameStyle}
       />
     );
   }
