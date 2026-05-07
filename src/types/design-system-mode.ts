@@ -1,5 +1,5 @@
-export const DEFAULT_DESIGN_SYSTEM_SOURCE_MODE = 'wireframe' as const;
-export const DESIGN_SYSTEM_SOURCE_MODES = ['wireframe', 'custom', 'none'] as const;
+export const DEFAULT_DESIGN_SYSTEM_SOURCE_MODE = 'none' as const;
+export const DESIGN_SYSTEM_SOURCE_MODES = ['none', 'wireframe', 'custom'] as const;
 export type DesignSystemSourceMode = (typeof DESIGN_SYSTEM_SOURCE_MODES)[number];
 
 export function isDesignSystemSourceMode(value: unknown): value is DesignSystemSourceMode {

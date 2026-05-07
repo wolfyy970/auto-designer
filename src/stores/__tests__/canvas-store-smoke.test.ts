@@ -96,7 +96,7 @@ describe('canvas-store smoke', () => {
     const incubator = nodes.find((node) => node.type === NODE_TYPES.INCUBATOR);
 
     expect(designSystem).toBeDefined();
-    expect(designSystem?.data.sourceMode).toBe('wireframe');
+    expect(designSystem?.data.sourceMode).toBe('none');
     expect(nodes.some((node) => node.type === 'inputGhost' && node.data.targetType === NODE_TYPES.DESIGN_SYSTEM)).toBe(false);
     expect(edges.some((edge) => edge.source === model?.id && edge.target === designSystem?.id)).toBe(false);
     expect(edges.some((edge) => edge.source === designSystem?.id && edge.target === incubator?.id)).toBe(false);
@@ -106,7 +106,7 @@ describe('canvas-store smoke', () => {
     });
   });
 
-  it('adds the required Design System node when initializing an older canvas without one', () => {
+  it('adds the standard Design System node when initializing an older canvas without one', () => {
     useCanvasStore.setState({
       nodes: [
         { id: 'brief-1', type: NODE_TYPES.DESIGN_BRIEF, position: { x: 0, y: 0 }, data: {} },
@@ -119,7 +119,7 @@ describe('canvas-store smoke', () => {
 
     const { nodes, edges } = useCanvasStore.getState();
     const designSystem = nodes.find((node) => node.type === NODE_TYPES.DESIGN_SYSTEM);
-    expect(designSystem?.data.sourceMode).toBe('wireframe');
+    expect(designSystem?.data.sourceMode).toBe('none');
     expect(nodes.some((node) => node.type === 'inputGhost' && node.data.targetType === NODE_TYPES.DESIGN_SYSTEM)).toBe(false);
     expect(edges.some((edge) => edge.source === designSystem?.id && edge.target === 'inc-1')).toBe(false);
   });

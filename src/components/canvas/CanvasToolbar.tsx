@@ -18,8 +18,10 @@ export default function CanvasToolbar() {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   const showMiniMap = useCanvasStore((s) => s.showMiniMap);
   const colGap = useCanvasStore((s) => s.colGap);
+  const canvasZoom = useCanvasStore((s) => s.viewport.zoom);
   const toggleMiniMap = useCanvasStore((s) => s.toggleMiniMap);
   const setColGap = useCanvasStore((s) => s.setColGap);
+  const canvasZoomLabel = `${Math.round(canvasZoom * 100)}%`;
 
   const [showLayoutPanel, setShowLayoutPanel] = useState(false);
   const layoutRef = useRef<HTMLDivElement>(null);
@@ -50,17 +52,24 @@ export default function CanvasToolbar() {
         </span>
         <ToolButton
           icon={<ZoomIn size={16} />}
-          label="Zoom in"
+          label="Canvas zoom in"
           onClick={() => zoomIn({ duration: 200 })}
         />
         <ToolButton
           icon={<ZoomOut size={16} />}
-          label="Zoom out"
+          label="Canvas zoom out"
           onClick={() => zoomOut({ duration: 200 })}
         />
+        <div
+          className="w-8 select-none text-center text-[10px] font-semibold tabular-nums text-fg-muted"
+          title="Canvas zoom level (not browser zoom)"
+          aria-label={`Canvas zoom level ${canvasZoomLabel}`}
+        >
+          {canvasZoomLabel}
+        </div>
         <ToolButton
           icon={<Maximize2 size={16} />}
-          label="Fit view"
+          label="Fit canvas view"
           onClick={() => fitViewWithDefaults(fitView)}
         />
         <ToolButton

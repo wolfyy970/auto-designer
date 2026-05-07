@@ -135,6 +135,24 @@ describe('compileVariantPrompts', () => {
     expect(result.images).toEqual([]);
   });
 
+  it('uses an explicit empty design-system override instead of falling back to the legacy spec section', () => {
+    const spec = makeSpec({
+      sections: {
+        'design-brief': makeSection('design-brief'),
+        'research-context': makeSection('research-context'),
+        'objectives-metrics': makeSection('objectives-metrics'),
+        'design-constraints': makeSection('design-constraints'),
+        'design-system': makeSection('design-system', 'Legacy monochrome wireframe tokens'),
+      },
+    });
+    const plan = makeIncubationPlan([makeStrategy()]);
+
+    const [result] = compileVariantPrompts(spec, plan, VARIANT_TEMPLATE, '');
+
+    expect(result.prompt).toContain('<design_system>\n\n</design_system>');
+    expect(result.prompt).not.toContain('Legacy monochrome wireframe tokens');
+  });
+
   it('returns empty array when there are no hypotheses', () => {
     const spec = makeSpec();
     const plan = makeIncubationPlan([]);

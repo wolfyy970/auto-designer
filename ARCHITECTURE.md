@@ -361,7 +361,7 @@ When a result has files (agentic output), the preview UI (`VariantNode` / canvas
 
 ### Preview run workspace (`VariantRunInspector`)
 
-`runInspectorPreviewNodeId` in `canvas-store` selects which preview's workspace to show. `CanvasWorkspace` mounts `VariantRunInspector` as a non-modal **overlay** on the canvas column (not a layout sibling) with no dimmer, scrim, or click-capturing layer. **`src/lib/canvas-fit-view.ts`** owns shared camera commands: starter-canvas framing, single-node focus, subset fit, full fit, and inspector-dock padding. The starter command uses the actual React Flow pane size to keep the Design Brief + Design System readable while leaving the Incubator visible; hypothesis **Design** syncs use subset fit for the **hypothesis + its preview node(s)** instead of the whole graph.
+`runInspectorPreviewNodeId` in `canvas-store` selects which preview's workspace to show. `CanvasWorkspace` mounts `VariantRunInspector` as a non-modal **overlay** on the canvas column (not a layout sibling) with no dimmer, scrim, or click-capturing layer; canvas zoom shortcuts and wheel gestures stay scoped to the canvas, so the inspector cannot accidentally zoom the graph. **`src/lib/canvas-fit-view.ts`** owns shared camera commands: starter-canvas framing, single-node focus, subset fit, full fit, and inspector-dock padding. The starter command uses the actual React Flow pane size to keep the Design Brief + Design System readable while leaving the Incubator visible; hypothesis **Design** syncs use subset fit for the **hypothesis + its preview node(s)** instead of the whole graph.
 
 ### Auto-Connection Logic (`src/lib/canvas-connections.ts`)
 
@@ -540,7 +540,7 @@ Single source of truth for string literals shared across the codebase. Eliminate
 - Set `PREVIEW_PUBLIC_URL` when server-side browser evaluation must call a public deployment URL
 - `pnpm build` produces the SPA; Vercel bundles the serverless function automatically
 - Synchronous `/api/generate`, `/api/hypothesis/generate`, and task streams are the V1 production path. The browser tab/request must stay open; connection loss cannot resume an in-flight run.
-- Default **preview sessions** and logs are per-instance. On multi-instance / cold-start serverless, a preview URL can 404 and the UI falls back where possible.
+- Default **preview sessions** and logs are per-instance. On multi-instance / cold-start serverless, a preview URL can 404; preview frames keep a bundled `srcDoc` fallback for rendered designs.
 
 **Portable deployment:**
 

@@ -140,25 +140,37 @@ export default function VariantToolbar({
       {hasCode && (
         <div className="nodrag flex items-center text-fg-faint">
           <button
-            onClick={zoomOut}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              zoomOut();
+            }}
             disabled={zoom <= ZOOM_MIN + 0.01}
             className="rounded p-px transition-colors hover:text-fg-muted disabled:opacity-30"
-            title="Zoom out"
+            title="Design preview zoom out"
           >
             <Minus size={8} />
           </button>
           <span
-            onClick={resetZoom}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              resetZoom();
+            }}
             className="cursor-pointer px-px text-badge tabular-nums transition-colors hover:text-fg-muted"
-            title="Reset to auto-fit"
+            title="Design preview zoom level: reset to auto-fit"
           >
             {Math.round(zoom * 100)}%
           </span>
           <button
-            onClick={zoomIn}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              zoomIn();
+            }}
             disabled={zoom >= ZOOM_MAX - 0.01}
             className="rounded p-px transition-colors hover:text-fg-muted disabled:opacity-30"
-            title="Zoom in"
+            title="Design preview zoom in"
           >
             <Plus size={8} />
           </button>

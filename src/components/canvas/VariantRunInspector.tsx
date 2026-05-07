@@ -47,7 +47,11 @@ function RunStatusDot({ status }: { status: string }) {
   return <StatusDot {...statusDotProps(status)} aria-hidden />;
 }
 
-export default function VariantRunInspector() {
+interface VariantRunInspectorProps {
+  onPointerEnter?: () => void;
+}
+
+export default function VariantRunInspector({ onPointerEnter }: VariantRunInspectorProps) {
   const runInspectorPreviewNodeId = useCanvasStore((s) => s.runInspectorPreviewNodeId);
   const closeRunInspector = useCanvasStore((s) => s.closeRunInspector);
   const nodes = useCanvasStore((s) => s.nodes);
@@ -247,6 +251,8 @@ export default function VariantRunInspector() {
     <aside
       className="absolute inset-y-0 right-0 z-[41] flex h-full min-h-0 w-[var(--width-variant-inspector)] flex-col border-l border-border-subtle bg-surface shadow-lg"
       aria-label="Preview run panel"
+      onPointerEnter={onPointerEnter}
+      onWheelCapture={(e) => e.stopPropagation()}
     >
       {/* ── Identity header ──────────────────────────────────── */}
       <div className="shrink-0 border-b border-border-subtle px-3 py-1.5">

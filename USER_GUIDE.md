@@ -116,7 +116,7 @@ Open **Settings → Reasoning** to choose, per task, the **provider + model** an
 
 Connect spec input nodes to the **Incubator** (structural edges auto-connect on add and stay protected). With at least a minimal **Design Brief** written, click **Generate** and choose how many new hypotheses to create. The Incubator uses **Settings → Reasoning → Incubator** for the model + thinking level. It sends active sources — filled spec inputs and connected preview references — to the LLM and produces that many hypothesis strategy cards. **blank hypothesis** does the same readiness check (brief + model) but adds a single empty strategy card without calling the LLM, for hand-editing.
 
-The Design System is intentionally outside hypothesis incubation. It applies later when a hypothesis is designed, so hypothesis quality is judged against the problem framing before visual-system execution.
+The Design System is intentionally outside hypothesis incubation. Non-default design-system guidance applies later when a hypothesis is designed, so hypothesis quality is judged against the problem framing before visual-system execution.
 
 ### 4. Edit Hypotheses
 
@@ -130,11 +130,12 @@ Edit these before generation. Remove strategies not worth exploring.
 
 ### 5. Design System
 
-The **Design System** node is a required visual-system input for design execution. It starts in **Wireframe** mode, using Designer's built-in low-fidelity `DESIGN.md` source so early runs stay draft-like. It connects to hypotheses when that source should guide the generated design; it does not connect to the Incubator.
+The **Design System** node is an optional visual-system input for design execution. It starts in **Default** mode, which excludes design-system guidance and lets the model choose an appropriate visual direction from the hypothesis and spec. It connects to hypotheses when a visual-system source should guide the generated design; it does not connect to the Incubator.
 
+- Keep **Default** to use no explicit design-system guidance
+- Switch to **Wireframe** to use Designer's built-in low-fidelity `DESIGN.md` source
 - Switch to **Custom** to type or paste DESIGN.md, tokens, style-guide prose, or brand notes
 - Drag-and-drop design-system screenshots, reference images, or DESIGN.md files when custom source material matters
-- Switch to **None** to keep the node on the canvas but exclude design-system guidance
 
 ### 6. Generate Designs
 
@@ -148,7 +149,7 @@ Running generation again adds new versions — use the version navigation arrows
 
 **While a run is in flight:** Use **Stop** on the **hypothesis** card to abort the in-flight request for that strategy lane (same as ending the SSE stream).
 
-**Progress and workspace:** Starting **Design** does **not** auto-open the run workspace—the preview card shows progress first. Use **Watch agent** or the **panel** icon on the preview toolbar to open the **run workspace** (an overlay on the right); you can still **pan and zoom** the canvas while it is open. The preview card footer summarizes live status with a **three-state chip** that shows what the model is doing right now: 🧠 Brain for extended reasoning, 💬 for narrating (visible text between tool calls), and 🔧 Wrench for an active tool call; the token count keeps ticking through every phase. When a thinking turn ends, a transient **`🧠 Xs`** badge briefly shows how long it reasoned. **Skills in use** and the full **Monitor** timeline—including tool traces—live in the workspace. The timeline’s **Tool use** block shows the active tool in the header when collapsed; when expanded, each streaming tool row uses the same pulse + `Nk tok` pattern as the chip.
+**Progress and workspace:** Starting **Design** does **not** auto-open the run workspace—the preview card shows progress first. Use **Watch agent** or the **panel** icon on the preview toolbar to open the **run workspace** (an overlay on the right); canvas zoom shortcuts and gestures apply only while the pointer is over the canvas, not while it is over the workspace. The preview card footer summarizes live status with a **three-state chip** that shows what the model is doing right now: 🧠 Brain for extended reasoning, 💬 for narrating (visible text between tool calls), and 🔧 Wrench for an active tool call; the token count keeps ticking through every phase. When a thinking turn ends, a transient **`🧠 Xs`** badge briefly shows how long it reasoned. **Skills in use** and the full **Monitor** timeline—including tool traces—live in the workspace. The timeline’s **Tool use** block shows the active tool in the header when collapsed; when expanded, each streaming tool row uses the same pulse + `Nk tok` pattern as the chip.
 
 **Removing nodes from the canvas:** Use **Backspace** or **Delete** with one or more nodes selected. A short confirmation appears for nodes that can be removed (input cards and structural nodes like the incubator stay protected). Removing a hypothesis also drops its preview nodes. Optional selected connections, such as preview-reference edges, delete with the same keys and no extra dialog; structural source-to-Incubator edges stay protected. The shared spec document is separate; text in section cards may still exist there until you edit it elsewhere.
 
@@ -183,7 +184,7 @@ To iterate on results:
 
 ### Layout
 
-Auto-layout is implicit canvas behavior. The graph repositions after structural changes such as adding/removing nodes, connecting nodes, incubation, generation, and measured node-size changes. The left canvas toolbar controls zoom, fit view, minimap visibility, and **Column spacing**; there is no persisted Auto layout toggle.
+Auto-layout is implicit canvas behavior. The graph repositions after structural changes such as adding/removing nodes, connecting nodes, incubation, generation, and measured node-size changes. The left canvas toolbar controls canvas zoom, fit view, minimap visibility, and **Column spacing**; there is no persisted Auto layout toggle.
 
 ## Managing Canvases
 

@@ -68,8 +68,16 @@ describe('DESIGN.md helpers', () => {
     })).toBe(true);
   });
 
-  it('uses the built-in wireframe source by default', () => {
+  it('uses no design-system source by default', () => {
     const source = designSystemSourceFromNodeData({});
+    expect(source.mode).toBe('none');
+    expect(source.title).toBe('Design System');
+    expect(designMdSourceHasInput(source)).toBe(false);
+    expect(source.markdownSources).toEqual([]);
+  });
+
+  it('uses the built-in wireframe source when explicitly selected', () => {
+    const source = designSystemSourceFromNodeData({ sourceMode: 'wireframe' });
     expect(source.mode).toBe('wireframe');
     expect(source.title).toBe('Wireframe');
     expect(designMdSourceHasInput(source)).toBe(true);
@@ -154,7 +162,12 @@ describe('DESIGN.md helpers', () => {
   });
 
   it('derives the design-system state matrix for wireframe, custom, and none', () => {
-    const wireframe = getDesignSystemEffectiveState({});
+    const defaultNone = getDesignSystemEffectiveState({});
+    expect(defaultNone.mode).toBe('none');
+    expect(defaultNone.hasEffectiveSourceInput).toBe(false);
+    expect(defaultNone.inactiveReason).toBe('none');
+
+    const wireframe = getDesignSystemEffectiveState({ sourceMode: 'wireframe' });
     expect(wireframe.mode).toBe('wireframe');
     expect(wireframe.hasEffectiveSourceInput).toBe(true);
     expect(wireframe.designMdStatus).toBe('ready');
@@ -217,9 +230,10 @@ describe('DESIGN.md helpers', () => {
 
   it('derives DESIGN.md UI state from effective source and document state', () => {
     expect(getDesignSystemDocumentUiState({})).toMatchObject({
-      status: 'ready',
-      tone: 'success',
-      canView: true,
+      status: 'none',
+      statusLabel: 'none',
+      tone: 'neutral',
+      canView: false,
       canGenerate: false,
     });
 

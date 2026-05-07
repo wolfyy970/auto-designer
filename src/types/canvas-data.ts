@@ -53,7 +53,7 @@ export type PreviewNodeData = NodeData<{
 
 export type DesignSystemNodeData = NodeData<{
   title?: string;
-  /** `off` is accepted only for saved canvases from the short-lived pre-None mode. */
+  /** `off` is accepted only for saved canvases from the short-lived pre-Default mode. */
   sourceMode?: DesignSystemSourceMode | 'off';
   content?: string;
   images?: ReferenceImage[];

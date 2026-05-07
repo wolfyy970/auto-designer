@@ -24,7 +24,12 @@ import {
   DEFAULT_FIT_VIEW_OPTIONS,
   fitViewOptionsWithInspectorDock,
   NODE_FOCUS_MIN_ZOOM,
+  fitViewWithDefaults,
 } from '../../lib/canvas-fit-view';
+import {
+  canvasKeyboardZoomCommand,
+  isEditableZoomShortcutTarget,
+} from '../../lib/canvas-keyboard-zoom';
 import type { WorkspaceNode } from '../../types/workspace-graph';
 import { toReactFlowEdges, toReactFlowNodes } from '../../workspace/reactflow-adapter';
 import { nodeTypes } from './nodes/node-types';
@@ -46,8 +51,9 @@ import { useTheme } from '@ds/lib/use-theme';
 function CanvasInner() {
   useCanvasOrchestrator();
   const theme = useTheme();
-  const { setCenter, getNodes, getEdges, getViewport, fitView } = useReactFlow();
+  const { setCenter, getNodes, getEdges, getViewport, fitView, zoomIn, zoomOut } = useReactFlow();
   const rfStore = useStoreApi();
+  const isPointerOverCanvasRef = useRef(false);
   useNodeDeletion({ getNodes, getEdges });
   useSyncEvaluatorDefaultsFromConfig();
 
@@ -181,6 +187,27 @@ function CanvasInner() {
     [setViewport]
   );
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!isPointerOverCanvasRef.current) return;
+      if (isEditableZoomShortcutTarget(event.target)) return;
+      const command = canvasKeyboardZoomCommand(event);
+      if (!command) return;
+
+      event.preventDefault();
+      if (command === 'zoom-in') {
+        void zoomIn({ duration: 120 });
+      } else if (command === 'zoom-out') {
+        void zoomOut({ duration: 120 });
+      } else {
+        fitViewWithDefaults(fitView);
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [fitView, zoomIn, zoomOut]);
+
   const handleSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
       computeLineage(selected.length === 1 ? selected[0].id : null);
@@ -248,54 +275,68 @@ function CanvasInner() {
       <OpenRouterBudgetBanner />
       <div className="flex min-h-0 min-w-0 flex-1">
         <div className="relative min-h-0 min-w-0 flex-1">
-          <ReactFlow
+          <div
             className="h-full w-full"
-            colorMode={theme}
-            nodes={rfNodes}
-            edges={rfEdges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={handleConnect}
-            onConnectStart={handleConnectStart}
-            onConnectEnd={handleConnectEnd}
-            isValidConnection={isValidConnection}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            defaultViewport={viewport}
-            onViewportChange={handleViewportChange}
-            onNodeClick={handleNodeClick}
-            onSelectionChange={handleSelectionChange}
-            nodesDraggable={false}
-            snapToGrid={true}
-            snapGrid={[GRID_SIZE, GRID_SIZE]}
-            fitViewOptions={{ padding: 0.15 }}
-            connectionRadius={40}
-            minZoom={0.15}
-            maxZoom={2}
-            proOptions={{ hideAttribution: true }}
-            deleteKeyCode={null}
+            onPointerEnter={() => {
+              isPointerOverCanvasRef.current = true;
+            }}
+            onPointerLeave={() => {
+              isPointerOverCanvasRef.current = false;
+            }}
           >
-            <Background
-              variant={BackgroundVariant.Dots}
-              gap={GRID_SIZE}
-              size={1.5}
-              offset={0.75}
-              color="var(--color-border)"
-              bgColor="var(--color-surface)"
-            />
-            {showMiniMap && (
-              <MiniMap
-                nodeColor={miniMapNodeColor}
-                maskColor="var(--color-overlay)"
-                className="!bottom-4 !right-4 !border-border !shadow-sm"
-                style={{ width: 133, height: 100 }}
+            <ReactFlow
+              className="h-full w-full"
+              colorMode={theme}
+              nodes={rfNodes}
+              edges={rfEdges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={handleConnect}
+              onConnectStart={handleConnectStart}
+              onConnectEnd={handleConnectEnd}
+              isValidConnection={isValidConnection}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              defaultViewport={viewport}
+              onViewportChange={handleViewportChange}
+              onNodeClick={handleNodeClick}
+              onSelectionChange={handleSelectionChange}
+              nodesDraggable={false}
+              snapToGrid={true}
+              snapGrid={[GRID_SIZE, GRID_SIZE]}
+              fitViewOptions={{ padding: 0.15 }}
+              connectionRadius={40}
+              minZoom={0.15}
+              maxZoom={2}
+              proOptions={{ hideAttribution: true }}
+              deleteKeyCode={null}
+            >
+              <Background
+                variant={BackgroundVariant.Dots}
+                gap={GRID_SIZE}
+                size={1.5}
+                offset={0.75}
+                color="var(--color-border)"
+                bgColor="var(--color-surface)"
               />
-            )}
-            <CanvasToolbar />
-            <OptionalInputsTip />
-          </ReactFlow>
+              {showMiniMap && (
+                <MiniMap
+                  nodeColor={miniMapNodeColor}
+                  maskColor="var(--color-overlay)"
+                  className="!bottom-4 !right-4 !border-border !shadow-sm"
+                  style={{ width: 133, height: 100 }}
+                />
+              )}
+              <CanvasToolbar />
+              <OptionalInputsTip />
+            </ReactFlow>
+          </div>
           <VariantPreviewOverlay />
-          <VariantRunInspector />
+          <VariantRunInspector
+            onPointerEnter={() => {
+              isPointerOverCanvasRef.current = false;
+            }}
+          />
         </div>
       </div>
     </div>

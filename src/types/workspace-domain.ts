@@ -58,7 +58,7 @@ export interface DomainDesignSystemContent {
   readonly nodeId: string;
   title: string;
   content: string;
-  /** `off` is accepted only for saved canvases from the short-lived pre-None mode. */
+  /** `off` is accepted only for saved canvases from the short-lived pre-Default mode. */
   sourceMode?: DesignSystemSourceMode | 'off';
   images: ReferenceImage[];
   markdownSources?: DesignSystemMarkdownSource[];

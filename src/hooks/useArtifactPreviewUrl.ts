@@ -32,7 +32,16 @@ export function useArtifactPreviewUrl(
     }
 
     let cancelled = false;
-    setState((s) => ({ ...s, isPending: true }));
+    let bundledFallback: string | null = null;
+    try {
+      bundledFallback = bundleVirtualFS(files);
+    } catch (bundleErr) {
+      console.warn(
+        '[preview] bundleVirtualFS fallback failed:',
+        normalizeError(bundleErr),
+      );
+    }
+    setState({ previewSrc: null, fallbackSrcDoc: bundledFallback, isPending: true });
 
     const timer = window.setTimeout(() => {
       void (async () => {
@@ -58,7 +67,7 @@ export function useArtifactPreviewUrl(
           const pathEnc = encodeVirtualPathForUrl(body.entry);
           setState({
             previewSrc: `/api/preview/sessions/${body.id}/${pathEnc}`,
-            fallbackSrcDoc: null,
+            fallbackSrcDoc: bundledFallback,
             isPending: false,
           });
         } catch (registerErr) {
@@ -66,23 +75,8 @@ export function useArtifactPreviewUrl(
             '[preview] session registration failed, using srcDoc fallback:',
             normalizeError(registerErr),
           );
-          try {
-            const bundled = bundleVirtualFS(files);
-            if (!cancelled) {
-              setState({
-                previewSrc: null,
-                fallbackSrcDoc: bundled,
-                isPending: false,
-              });
-            }
-          } catch (bundleErr) {
-            console.warn(
-              '[preview] bundleVirtualFS fallback failed:',
-              normalizeError(bundleErr),
-            );
-            if (!cancelled) {
-              setState({ previewSrc: null, fallbackSrcDoc: null, isPending: false });
-            }
+          if (!cancelled) {
+            setState({ previewSrc: null, fallbackSrcDoc: bundledFallback, isPending: false });
           }
         }
       })();

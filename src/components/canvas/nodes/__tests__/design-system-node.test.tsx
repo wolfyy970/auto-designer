@@ -62,10 +62,11 @@ describe('DesignSystemNode', () => {
     expect(screen.getByText('Add custom notes, images, or DESIGN.md.')).toBeTruthy();
   });
 
-  it('defaults to the built-in Wireframe source and has no delete affordance', () => {
+  it('defaults to Default source mode and has no delete affordance', () => {
     render(<DesignSystemNode {...props()} />);
+    expect(screen.getAllByText('Default').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Wireframe').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Using built-in Wireframe DESIGN\.md/)).toBeTruthy();
+    expect(screen.getByText(/Using default model behavior/)).toBeTruthy();
     expect(screen.queryByPlaceholderText(/Paste tokens, component guidance, patterns/)).toBeNull();
     expect(screen.queryByText('Drop images or DESIGN.md')).toBeNull();
     expect(screen.queryByTitle('Delete from canvas')).toBeNull();

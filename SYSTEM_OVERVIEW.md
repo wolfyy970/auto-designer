@@ -6,10 +6,10 @@ This document is the **narrative** companion to [ARCHITECTURE.md](ARCHITECTURE.m
 
 ## What the user does on the canvas
 
-1. **Source inputs (left column)** — Four spec facets hold structured text (Design Brief, Research Context, Objectives & Metrics, Design Constraints), and the required Design System node holds either the built-in Wireframe source, custom visual-system text/Markdown/images, or an explicit None state. Spec-facet content is mirrored into the **spec store**; Design System content stays on the node.
+1. **Source inputs (left column)** — Four spec facets hold structured text (Design Brief, Research Context, Objectives & Metrics, Design Constraints), and the Design System node holds the Default no-guidance mode, the built-in Wireframe source, or custom visual-system text/Markdown/images. Spec-facet content is mirrored into the **spec store**; Design System content stays on the node.
 2. **Incubator** — Connects **spec input nodes** and optional **preview → incubator** reference designs. It turns the connected context into an **incubation plan**: differentiated hypothesis strategies.
 3. **Hypothesis nodes** — Each card is one strategy. **Design** runs the agentic generation loop. Domain state owns workflow relations, and the graph is a projection kept in sync by app commands.
-4. **Design system node** — Required source input for design execution. It controls whether generated work receives the built-in Wireframe design system, custom source material, or no design-system guidance.
+4. **Design system node** — Optional source input for design execution. It controls whether generated work receives no explicit design-system guidance, the built-in Wireframe design system, or custom source material.
 5. **Preview nodes** — Show iframe previews (URL-backed virtual FS for agentic multi-file), zip downloads, and evaluation summaries. Versions stack per strategy; previews can feed the Incubator as prior-output reference designs.
 
 Generation runs as a browser-held stream in the hosted v1 path; durable background jobs remain a future boundary.

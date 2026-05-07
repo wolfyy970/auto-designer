@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useArtifactPreviewUrl } from '../../../hooks/useArtifactPreviewUrl';
 
@@ -14,6 +14,11 @@ type Props = {
  */
 export default function ArtifactPreviewFrame({ files, title, className, style }: Props) {
   const { previewSrc, fallbackSrcDoc, isPending } = useArtifactPreviewUrl(files);
+  const [urlPreviewFailed, setUrlPreviewFailed] = useState(false);
+
+  useEffect(() => {
+    setUrlPreviewFailed(false);
+  }, [previewSrc]);
 
   if (isPending && !fallbackSrcDoc) {
     return (
@@ -26,7 +31,7 @@ export default function ArtifactPreviewFrame({ files, title, className, style }:
     );
   }
 
-  if (previewSrc) {
+  if (previewSrc && !urlPreviewFailed) {
     return (
       <iframe
         src={previewSrc}
@@ -37,6 +42,13 @@ export default function ArtifactPreviewFrame({ files, title, className, style }:
         title={title}
         className={className}
         style={style}
+        onLoad={(event) => {
+          const doc = event.currentTarget.contentDocument;
+          const text = doc?.body?.textContent?.trim();
+          if (text === 'Not found' && fallbackSrcDoc) {
+            setUrlPreviewFailed(true);
+          }
+        }}
       />
     );
   }

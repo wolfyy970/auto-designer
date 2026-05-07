@@ -12,11 +12,16 @@ import type {
   DomainHypothesis,
   ThinkingLevel,
 } from '../types/workspace-domain';
+import type { DesignSystemSourceMode } from '../types/design-system-mode';
+import {
+  DEFAULT_DESIGN_SYSTEM_SOURCE_MODE,
+  isDesignSystemSourceMode,
+} from '../types/design-system-mode';
 import { NODE_TYPES } from '../constants/canvas';
 import type { WorkspaceSnapshotWire } from '../lib/workspace-snapshot-schema';
 import type { WorkspaceEdge, WorkspaceNode } from '../types/workspace-graph';
 import type { WorkspaceGraphSnapshot } from './graph-queries.ts';
-import { formatDesignSystemSourceMarkdown } from '../lib/design-md-core';
+import { formatDesignSystemSourceMarkdown, type DesignMdSource } from '../lib/design-md-core';
 
 export type { WorkspaceGraphSnapshot };
 
@@ -55,11 +60,67 @@ function collectDesignSystemFromDomain(
   for (const dsId of hypothesis.designSystemNodeIds) {
     const ds = designSystems[dsId];
     if (!ds) continue;
-    const c = ds.designMdDocument?.content || formatDesignSystemSourceMarkdown(ds) || '';
+    const source = domainDesignSystemSource(ds);
+    if (source.mode === 'none') continue;
+    const c = ds.designMdDocument?.content || formatDesignSystemSourceMarkdown(source) || '';
     const t = ds.title || 'Design System';
     if (c.trim()) parts.push(`## ${t}\n${c}`);
   }
-  return parts.join('\n\n---\n\n') || undefined;
+  return parts.join('\n\n---\n\n');
+}
+
+function getDomainDesignSystemSourceMode(ds: DomainDesignSystemContent): DesignSystemSourceMode {
+  if (ds.sourceMode === 'off') return 'none';
+  if (ds.sourceMode) return ds.sourceMode;
+  return designSystemSourceHasInputLocal(ds) ? 'custom' : DEFAULT_DESIGN_SYSTEM_SOURCE_MODE;
+}
+
+function domainDesignSystemSource(ds: DomainDesignSystemContent): DesignMdSource {
+  const mode = getDomainDesignSystemSourceMode(ds);
+  if (mode === 'none') return emptyDesignSystemSource(ds.title);
+  return {
+    mode,
+    title: ds.title,
+    content: ds.content,
+    images: ds.images,
+    markdownSources: ds.markdownSources,
+  };
+}
+
+function getNodeDesignSystemSourceMode(data: Record<string, unknown>): DesignSystemSourceMode {
+  if (data.sourceMode === 'off') return 'none';
+  if (isDesignSystemSourceMode(data.sourceMode)) return data.sourceMode;
+  return designSystemSourceHasInputLocal(data) ? 'custom' : DEFAULT_DESIGN_SYSTEM_SOURCE_MODE;
+}
+
+function designSystemSourceHasInputLocal(source: {
+  content?: unknown;
+  images?: unknown;
+  markdownSources?: unknown;
+}): boolean {
+  return (
+    (typeof source.content === 'string' && source.content.trim().length > 0) ||
+    (Array.isArray(source.images) && source.images.length > 0) ||
+    (Array.isArray(source.markdownSources) &&
+      source.markdownSources.some(
+        (asset) =>
+          typeof asset === 'object' &&
+          asset !== null &&
+          'content' in asset &&
+          typeof asset.content === 'string' &&
+          asset.content.trim().length > 0,
+      ))
+  );
+}
+
+function emptyDesignSystemSource(title?: string): DesignMdSource {
+  return {
+    mode: 'none',
+    title: title || 'Design System',
+    content: '',
+    images: [],
+    markdownSources: [],
+  };
 }
 
 function collectDesignSystemFromGraph(
@@ -76,13 +137,23 @@ function collectDesignSystemFromGraph(
   const parts = dsNodes
     .map((n) => {
       const data = getDesignSystemNodeData(n);
+      if (!data) return '';
+      const mode = getNodeDesignSystemSourceMode(data);
+      if (mode === 'none') return '';
+      const source = {
+        mode,
+        title: data.title,
+        content: data.content,
+        images: data.images,
+        markdownSources: data.markdownSources,
+      } satisfies DesignMdSource;
       const t = data?.title || 'Design System';
-      const c = data?.designMdDocument?.content || (data ? formatDesignSystemSourceMarkdown(data) : '') || '';
+      const c = data?.designMdDocument?.content || formatDesignSystemSourceMarkdown(source) || '';
       return c.trim() ? `## ${t}\n${c}` : '';
     })
     .filter(Boolean);
 
-  return parts.join('\n\n---\n\n') || undefined;
+  return parts.join('\n\n---\n\n');
 }
 
 export function buildHypothesisGenerationContextFromInputs(input: {

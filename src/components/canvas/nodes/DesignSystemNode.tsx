@@ -148,9 +148,9 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
 
   const status = filledOrEmpty(designSystemState.hasEffectiveSourceInput);
   const sourceModeLabels: Record<DesignSystemSourceMode, string> = {
+    none: 'Default',
     wireframe: 'Wireframe',
     custom: 'Custom',
-    none: 'None',
   };
 
   return (
@@ -199,8 +199,8 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
               : 'Using built-in Wireframe DESIGN.md.'
             : sourceMode === 'none'
               ? designSystemState.hasCustomSourceInput
-                ? 'Design-system guidance is excluded. Custom sources are saved.'
-                : 'Design-system guidance is excluded.'
+                ? 'Using default model behavior. Custom sources are saved.'
+                : 'Using default model behavior.'
               : designSystemState.hasCustomSourceInput
                 ? 'Using custom notes, images, and DESIGN.md.'
                 : 'Add custom notes, images, or DESIGN.md.'}

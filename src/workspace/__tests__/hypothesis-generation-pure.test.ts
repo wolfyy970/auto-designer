@@ -142,4 +142,76 @@ describe('hypothesis-generation-pure', () => {
     expect(ctx!.designSystemContent).toContain('# Prepared DESIGN.md');
     expect(ctx!.designSystemContent).not.toContain('Raw uploaded tokens');
   });
+
+  it('treats Design System Default as an explicit empty context in domain state', () => {
+    const ctx = buildHypothesisGenerationContextFromInputs({
+      hypothesisNodeId: 'hyp1',
+      hypothesisStrategy: strategy,
+      spec: minimalSpec,
+      snapshot: { nodes: [], edges: [] },
+      domainHypothesis: {
+        id: 'hyp1',
+        incubatorId: 'c1',
+        strategyId: 'vs1',
+        designSystemNodeIds: ['ds1'],
+        placeholder: false,
+      },
+      designSystems: {
+        ds1: {
+          nodeId: 'ds1',
+          title: 'T',
+          sourceMode: 'none',
+          content: 'Saved custom notes',
+          images: [],
+          designMdDocument: {
+            content: '# Stale generated DESIGN.md',
+            sourceHash: 'hash',
+            generatedAt: '2026-01-01T00:00:00Z',
+            providerId: 'openrouter',
+            modelId: 'model',
+          },
+        },
+      },
+      settingsCredential: settingsCred,
+    });
+
+    expect(ctx).not.toBeNull();
+    expect(ctx!.designSystemContent).toBe('');
+  });
+
+  it('treats Design System Default as an explicit empty context in graph fallback', () => {
+    const ctx = buildHypothesisGenerationContextFromInputs({
+      hypothesisNodeId: 'hyp1',
+      hypothesisStrategy: strategy,
+      spec: minimalSpec,
+      snapshot: {
+        nodes: [
+          {
+            id: 'ds1',
+            type: 'designSystem',
+            position: { x: 0, y: 0 },
+            data: {
+              sourceMode: 'none',
+              content: 'Saved custom notes',
+              designMdDocument: {
+                content: '# Stale generated DESIGN.md',
+                sourceHash: 'hash',
+                generatedAt: '2026-01-01T00:00:00Z',
+                providerId: 'openrouter',
+                modelId: 'model',
+              },
+            },
+          },
+          { id: 'hyp1', type: 'hypothesis', position: { x: 0, y: 0 }, data: {} },
+        ],
+        edges: [{ source: 'ds1', target: 'hyp1' }],
+      },
+      domainHypothesis: null,
+      designSystems: {},
+      settingsCredential: settingsCred,
+    });
+
+    expect(ctx).not.toBeNull();
+    expect(ctx!.designSystemContent).toBe('');
+  });
 });
