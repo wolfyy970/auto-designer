@@ -3238,7 +3238,7 @@ function lmStudioThinkingFields(thinking) {
   if (!effort) return {};
   return { reasoning_effort: effort };
 }
-const modelProviderRouting = { "minimax/minimax-m2.7": { "order": ["sambanova"], "allow_fallbacks": false } };
+const modelProviderRouting = { "minimax/minimax-m2.7": { "order": ["fireworks"], "allow_fallbacks": false } };
 const rawRoutingConfig = {
   modelProviderRouting
 };
@@ -7465,6 +7465,11 @@ function getDesignSystemNodeData(node) {
   if (!node || node.type !== NODE_TYPES.DESIGN_SYSTEM) return void 0;
   return node.data;
 }
+const DEFAULT_DESIGN_SYSTEM_SOURCE_MODE = "none";
+const DESIGN_SYSTEM_SOURCE_MODES = ["none", "wireframe", "custom"];
+function isDesignSystemSourceMode(value) {
+  return typeof value === "string" && DESIGN_SYSTEM_SOURCE_MODES.includes(value);
+}
 function formatDesignSystemSourceMarkdown(source) {
   const parts = [];
   if (source.content?.trim()) parts.push(source.content.trim());
@@ -7487,12 +7492,49 @@ function collectDesignSystemFromDomain(hypothesis2, designSystems) {
   for (const dsId of hypothesis2.designSystemNodeIds) {
     const ds = designSystems[dsId];
     if (!ds) continue;
-    const c = ds.designMdDocument?.content || formatDesignSystemSourceMarkdown(ds) || "";
+    const source = domainDesignSystemSource(ds);
+    if (source.mode === "none") continue;
+    const c = ds.designMdDocument?.content || formatDesignSystemSourceMarkdown(source) || "";
     const t = ds.title || "Design System";
     if (c.trim()) parts.push(`## ${t}
 ${c}`);
   }
-  return parts.join("\n\n---\n\n") || void 0;
+  return parts.join("\n\n---\n\n");
+}
+function getDomainDesignSystemSourceMode(ds) {
+  if (ds.sourceMode === "off") return "none";
+  if (ds.sourceMode) return ds.sourceMode;
+  return designSystemSourceHasInputLocal(ds) ? "custom" : DEFAULT_DESIGN_SYSTEM_SOURCE_MODE;
+}
+function domainDesignSystemSource(ds) {
+  const mode = getDomainDesignSystemSourceMode(ds);
+  if (mode === "none") return emptyDesignSystemSource(ds.title);
+  return {
+    mode,
+    title: ds.title,
+    content: ds.content,
+    images: ds.images,
+    markdownSources: ds.markdownSources
+  };
+}
+function getNodeDesignSystemSourceMode(data) {
+  if (data.sourceMode === "off") return "none";
+  if (isDesignSystemSourceMode(data.sourceMode)) return data.sourceMode;
+  return designSystemSourceHasInputLocal(data) ? "custom" : DEFAULT_DESIGN_SYSTEM_SOURCE_MODE;
+}
+function designSystemSourceHasInputLocal(source) {
+  return typeof source.content === "string" && source.content.trim().length > 0 || Array.isArray(source.images) && source.images.length > 0 || Array.isArray(source.markdownSources) && source.markdownSources.some(
+    (asset) => typeof asset === "object" && asset !== null && "content" in asset && typeof asset.content === "string" && asset.content.trim().length > 0
+  );
+}
+function emptyDesignSystemSource(title) {
+  return {
+    mode: "none",
+    title: title || "Design System",
+    content: "",
+    images: [],
+    markdownSources: []
+  };
 }
 function collectDesignSystemFromGraph(snapshot, targetNodeId) {
   const incomingEdges = snapshot.edges.filter((e) => e.target === targetNodeId);
@@ -7500,12 +7542,21 @@ function collectDesignSystemFromGraph(snapshot, targetNodeId) {
   if (dsNodes.length === 0) return void 0;
   const parts = dsNodes.map((n) => {
     const data = getDesignSystemNodeData(n);
+    if (!data) return "";
+    const mode = getNodeDesignSystemSourceMode(data);
+    if (mode === "none") return "";
+    const source = {
+      title: data.title,
+      content: data.content,
+      images: data.images,
+      markdownSources: data.markdownSources
+    };
     const t = data?.title || "Design System";
-    const c = data?.designMdDocument?.content || (data ? formatDesignSystemSourceMarkdown(data) : "") || "";
+    const c = data?.designMdDocument?.content || formatDesignSystemSourceMarkdown(source) || "";
     return c.trim() ? `## ${t}
 ${c}` : "";
   }).filter(Boolean);
-  return parts.join("\n\n---\n\n") || void 0;
+  return parts.join("\n\n---\n\n");
 }
 function buildHypothesisGenerationContextFromInputs(input) {
   const { hypothesisNodeId, hypothesisStrategy, spec, snapshot, domainHypothesis } = input;

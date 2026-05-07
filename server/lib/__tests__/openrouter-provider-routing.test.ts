@@ -10,10 +10,10 @@ describe('openRouterProviderRoutingForModel', () => {
     expect(OpenRouterRoutingConfigSchema.safeParse(rawRoutingConfig).success).toBe(true);
   });
 
-  it('pins MiniMax M2.7 to SambaNova with fallbacks disabled', () => {
+  it('pins MiniMax M2.7 to Fireworks with fallbacks disabled', () => {
     expect(openRouterProviderRoutingForModel('minimax/minimax-m2.7')).toEqual({
       provider: {
-        order: ['sambanova'],
+        order: ['fireworks'],
         allow_fallbacks: false,
       },
     });

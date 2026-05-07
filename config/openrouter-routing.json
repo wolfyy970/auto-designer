@@ -1,7 +1,7 @@
 {
   "modelProviderRouting": {
     "minimax/minimax-m2.7": {
-      "order": ["sambanova"],
+      "order": ["fireworks"],
       "allow_fallbacks": false
     }
   }
