@@ -1734,17 +1734,108 @@ function resolveFlag(value) {
 }
 const FEATURE_LOCKDOWN = resolveFlag(FLAGS.lockdown);
 const FEATURE_AUTO_IMPROVE = resolveFlag(FLAGS.autoImprove);
-const perTaskDefaults$1 = { "design": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" }, "incubate": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" }, "inputs": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" }, "design-system": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" }, "evaluator": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" } };
+const perTaskDefaults$1 = { "design": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" }, "incubate": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" }, "inputs": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" }, "design-system": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" }, "evaluator": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" } };
 const rawTaskDefaults = {
   perTaskDefaults: perTaskDefaults$1
 };
-const TaskDefaultsSchema = z.object({
-  perTaskDefaults: z.record(
-    z.string(),
-    z.object({ providerId: z.string().min(1), modelId: z.string().min(1) })
-  )
+const perTaskDefaults = { "design": { "level": "high", "budgetTokens": 2e4 }, "incubate": { "level": "high", "budgetTokens": 2e4 }, "inputs": { "level": "medium", "budgetTokens": 5e3 }, "design-system": { "level": "high", "budgetTokens": 2e4 }, "evaluator": { "level": "low", "budgetTokens": 2048 } };
+const budgetByLevel = { "off": 0, "minimal": 1024, "low": 2048, "medium": 5e3, "high": 2e4, "xhigh": 32768 };
+const budgetBounds = { "minTokens": 1024, "maxTokens": 32768 };
+const rawConfig = {
+  perTaskDefaults,
+  budgetByLevel,
+  budgetBounds
+};
+const REASONING_PATTERNS = [
+  /\bo[1-9]\b/i,
+  /claude-3[-.]5/i,
+  /claude-3[-.]7/i,
+  /claude-4/i,
+  /deepseek-r1/i,
+  /deepseek-reasoner/i,
+  /minimax-m2\.7/i,
+  /\bqwq\b/i,
+  /qwen3/i,
+  /-thinking\b/i
+];
+function supportsReasoningModel(id) {
+  return REASONING_PATTERNS.some((re) => re.test(id));
+}
+const THINKING_LEVELS = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh"
+];
+const THINKING_TASKS = [
+  "design",
+  "incubate",
+  "inputs",
+  "design-system",
+  "evaluator"
+];
+const THINKING_OFF = { level: "off", budgetTokens: 0 };
+const ThinkingLevelSchema = z.enum(THINKING_LEVELS);
+z.enum(THINKING_TASKS);
+const ThinkingConfigSchema = z.object({
+  level: ThinkingLevelSchema,
+  budgetTokens: z.number().int().min(0)
 });
-const TASK_DEFAULTS = TaskDefaultsSchema.parse(rawTaskDefaults).perTaskDefaults;
+const ThinkingOverrideSchema = z.object({
+  level: ThinkingLevelSchema,
+  budgetTokens: z.number().int().min(0)
+}).strict();
+const perTaskDefaultsShape = Object.fromEntries(
+  THINKING_TASKS.map((task) => [task, ThinkingConfigSchema])
+);
+const budgetByLevelShape = Object.fromEntries(
+  THINKING_LEVELS.map((level) => [level, z.number().int().min(0)])
+);
+const ThinkingDefaultsFileSchema = z.object({
+  perTaskDefaults: z.object(perTaskDefaultsShape).strict(),
+  budgetByLevel: z.object(budgetByLevelShape).strict(),
+  budgetBounds: z.object({
+    minTokens: z.number().int().min(1),
+    maxTokens: z.number().int().min(1024)
+  }).strict().refine((b) => b.maxTokens >= b.minTokens, {
+    message: "budgetBounds.maxTokens must be >= budgetBounds.minTokens"
+  })
+}).strict();
+const CONFIG = ThinkingDefaultsFileSchema.parse(rawConfig);
+const THINKING_BUDGET_MIN_TOKENS = CONFIG.budgetBounds.minTokens;
+const THINKING_BUDGET_MAX_TOKENS = CONFIG.budgetBounds.maxTokens;
+const THINKING_BUDGET_BY_LEVEL = CONFIG.budgetByLevel;
+const THINKING_CONFIG_DEFAULTS = CONFIG.perTaskDefaults;
+function clampBudget(n) {
+  if (Number.isNaN(n)) return THINKING_BUDGET_MIN_TOKENS;
+  if (n >= THINKING_BUDGET_MAX_TOKENS) return THINKING_BUDGET_MAX_TOKENS;
+  if (n <= THINKING_BUDGET_MIN_TOKENS) return THINKING_BUDGET_MIN_TOKENS;
+  return Math.round(n);
+}
+function resolveThinkingConfig(task, modelId, override) {
+  if (!modelId || !supportsReasoningModel(modelId)) return THINKING_OFF;
+  const defaults = THINKING_CONFIG_DEFAULTS[task];
+  const level = override?.level ?? defaults.level;
+  if (level === "off") return THINKING_OFF;
+  const rawBudget2 = override?.budgetTokens ?? THINKING_BUDGET_BY_LEVEL[level];
+  return { level, budgetTokens: clampBudget(rawBudget2) };
+}
+const TaskModelDefaultSchema = z.object({
+  providerId: z.string().min(1),
+  modelId: z.string().min(1)
+});
+const TaskDefaultsFileSchema = z.object({
+  perTaskDefaults: z.record(z.string(), TaskModelDefaultSchema)
+}).strict();
+const parsedTaskDefaults = TaskDefaultsFileSchema.parse(rawTaskDefaults);
+for (const task of THINKING_TASKS) {
+  if (!parsedTaskDefaults.perTaskDefaults[task]) {
+    throw new Error(`config/task-defaults.json missing perTaskDefaults.${task}`);
+  }
+}
+const TASK_DEFAULTS = parsedTaskDefaults.perTaskDefaults;
 function getTaskModelDefault(task) {
   return TASK_DEFAULTS[task];
 }
@@ -2396,89 +2487,6 @@ const logStore = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProp
   setLlmCallResponseBody,
   setLlmCallWaitingStatus
 }, Symbol.toStringTag, { value: "Module" }));
-const perTaskDefaults = { "design": { "level": "high", "budgetTokens": 2e4 }, "incubate": { "level": "high", "budgetTokens": 2e4 }, "inputs": { "level": "medium", "budgetTokens": 5e3 }, "design-system": { "level": "high", "budgetTokens": 2e4 }, "evaluator": { "level": "low", "budgetTokens": 2048 } };
-const budgetByLevel = { "off": 0, "minimal": 1024, "low": 2048, "medium": 5e3, "high": 2e4, "xhigh": 32768 };
-const budgetBounds = { "minTokens": 1024, "maxTokens": 32768 };
-const rawConfig = {
-  perTaskDefaults,
-  budgetByLevel,
-  budgetBounds
-};
-const REASONING_PATTERNS = [
-  /\bo[1-9]\b/i,
-  /claude-3[-.]5/i,
-  /claude-3[-.]7/i,
-  /claude-4/i,
-  /deepseek-r1/i,
-  /deepseek-reasoner/i,
-  /\bqwq\b/i,
-  /qwen3/i,
-  /-thinking\b/i
-];
-function supportsReasoningModel(id) {
-  return REASONING_PATTERNS.some((re) => re.test(id));
-}
-const THINKING_LEVELS = [
-  "off",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh"
-];
-const THINKING_TASKS = [
-  "design",
-  "incubate",
-  "inputs",
-  "design-system",
-  "evaluator"
-];
-const THINKING_OFF = { level: "off", budgetTokens: 0 };
-const ThinkingLevelSchema = z.enum(THINKING_LEVELS);
-z.enum(THINKING_TASKS);
-const ThinkingConfigSchema = z.object({
-  level: ThinkingLevelSchema,
-  budgetTokens: z.number().int().min(0)
-});
-const ThinkingOverrideSchema = z.object({
-  level: ThinkingLevelSchema,
-  budgetTokens: z.number().int().min(0)
-}).strict();
-const perTaskDefaultsShape = Object.fromEntries(
-  THINKING_TASKS.map((task) => [task, ThinkingConfigSchema])
-);
-const budgetByLevelShape = Object.fromEntries(
-  THINKING_LEVELS.map((level) => [level, z.number().int().min(0)])
-);
-const ThinkingDefaultsFileSchema = z.object({
-  perTaskDefaults: z.object(perTaskDefaultsShape).strict(),
-  budgetByLevel: z.object(budgetByLevelShape).strict(),
-  budgetBounds: z.object({
-    minTokens: z.number().int().min(1),
-    maxTokens: z.number().int().min(1024)
-  }).strict().refine((b) => b.maxTokens >= b.minTokens, {
-    message: "budgetBounds.maxTokens must be >= budgetBounds.minTokens"
-  })
-}).strict();
-const CONFIG = ThinkingDefaultsFileSchema.parse(rawConfig);
-const THINKING_BUDGET_MIN_TOKENS = CONFIG.budgetBounds.minTokens;
-const THINKING_BUDGET_MAX_TOKENS = CONFIG.budgetBounds.maxTokens;
-const THINKING_BUDGET_BY_LEVEL = CONFIG.budgetByLevel;
-const THINKING_CONFIG_DEFAULTS = CONFIG.perTaskDefaults;
-function clampBudget(n) {
-  if (Number.isNaN(n)) return THINKING_BUDGET_MIN_TOKENS;
-  if (n >= THINKING_BUDGET_MAX_TOKENS) return THINKING_BUDGET_MAX_TOKENS;
-  if (n <= THINKING_BUDGET_MIN_TOKENS) return THINKING_BUDGET_MIN_TOKENS;
-  return Math.round(n);
-}
-function resolveThinkingConfig(task, modelId, override) {
-  if (!modelId || !supportsReasoningModel(modelId)) return THINKING_OFF;
-  const defaults = THINKING_CONFIG_DEFAULTS[task];
-  const level = override?.level ?? defaults.level;
-  if (level === "off") return THINKING_OFF;
-  const rawBudget2 = override?.budgetTokens ?? THINKING_BUDGET_BY_LEVEL[level];
-  return { level, budgetTokens: clampBudget(rawBudget2) };
-}
 function normalizeError(err, fallback) {
   if (err instanceof Error) return err.message;
   return fallback ?? String(err);
@@ -3230,6 +3238,30 @@ function lmStudioThinkingFields(thinking) {
   if (!effort) return {};
   return { reasoning_effort: effort };
 }
+const modelProviderRouting = { "minimax/minimax-m2.7": { "order": ["sambanova"], "allow_fallbacks": false } };
+const rawRoutingConfig = {
+  modelProviderRouting
+};
+const OpenRouterRoutingConfigSchema = z.object({
+  modelProviderRouting: z.record(
+    z.string().min(1),
+    z.object({
+      order: z.array(z.string().min(1)).min(1),
+      allow_fallbacks: z.boolean()
+    }).strict()
+  )
+}).strict();
+const OPENROUTER_ROUTING_CONFIG = OpenRouterRoutingConfigSchema.parse(rawRoutingConfig);
+function openRouterProviderRoutingForModel(modelId) {
+  const routing = OPENROUTER_ROUTING_CONFIG.modelProviderRouting[modelId];
+  if (!routing) return {};
+  return {
+    provider: {
+      order: [...routing.order],
+      allow_fallbacks: routing.allow_fallbacks
+    }
+  };
+}
 function authHeaders() {
   return {
     "Authorization": `Bearer ${env.OPENROUTER_API_KEY}`
@@ -3259,7 +3291,12 @@ class OpenRouterGenerationProvider {
     const purpose = options.completionPurpose ?? "default";
     const maxTok = await completionMaxTokensForChat("openrouter", model, messages, purpose);
     const thinkingExtras = openRouterThinkingFields(options.thinking);
-    const requestBody = buildChatRequestFromMessages(model, messages, thinkingExtras, maxTok);
+    const requestBody = buildChatRequestFromMessages(
+      model,
+      messages,
+      { ...thinkingExtras, ...openRouterProviderRoutingForModel(model) },
+      maxTok
+    );
     const data = await fetchChatCompletion(
       `${env.OPENROUTER_BASE_URL}/api/v1/chat/completions`,
       requestBody,
@@ -3282,7 +3319,7 @@ class OpenRouterGenerationProvider {
     const requestBody = buildChatRequestFromMessages(
       model,
       messages,
-      { stream: true, ...thinkingExtras },
+      { stream: true, ...thinkingExtras, ...openRouterProviderRoutingForModel(model) },
       maxTok
     );
     return streamOpenAICompatibleChat(

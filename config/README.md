@@ -12,7 +12,7 @@ No TypeScript knowledge required. If you type the wrong thing (e.g. a string whe
 |---|---|---|
 | [`feature-flags.json`](feature-flags.json) | On/off switches for major product features | Which features are available in the UI and enforced server-side |
 | [`task-defaults.json`](task-defaults.json) | Provider + model defaults per LLM task | Which provider/model each task uses before user overrides, and lockdown pins |
-| [`provider-defaults.json`](provider-defaults.json) | Legacy provider/model defaults for old Model-node migrations | Backward-compatible defaults for persisted snapshots and helper constants |
+| [`openrouter-routing.json`](openrouter-routing.json) | OpenRouter provider-routing overrides by model | Which OpenRouter provider endpoint selected models must use |
 | [`thinking-defaults.json`](thinking-defaults.json) | Thinking level + budget tokens per LLM task | How hard the model thinks before answering; cost per call |
 | [`rubric-weights.json`](rubric-weights.json) | Per-rubric scoring weights for the evaluator | Weighted overall score in every eval run |
 | [`evaluation-thresholds.json`](evaluation-thresholds.json) | Score thresholds that trigger revision rounds; max revision cap | How aggressively the agentic loop retries a poor result |
@@ -37,20 +37,15 @@ These flags do not control canvas node availability. The retired Existing Design
 
 ---
 
-## `provider-defaults.json`
-
-Two legacy keys retained for old Model-node migrations and helper constants. Current per-task model defaults live in [`task-defaults.json`](task-defaults.json); when `lockdown` is on, every task is pinned through those task defaults.
-
-| Key | Values | Default |
-|---|---|---|
-| `compilerProvider` | `openrouter` \| `lmstudio` | `openrouter` |
-| `modelId` | any OpenRouter model slug (or an LM Studio local id) | `minimax/minimax-m2.5` |
-
-Validated by Zod at boot; unknown providers or an empty `modelId` fail fast.
-
 ## `task-defaults.json`
 
 Provider/model defaults for each LLM task: `design`, `incubate`, `inputs`, `design-system`, and `evaluator`. Settings -> Reasoning can override them when lockdown is off; lockdown uses these task defaults as the server-enforced pins.
+
+Legacy compatibility helpers that need one provider/model pair derive from the `incubate` task default. Do not add a second provider/model defaults file; this file is the canonical source.
+
+## `openrouter-routing.json`
+
+OpenRouter provider-routing overrides keyed by model id. Use this when a specific OpenRouter model must be routed to a specific provider endpoint. Code validates this file in `server/lib/openrouter-provider-routing.ts` and forwards matching entries as the OpenRouter `provider` request object.
 
 ---
 
@@ -61,7 +56,7 @@ Thinking-level and per-call token-budget defaults sent to LLM providers, broken 
 - **`level`** — how hard the model should think. Maps to `reasoning.effort` (OpenRouter), `thinking.budget_tokens` (Anthropic), or `reasoning_effort` (OpenAI).
 - **`budgetTokens`** — max tokens of private reasoning before the final answer. Caps spend per call.
 
-Both apply only when the chosen model **supports reasoning**. The capability gate lives in `src/lib/model-capabilities.ts`; the patterns it matches today are: OpenAI `o1`–`o9`, `claude-3.5` / `claude-3.7` / `claude-4`, `deepseek-r1`, `deepseek-reasoner`, `qwq`, `qwen3`, and any model id ending in `-thinking`. Non-reasoning models (e.g. `minimax/minimax-m2.5`) ignore these — the resolver returns `{ level: 'off', budgetTokens: 0 }` regardless of what's in this file.
+Both apply only when the chosen model **supports reasoning**. The capability gate lives in `src/lib/model-capabilities.ts`; the patterns it matches today are: OpenAI `o1`–`o9`, `claude-3.5` / `claude-3.7` / `claude-4`, `deepseek-r1`, `deepseek-reasoner`, `minimax-m2.7`, `qwq`, `qwen3`, and any model id ending in `-thinking`. Non-reasoning models (e.g. `minimax/minimax-m2.5`) ignore these — the resolver returns `{ level: 'off', budgetTokens: 0 }` regardless of what's in this file.
 
 ### Level ladder (`budgetByLevel`)
 

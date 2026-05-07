@@ -40,7 +40,7 @@ export const SPEC_SECTIONS: SpecSectionMeta[] = [
 ];
 
 // Legacy provider / model defaults for migration and compatibility helpers.
-// Sourced from config/provider-defaults.json (validated at module load).
+// Sourced from the canonical incubate task default in config/task-defaults.json.
 export const DEFAULT_INCUBATOR_PROVIDER = PROVIDER_FROM_CONFIG;
 /** @deprecated Use {@link DEFAULT_INCUBATOR_PROVIDER} */
 export const DEFAULT_COMPILER_PROVIDER = PROVIDER_FROM_CONFIG;

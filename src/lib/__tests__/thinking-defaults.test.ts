@@ -13,8 +13,8 @@ import {
   resolveThinkingConfig,
 } from '../thinking-defaults';
 
-// Matches `/\bo[1-9]\b/i` in src/lib/model-capabilities.ts.
-const REASONING_MODEL = 'openai/o1';
+// Matches the shipped MiniMax lockdown pin in src/lib/model-capabilities.ts.
+const REASONING_MODEL = 'minimax/minimax-m2.7';
 const NON_REASONING_MODEL = 'minimax/minimax-m2.5';
 
 describe('thinking-defaults — constants', () => {
@@ -43,7 +43,7 @@ describe('thinking-defaults — constants', () => {
 });
 
 describe('resolveThinkingConfig — capability gate', () => {
-  it('returns THINKING_OFF when model does not support reasoning (LOCKDOWN pin)', () => {
+  it('returns THINKING_OFF when model does not support reasoning', () => {
     expect(resolveThinkingConfig('design', NON_REASONING_MODEL)).toEqual(THINKING_OFF);
   });
 

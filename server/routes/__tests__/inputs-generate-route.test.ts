@@ -4,9 +4,8 @@ vi.mock('../../services/task-agent-execution.ts', () => ({
   executeTaskAgentStream: vi.fn(async () => ({ result: '  generated text  ', resultFile: 'result.txt', files: {} })),
 }));
 
-// Lockdown clamps the request model to `minimax/minimax-m2.5`, which fails
-// the reasoning-capability gate, masking the per-task thinking-slot wiring.
-// Stub the gate to true so the resolver actually returns the slot's level.
+// Lockdown clamps the request model to the shipped task default. Stub the gate
+// to true so the resolver actually returns the slot's level.
 vi.mock('../../../src/lib/model-capabilities.ts', () => ({
   supportsReasoningModel: () => true,
 }));

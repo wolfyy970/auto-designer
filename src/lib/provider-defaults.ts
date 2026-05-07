@@ -1,26 +1,16 @@
 /**
  * Provider / model defaults — shared by client and server.
- * Values live in config/provider-defaults.json. Only used by legacy migrations
- * and compatibility helpers; current per-task defaults and lockdown pins live in
- * config/task-defaults.json.
- * Validated by Zod at module load; a bad value fails fast with a readable error.
+ * Compatibility exports for legacy migrations and helpers that still ask for a
+ * single default provider/model pair. The canonical source is
+ * config/task-defaults.json; these values intentionally derive from the
+ * incubation task pin so there is no second model-default config to keep in sync.
  */
-import { z } from 'zod';
-import rawDefaults from '../../config/provider-defaults.json';
+import { DEFAULT_LEGACY_MODEL_TASK, getTaskModelDefault } from './task-defaults';
 
-export const ProviderDefaultsFileSchema = z
-  .object({
-    compilerProvider: z.enum(['openrouter', 'lmstudio']),
-    modelId:          z.string().min(1),
-  })
-  .strict();
-
-export type ProviderDefaults = z.infer<typeof ProviderDefaultsFileSchema>;
-
-const DEFAULTS = ProviderDefaultsFileSchema.parse(rawDefaults);
+const DEFAULTS = getTaskModelDefault(DEFAULT_LEGACY_MODEL_TASK);
 
 /** Legacy provider default used by migration and compatibility helpers. */
-export const DEFAULT_COMPILER_PROVIDER = DEFAULTS.compilerProvider;
+export const DEFAULT_COMPILER_PROVIDER = DEFAULTS.providerId;
 
-/** Legacy OpenRouter model slug used by migration and compatibility helpers. */
+/** Legacy model slug used by migration and compatibility helpers. */
 export const DEFAULT_MODEL_ID = DEFAULTS.modelId;

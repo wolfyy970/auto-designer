@@ -16,6 +16,7 @@ import {
 import { streamOpenAICompatibleChat } from '../../lib/openai-chat-stream.ts';
 import { supportsReasoningModel } from '../../../src/lib/model-capabilities.ts';
 import { openRouterThinkingFields } from '../../../src/lib/provider-thinking-params.ts';
+import { openRouterProviderRoutingForModel } from '../../lib/openrouter-provider-routing.ts';
 
 function authHeaders(): Record<string, string> {
   return {
@@ -53,7 +54,12 @@ export class OpenRouterGenerationProvider implements GenerationProvider {
     const purpose = options.completionPurpose ?? 'default';
     const maxTok = await completionMaxTokensForChat('openrouter', model, messages, purpose);
     const thinkingExtras = openRouterThinkingFields(options.thinking);
-    const requestBody = buildChatRequestFromMessages(model, messages, thinkingExtras, maxTok);
+    const requestBody = buildChatRequestFromMessages(
+      model,
+      messages,
+      { ...thinkingExtras, ...openRouterProviderRoutingForModel(model) },
+      maxTok,
+    );
 
     const data = await fetchChatCompletion(
       `${env.OPENROUTER_BASE_URL}/api/v1/chat/completions`,
@@ -82,7 +88,7 @@ export class OpenRouterGenerationProvider implements GenerationProvider {
     const requestBody = buildChatRequestFromMessages(
       model,
       messages,
-      { stream: true, ...thinkingExtras },
+      { stream: true, ...thinkingExtras, ...openRouterProviderRoutingForModel(model) },
       maxTok,
     );
     return streamOpenAICompatibleChat(

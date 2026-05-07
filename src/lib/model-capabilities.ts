@@ -6,6 +6,7 @@
  * - o1/o3/o4 — OpenAI reasoning series
  * - claude-3[-.]5, claude-3[-.]7, claude-4 — Anthropic extended thinking
  * - deepseek-r1, deepseek-reasoner — DeepSeek reasoning models
+ * - minimax-m2.7 — MiniMax reasoning model
  * - qwq — Qwen reasoning model
  * - qwen3 — Qwen 3 series (all reasoning-capable)
  * - -thinking — generic suffix used by some providers
@@ -17,6 +18,7 @@ const REASONING_PATTERNS = [
   /claude-4/i,
   /deepseek-r1/i,
   /deepseek-reasoner/i,
+  /minimax-m2\.7/i,
   /\bqwq\b/i,
   /qwen3/i,
   /-thinking\b/i,

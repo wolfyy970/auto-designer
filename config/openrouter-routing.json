@@ -1,0 +1,8 @@
+{
+  "modelProviderRouting": {
+    "minimax/minimax-m2.7": {
+      "order": ["sambanova"],
+      "allow_fallbacks": false
+    }
+  }
+}

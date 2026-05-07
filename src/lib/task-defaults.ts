@@ -8,23 +8,36 @@
  */
 import { z } from 'zod';
 import rawTaskDefaults from '../../config/task-defaults.json';
-import type { ThinkingTask } from './thinking-defaults';
+import { THINKING_TASKS, type ThinkingTask } from './thinking-defaults';
 
-const TaskDefaultsSchema = z.object({
-  perTaskDefaults: z.record(
-    z.string(),
-    z.object({ providerId: z.string().min(1), modelId: z.string().min(1) }),
-  ),
+export const TaskModelDefaultSchema = z.object({
+  providerId: z.string().min(1),
+  modelId: z.string().min(1),
 });
 
-const TASK_DEFAULTS = TaskDefaultsSchema.parse(rawTaskDefaults).perTaskDefaults as Record<
+export const TaskDefaultsFileSchema = z
+  .object({
+    perTaskDefaults: z.record(z.string(), TaskModelDefaultSchema),
+  })
+  .strict();
+
+const parsedTaskDefaults = TaskDefaultsFileSchema.parse(rawTaskDefaults);
+
+for (const task of THINKING_TASKS) {
+  if (!parsedTaskDefaults.perTaskDefaults[task]) {
+    throw new Error(`config/task-defaults.json missing perTaskDefaults.${task}`);
+  }
+}
+
+const TASK_DEFAULTS = parsedTaskDefaults.perTaskDefaults as Record<
   ThinkingTask,
-  { providerId: string; modelId: string }
+  z.infer<typeof TaskModelDefaultSchema>
 >;
 
-export function getTaskModelDefault(task: ThinkingTask): {
-  providerId: string;
-  modelId: string;
-} {
+export type TaskModelDefault = z.infer<typeof TaskModelDefaultSchema>;
+
+export const DEFAULT_LEGACY_MODEL_TASK: ThinkingTask = 'incubate';
+
+export function getTaskModelDefault(task: ThinkingTask): TaskModelDefault {
   return TASK_DEFAULTS[task];
 }

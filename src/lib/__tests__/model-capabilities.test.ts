@@ -27,6 +27,11 @@ describe('supportsReasoningModel', () => {
     expect(supportsReasoningModel('deepseek/deepseek-r1')).toBe(true);
   });
 
+  it('matches MiniMax M2.7', () => {
+    expect(supportsReasoningModel('minimax/minimax-m2.7')).toBe(true);
+    expect(supportsReasoningModel('MiniMax/MiniMax-M2.7')).toBe(true);
+  });
+
   it('matches QwQ and Qwen3', () => {
     expect(supportsReasoningModel('qwq-32b')).toBe(true);
     expect(supportsReasoningModel('qwen3-235b')).toBe(true);
@@ -45,6 +50,7 @@ describe('supportsReasoningModel', () => {
     expect(supportsReasoningModel('llama-3-8b')).toBe(false);
     expect(supportsReasoningModel('mistral-7b')).toBe(false);
     expect(supportsReasoningModel('gemini-pro')).toBe(false);
+    expect(supportsReasoningModel('minimax/minimax-m2.5')).toBe(false);
     expect(supportsReasoningModel('qwen2-72b')).toBe(false);
     expect(supportsReasoningModel('deepseek-v2')).toBe(false);
   });
