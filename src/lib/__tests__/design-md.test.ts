@@ -165,11 +165,15 @@ describe('DESIGN.md helpers', () => {
     const defaultNone = getDesignSystemEffectiveState({});
     expect(defaultNone.mode).toBe('none');
     expect(defaultNone.hasEffectiveSourceInput).toBe(false);
-    expect(defaultNone.inactiveReason).toBe('none');
+    expect(defaultNone.isReadyForDesignGeneration).toBe(true);
+    expect(defaultNone.generationReadiness).toBe('ready');
+    expect(defaultNone.inactiveReason).toBeUndefined();
 
     const wireframe = getDesignSystemEffectiveState({ sourceMode: 'wireframe' });
     expect(wireframe.mode).toBe('wireframe');
     expect(wireframe.hasEffectiveSourceInput).toBe(true);
+    expect(wireframe.isReadyForDesignGeneration).toBe(true);
+    expect(wireframe.generationReadiness).toBe('ready');
     expect(wireframe.designMdStatus).toBe('ready');
     expect(wireframe.activeDesignMdDocument?.providerId).toBe('built-in');
     expect(wireframe.activeDesignMdDocument?.modelId).toBe('wireframe');
@@ -199,6 +203,8 @@ describe('DESIGN.md helpers', () => {
     });
     expect(customEmpty.mode).toBe('custom');
     expect(customEmpty.hasEffectiveSourceInput).toBe(false);
+    expect(customEmpty.isReadyForDesignGeneration).toBe(false);
+    expect(customEmpty.generationReadiness).toBe('needs-custom-input');
     expect(customEmpty.inactiveReason).toBe('custom-empty');
     expect(customEmpty.designMdStatus).toBeUndefined();
 
@@ -207,6 +213,8 @@ describe('DESIGN.md helpers', () => {
       content: 'Use measured contrast.',
     });
     expect(customWithText.hasEffectiveSourceInput).toBe(true);
+    expect(customWithText.isReadyForDesignGeneration).toBe(true);
+    expect(customWithText.generationReadiness).toBe('ready');
     expect(customWithText.hasCustomSourceInput).toBe(true);
     expect(customWithText.designMdStatus).toBe('missing');
 
@@ -224,7 +232,9 @@ describe('DESIGN.md helpers', () => {
     expect(none.mode).toBe('none');
     expect(none.hasCustomSourceInput).toBe(true);
     expect(none.hasEffectiveSourceInput).toBe(false);
-    expect(none.inactiveReason).toBe('none');
+    expect(none.isReadyForDesignGeneration).toBe(true);
+    expect(none.generationReadiness).toBe('ready');
+    expect(none.inactiveReason).toBeUndefined();
     expect(none.designMdStatus).toBeUndefined();
   });
 

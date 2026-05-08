@@ -48,6 +48,10 @@ function props(data: Record<string, unknown> = {}): NodeProps<{ data: Record<str
   } as NodeProps<{ data: Record<string, unknown>; id: string; type: string }>;
 }
 
+function shellClassName(container: HTMLElement): string {
+  return container.querySelector('.w-node')?.className ?? '';
+}
+
 describe('DesignSystemNode', () => {
   beforeEach(() => {
     latestDropzoneOptions = {};
@@ -63,7 +67,7 @@ describe('DesignSystemNode', () => {
   });
 
   it('defaults to Default source mode and has no delete affordance', () => {
-    render(<DesignSystemNode {...props()} />);
+    const { container } = render(<DesignSystemNode {...props()} />);
     expect(screen.getByRole('button', { name: 'Design system style' }).textContent).toContain('Default');
     fireEvent.click(screen.getByRole('button', { name: 'Design system style' }));
     expect(screen.getByRole('option', { name: /Wireframe/ })).toBeTruthy();
@@ -71,6 +75,26 @@ describe('DesignSystemNode', () => {
     expect(screen.queryByPlaceholderText(/Paste tokens, component guidance, patterns/)).toBeNull();
     expect(screen.queryByText('Drop images or DESIGN.md')).toBeNull();
     expect(screen.queryByTitle('Delete from canvas')).toBeNull();
+    expect(shellClassName(container)).toContain('border-l-success');
+    expect(shellClassName(container)).not.toContain('border-dashed');
+  });
+
+  it('only marks empty custom mode as not ready for generation', () => {
+    const { container, rerender } = render(<DesignSystemNode {...props()} />);
+    expect(shellClassName(container)).toContain('border-l-success');
+    expect(shellClassName(container)).not.toContain('border-dashed');
+
+    rerender(<DesignSystemNode {...props({ sourceMode: 'wireframe' })} />);
+    expect(shellClassName(container)).toContain('border-l-success');
+    expect(shellClassName(container)).not.toContain('border-dashed');
+
+    rerender(<DesignSystemNode {...props({ sourceMode: 'custom' })} />);
+    expect(shellClassName(container)).toContain('border-l-warning');
+    expect(shellClassName(container)).toContain('border-dashed');
+
+    rerender(<DesignSystemNode {...props({ sourceMode: 'custom', content: 'Use calm contrast.' })} />);
+    expect(shellClassName(container)).toContain('border-l-success');
+    expect(shellClassName(container)).not.toContain('border-dashed');
   });
 
   it('can switch to custom source mode without discarding custom source data', () => {

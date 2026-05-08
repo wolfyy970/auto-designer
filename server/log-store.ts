@@ -1,5 +1,9 @@
 import { env } from './env.ts';
-import { flushAgentLogSnapshotNow, scheduleAgentLogSnapshot } from './lib/agent-log-snapshot.ts';
+import {
+  configureAgentLogSnapshotReaders,
+  flushAgentLogSnapshotNow,
+  scheduleAgentLogSnapshot,
+} from './lib/agent-log-snapshot.ts';
 import { OBSERVABILITY_SCHEMA_VERSION } from './lib/observability-line.ts';
 import { writeObservabilityLine } from './lib/observability-sink.ts';
 import type { SessionType } from './lib/session-types.ts';
@@ -312,3 +316,8 @@ export function clearLogEntries(): void {
   clearTaskLogEntries();
   flushAgentLogSnapshotNow();
 }
+
+configureAgentLogSnapshotReaders({
+  getLogEntries,
+  getTaskLogEntries,
+});

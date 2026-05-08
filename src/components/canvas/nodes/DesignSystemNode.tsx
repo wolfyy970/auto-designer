@@ -147,7 +147,7 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
     [id, updateNodeData],
   );
 
-  const status = filledOrEmpty(designSystemState.hasEffectiveSourceInput);
+  const status = filledOrEmpty(designSystemState.isReadyForDesignGeneration);
   const sourceModeLabels: Record<DesignSystemSourceMode, string> = {
     none: 'Default',
     wireframe: 'Wireframe',
@@ -165,8 +165,8 @@ function DesignSystemNode({ id, data, selected }: NodeProps<DesignSystemNodeType
       selected={!!selected}
       width="w-node"
       status={status}
-      handleColor={designSystemState.hasEffectiveSourceInput ? 'green' : 'amber'}
-      leftRail={designSystemState.hasEffectiveSourceInput ? 'success' : 'warning'}
+      handleColor={designSystemState.isReadyForDesignGeneration ? 'green' : 'amber'}
+      leftRail={designSystemState.isReadyForDesignGeneration ? 'success' : 'warning'}
     >
       <NodeHeader
         description="Design tokens, components, and patterns"

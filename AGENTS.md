@@ -64,7 +64,7 @@ The frontend (Vite, default port **4732** — `strictPort`; override **`VITE_POR
 
 ### Production / Vercel / shared deployments
 
-- `**NODE_ENV=production`:** `GET`/`POST`/`DELETE` `**/api/logs`** return **404** (no shared in-memory LLM/trace ring).
+- `**NODE_ENV=production`:** `GET`/`POST`/`DELETE` `**/api/logs`** return **404** (no shared in-memory LLM/trace/task ring).
 - **CORS:** Optional `**ALLOWED_ORIGINS`** (comma-separated) in [server/env.ts](server/env.ts); when unset, only localhost dev origins. Set on Vercel when using a custom domain or preview URL that is not same-origin as `/api`.
 - **Limits:** Request bodies capped at **2MB** (`hono/body-limit` on the API app). Preview map: `**MAX_PREVIEW_SESSIONS`** (default 200), `**MAX_PREVIEW_PAYLOAD_BYTES`** (default 5MB). Agentic: `**MAX_CONCURRENT_AGENTIC_RUNS**` per instance (default 5) → **503**-style error event on overload. `**LLM_LOG_MAX_BODY_CHARS`** defaults to **2000** in production for the NDJSON sink when unset.
 - **Vercel Pro:** `api/[[...route]].js` sets `**maxDuration = 800`** for long agentic streams.

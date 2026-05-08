@@ -1,7 +1,7 @@
 {
   "name": "auto-designer",
   "private": true,
-  "version": "0.3.141",
+  "version": "0.3.142",
   "packageManager": "pnpm@10.10.0",
   "type": "module",
   "scripts": {
@@ -20,7 +20,7 @@
     "dev:kill": "bash scripts/kill-dev-servers.sh",
     "knip": "knip --include files,dependencies",
     "snap": "tsx scripts/snap.ts",
-    "prepare": "husky"
+    "prepare": "node scripts/prepare-husky.mjs"
   },
   "dependencies": {
     "@auto-designer/pi": "workspace:*",
@@ -79,5 +79,12 @@
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.0.18",
     "wait-on": "^9.0.4"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "@google/genai",
+      "koffi",
+      "protobufjs"
+    ]
   }
 }

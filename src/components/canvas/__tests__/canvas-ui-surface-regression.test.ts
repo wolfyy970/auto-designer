@@ -51,6 +51,19 @@ describe('canvas UI surface regressions', () => {
     }
   });
 
+  it('routes app modals and confirmations through the shared dialog viewport', () => {
+    const sources = [
+      'src/components/shared/Modal.tsx',
+      'src/components/shared/PermanentDeleteConfirmDialog.tsx',
+    ].map((path) => `${path}\n${readRepoFile(path)}`);
+
+    for (const source of sources) {
+      expect(source).toContain('DialogViewport');
+      expect(source).not.toContain('fixed inset-0 z-');
+      expect(source).not.toContain('createPortal(');
+    }
+  });
+
   it('does not use native select controls inside transformed canvas nodes', () => {
     for (const source of readCanvasNodeSources()) {
       expect(source).not.toContain('<select');

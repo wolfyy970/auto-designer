@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@ds/components/ui/button';
+import { DialogViewport } from './DialogViewport';
 
 export interface PermanentDeleteConfirmDialogProps {
   open: boolean;
@@ -45,13 +46,11 @@ export function PermanentDeleteConfirmDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <button
-        type="button"
-        className="absolute inset-0 bg-overlay"
-        aria-label="Close dialog"
-        onClick={onCancel}
-      />
+    <DialogViewport
+      zIndexClass="z-[200]"
+      onBackdropClick={onCancel}
+      backdropLabel="Close dialog"
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -98,6 +97,6 @@ export function PermanentDeleteConfirmDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </DialogViewport>
   );
 }

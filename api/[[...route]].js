@@ -2080,6 +2080,22 @@ const env = {
 };
 let debounceTimer = null;
 const DEBOUNCE_MS = 500;
+const readers = {};
+function configureAgentLogSnapshotReaders(nextReaders) {
+  Object.assign(readers, nextReaders);
+}
+function buildAgentLogSnapshotPayload() {
+  const getLogEntries2 = readers.getLogEntries ?? (() => []);
+  const getTraceLogLines2 = readers.getTraceLogLines ?? (() => []);
+  const getTaskLogEntries2 = readers.getTaskLogEntries ?? (() => []);
+  return {
+    updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    note: "Mirror of dev GET /api/logs ({ llm, trace, task }). Regenerated when the log ring changes.",
+    llm: getLogEntries2(),
+    trace: getTraceLogLines2(),
+    task: getTaskLogEntries2()
+  };
+}
 function scheduleAgentLogSnapshot() {
   if (!env.isDev || process.env.VITEST === "true") return;
   if (debounceTimer) clearTimeout(debounceTimer);
@@ -2098,19 +2114,9 @@ function flushAgentLogSnapshotNow() {
 }
 async function flushAgentLogSnapshot() {
   try {
-    const [{ getLogEntries: getLogEntries2, getTaskLogEntries: getTaskLogEntries2 }, { getTraceLogLines: getTraceLogLines2 }] = await Promise.all([
-      Promise.resolve().then(() => logStore),
-      Promise.resolve().then(() => traceLogStore)
-    ]);
     const dir = path.join(process.cwd(), "logs");
     fs.mkdirSync(dir, { recursive: true });
-    const payload = {
-      updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      note: "Mirror of dev GET /api/logs ({ llm, trace, task }). Regenerated when the log ring changes.",
-      llm: getLogEntries2(),
-      trace: getTraceLogLines2(),
-      task: getTaskLogEntries2()
-    };
+    const payload = buildAgentLogSnapshotPayload();
     fs.writeFileSync(path.join(dir, "agent-snapshot.json"), `${JSON.stringify(payload, null, 2)}
 `, "utf8");
   } catch (err) {
@@ -2296,12 +2302,9 @@ function clearTraceLogEntries() {
   traceLines.length = 0;
   traceIdInRing.clear();
 }
-const traceLogStore = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-  __proto__: null,
-  appendTraceLines,
-  clearTraceLogEntries,
+configureAgentLogSnapshotReaders({
   getTraceLogLines
-}, Symbol.toStringTag, { value: "Module" }));
+});
 const entries = [];
 const taskLogEntries = [];
 function trimToMaxCap() {
@@ -2381,24 +2384,6 @@ function appendIncubateParsedLogEntry(input) {
   });
   scheduleAgentLogSnapshot();
 }
-function logLlmCall(entry) {
-  const status = entry.status ?? (entry.error ? "error" : "complete");
-  const row = {
-    ...entry,
-    id: crypto.randomUUID(),
-    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-    status
-  };
-  entries.push(row);
-  trimToMaxCap();
-  writeObservabilityLine({
-    v: OBSERVABILITY_SCHEMA_VERSION,
-    ts: row.timestamp,
-    type: "llm",
-    payload: { ...row }
-  });
-  scheduleAgentLogSnapshot();
-}
 function beginLlmCall(entry) {
   const id = crypto.randomUUID();
   entries.push({
@@ -2418,11 +2403,6 @@ function appendLlmCallResponse(id, chunk) {
   const row = entries.find((e) => e.id === id);
   if (!row || row.status !== "in_progress") return;
   row.response += chunk;
-}
-function setLlmCallResponseBody(id, body) {
-  const row = entries.find((e) => e.id === id);
-  if (!row || row.status !== "in_progress") return;
-  row.response = body;
 }
 function setLlmCallWaitingStatus(id, message) {
   const row = entries.find((e) => e.id === id);
@@ -2469,24 +2449,10 @@ function clearLogEntries() {
   clearTaskLogEntries();
   flushAgentLogSnapshotNow();
 }
-const logStore = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-  __proto__: null,
-  appendIncubateParsedLogEntry,
-  appendLlmCallResponse,
-  appendTaskResultLogEntry,
-  appendTaskRunLogEntry,
-  beginLlmCall,
-  clearLogEntries,
-  clearTaskLogEntries,
-  failLlmCall,
-  finalizeLlmCall,
-  getLlmLogResponseSnapshot,
+configureAgentLogSnapshotReaders({
   getLogEntries,
-  getTaskLogEntries,
-  logLlmCall,
-  setLlmCallResponseBody,
-  setLlmCallWaitingStatus
-}, Symbol.toStringTag, { value: "Module" }));
+  getTaskLogEntries
+});
 function normalizeError(err, fallback) {
   if (err instanceof Error) return err.message;
   return fallback ?? String(err);

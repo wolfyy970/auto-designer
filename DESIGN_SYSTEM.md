@@ -2,7 +2,7 @@
 
 **Scope:** Browser UI colors and dense typography. **Source of truth for values:** [`packages/design-system/tokens.json`](packages/design-system/tokens.json). A small Node build (`pnpm tokens:build`) fans out to `packages/design-system/_generated-tokens.css` (the `:root` and `.dark` base tokens). Derived/composed tokens (`color-mix(...)`, aliases) live in `packages/design-system/globals.css`, which `src/index.css` imports. This file describes **semantics and how to use tokens**; do not copy hex values here — change `tokens.json` once, rebuild, grep the repo for drift.
 
-**Stack:** Tailwind CSS v4 reads `@theme inline { … }` custom properties in `globals.css` as utilities (e.g. `bg-warning-subtle`, `text-file-html`, `font-display`). Body/UI sans, display serif, and monospace are wired in `@theme inline` (see **Typefaces**). React atoms live under `packages/design-system/components/ui/` and import as `@ds/components/ui/<name>` (TS path alias).
+**Stack:** Tailwind CSS v4 reads `@theme inline { … }` custom properties in `globals.css` as utilities (e.g. `bg-warning-subtle`, `text-file-html`, `font-display`). `globals.css` imports Tailwind with `source(none)` and explicitly scans the root app and design-system package so generated utilities stay bounded. Body/UI sans, display serif, and monospace are wired in `@theme inline` (see **Typefaces**). React atoms live under `packages/design-system/components/ui/` and import as `@ds/components/ui/<name>` (TS path alias).
 
 ## Typefaces — Indigo triad
 
@@ -110,7 +110,7 @@ packages/design-system/
 ├── tokens.json               # Source of truth for base color / font / text / width / height tokens (light + dark)
 ├── build-tokens.mjs          # Node generator — reads tokens.json, writes _generated-tokens.css
 ├── _generated-tokens.css     # :root { ... } + .dark { ... } base tokens (committed, linguist-generated)
-├── globals.css               # @import "tailwindcss", @custom-variant dark, :root derived tokens, @theme inline, @layer components, keyframes
+├── globals.css               # @import "tailwindcss" source(none), @source roots, @custom-variant dark, :root derived tokens, @theme inline, @layer components, keyframes
 ├── components/ui/            # React atoms: button.tsx + button-variants.ts, badge.tsx + badge-variants.ts
 ├── lib/utils.ts              # cn() = clsx + tailwind-merge with custom classGroups for text-micro/nano/badge/pico
 ├── __tests__/                # Drift guards (see below)

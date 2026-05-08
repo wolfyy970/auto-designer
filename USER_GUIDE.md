@@ -36,7 +36,7 @@ Both processes are needed for local development.
 
 ## Dev logs
 
-In **development** only, the API keeps an in-memory `**/api/logs`** ring (LLM rows + run-trace lines) and can append optional NDJSON—handy for **curl** or ad-hoc inspection; see [ARCHITECTURE.md](ARCHITECTURE.md). That route returns **404** in **production**. The **variant run timeline** still shows live tool activity for the current preview.
+In **development** only, the API keeps an in-memory `**/api/logs`** ring (LLM rows + run-trace lines + task rows) and mirrors the same payload to `logs/agent-snapshot.json` for local inspection; optional NDJSON observability logs are separate. That route returns **404** in **production**. The **variant run timeline** still shows live tool activity for the current preview. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Design tokens reference (Settings)
 
@@ -184,7 +184,7 @@ To iterate on results:
 
 ### Layout
 
-Auto-layout is implicit canvas behavior. The graph repositions after structural changes such as adding/removing nodes, connecting nodes, incubation, generation, and measured node-size changes. The left canvas toolbar controls canvas zoom, fit view, minimap visibility, and **Column spacing**; trackpad pinch over the canvas also zooms the graph. There is no persisted Auto layout toggle.
+Auto-layout is implicit canvas behavior. The graph repositions after structural changes such as adding/removing nodes, connecting nodes, incubation, generation, and measured node-size changes. The left canvas toolbar controls canvas zoom, fit view, minimap visibility, and **Column spacing**; trackpad pinch over the canvas also zooms the graph. Browser page zoom is separate from canvas zoom, and app dialogs keep a stable readable size across page zoom. There is no persisted Auto layout toggle.
 
 ## Managing Canvases
 

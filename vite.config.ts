@@ -95,7 +95,6 @@ export default defineConfig(({ mode }) => {
             if (id.includes('streamdown')) return 'vendor-streamdown';
             if (id.includes('@xyflow/react')) return 'react-flow';
             if (id.includes('react-router')) return 'router';
-            if (id.includes('html2canvas')) return 'html2canvas';
           },
         },
       },

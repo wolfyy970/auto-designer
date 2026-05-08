@@ -129,8 +129,9 @@ export function useCanvasZoomInput({
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    const options: AddEventListenerOptions = { capture: true };
+    window.addEventListener('keydown', handleKeyDown, options);
+    return () => window.removeEventListener('keydown', handleKeyDown, options);
   }, [fitView, zoomIn, zoomOut]);
 
   const markPointerOverCanvas = useCallback(() => {

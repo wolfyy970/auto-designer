@@ -27,14 +27,19 @@ export {
   type DesignMdStatus,
 } from './design-md-core';
 
-export type DesignSystemInactiveReason = 'none' | 'custom-empty';
+export type DesignSystemInactiveReason = 'custom-empty';
+export type DesignSystemGenerationReadiness = 'ready' | 'needs-custom-input';
 
 export type DesignSystemEffectiveState = {
   mode: DesignSystemSourceMode;
   customSourceCount: number;
   hasCustomSourceInput: boolean;
   source: DesignMdSource;
+  /** True when this mode contributes explicit design-system source material. */
   hasEffectiveSourceInput: boolean;
+  /** True when the Design System node can participate in design generation. */
+  isReadyForDesignGeneration: boolean;
+  generationReadiness: DesignSystemGenerationReadiness;
   inactiveReason?: DesignSystemInactiveReason;
   designMdStatus?: DesignMdStatus;
   activeDesignMdDocument?: DesignMdDocument;
@@ -144,6 +149,10 @@ export function getDesignSystemEffectiveState(
   const customSourceCount = countCustomDesignSystemInputs(data);
   const hasCustomSourceInput = customSourceCount > 0;
   const hasEffectiveSourceInput = designMdSourceHasInput(source);
+  const isReadyForDesignGeneration = mode !== 'custom' || hasEffectiveSourceInput;
+  const generationReadiness: DesignSystemGenerationReadiness = isReadyForDesignGeneration
+    ? 'ready'
+    : 'needs-custom-input';
 
   if (!hasEffectiveSourceInput) {
     return {
@@ -152,7 +161,9 @@ export function getDesignSystemEffectiveState(
       hasCustomSourceInput,
       source,
       hasEffectiveSourceInput: false,
-      inactiveReason: mode === 'none' ? 'none' : 'custom-empty',
+      isReadyForDesignGeneration,
+      generationReadiness,
+      inactiveReason: mode === 'custom' ? 'custom-empty' : undefined,
     };
   }
 
@@ -163,6 +174,8 @@ export function getDesignSystemEffectiveState(
     hasCustomSourceInput,
     source,
     hasEffectiveSourceInput: true,
+    isReadyForDesignGeneration,
+    generationReadiness,
     activeDesignMdDocument,
     designMdStatus: getDesignMdStatus(
       source,
@@ -180,8 +193,8 @@ export function getDesignSystemDocumentUiState(
 
   if (!state.hasEffectiveSourceInput) {
     return {
-      status: state.inactiveReason === 'none' ? 'none' : 'optional',
-      statusLabel: state.inactiveReason === 'none' ? 'none' : 'optional',
+      status: state.mode === 'none' ? 'none' : 'optional',
+      statusLabel: state.mode === 'none' ? 'none' : 'optional',
       tone: 'neutral',
       canView: false,
       canGenerate: false,

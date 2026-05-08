@@ -1,4 +1,7 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+@source "../../index.html";
+@source "../../src";
+@source ".";
 @custom-variant dark (&:is(.dark *));
 @layer theme, base, components, utilities;
 
