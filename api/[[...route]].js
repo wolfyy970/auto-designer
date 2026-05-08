@@ -1734,7 +1734,7 @@ function resolveFlag(value) {
 }
 const FEATURE_LOCKDOWN = resolveFlag(FLAGS.lockdown);
 const FEATURE_AUTO_IMPROVE = resolveFlag(FLAGS.autoImprove);
-const perTaskDefaults$1 = { "design": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" }, "incubate": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" }, "inputs": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" }, "design-system": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" }, "evaluator": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" } };
+const perTaskDefaults$1 = { "design": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" }, "incubate": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" }, "inputs": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" }, "design-system": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" }, "evaluator": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" } };
 const rawTaskDefaults = {
   perTaskDefaults: perTaskDefaults$1
 };
@@ -3204,7 +3204,7 @@ function lmStudioThinkingFields(thinking) {
   if (!effort) return {};
   return { reasoning_effort: effort };
 }
-const modelProviderRouting = { "minimax/minimax-m2.7": { "order": ["fireworks"], "allow_fallbacks": false } };
+const modelProviderRouting = { "minimax/minimax-m2.5": { "order": ["mara"], "allow_fallbacks": false } };
 const rawRoutingConfig = {
   modelProviderRouting
 };

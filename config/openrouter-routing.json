@@ -1,7 +1,7 @@
 {
   "modelProviderRouting": {
-    "minimax/minimax-m2.7": {
-      "order": ["fireworks"],
+    "minimax/minimax-m2.5": {
+      "order": ["mara"],
       "allow_fallbacks": false
     }
   }

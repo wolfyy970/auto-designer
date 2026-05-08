@@ -1,9 +1,9 @@
 {
   "perTaskDefaults": {
-    "design":        { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" },
-    "incubate":      { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" },
-    "inputs":        { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" },
-    "design-system": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" },
-    "evaluator":     { "providerId": "openrouter", "modelId": "minimax/minimax-m2.7" }
+    "design":        { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" },
+    "incubate":      { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" },
+    "inputs":        { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" },
+    "design-system": { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" },
+    "evaluator":     { "providerId": "openrouter", "modelId": "minimax/minimax-m2.5" }
   }
 }

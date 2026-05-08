@@ -10,16 +10,16 @@ describe('openRouterProviderRoutingForModel', () => {
     expect(OpenRouterRoutingConfigSchema.safeParse(rawRoutingConfig).success).toBe(true);
   });
 
-  it('pins MiniMax M2.7 to Fireworks with fallbacks disabled', () => {
-    expect(openRouterProviderRoutingForModel('minimax/minimax-m2.7')).toEqual({
+  it('pins MiniMax M2.5 to Mara with fallbacks disabled', () => {
+    expect(openRouterProviderRoutingForModel('minimax/minimax-m2.5')).toEqual({
       provider: {
-        order: ['fireworks'],
+        order: ['mara'],
         allow_fallbacks: false,
       },
     });
   });
 
   it('does not alter routing for other models', () => {
-    expect(openRouterProviderRoutingForModel('minimax/minimax-m2.5')).toEqual({});
+    expect(openRouterProviderRoutingForModel('minimax/minimax-m2.7')).toEqual({});
   });
 });
