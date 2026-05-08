@@ -60,5 +60,7 @@ describe('buildHypothesisWorkspaceBundle', () => {
       '- Information density (variable): sparse to dense',
     );
     expect(bundle!.prompts[0]!.prompt).toContain('- Information density: sparse');
+    expect(bundle!.prompts[0]!.prompt).toContain('<design_agent_instructions>');
+    expect(bundle!.prompts[0]!.prompt).toContain('Treat the hypothesis as the thesis');
   });
 });

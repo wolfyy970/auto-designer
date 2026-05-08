@@ -19,6 +19,7 @@ export function buildHypothesisPrompt(
   hypothesisTemplate: string,
   dimensions: readonly Dimension[] = [],
   designSystemOverride?: string,
+  designAgentInstructions = '',
 ): string {
   const dimensionValuesList = Object.entries(strategy.dimensionValues)
     .map(([dim, val]) => `- ${dim}: ${val}`)
@@ -33,9 +34,9 @@ export function buildHypothesisPrompt(
     DIMENSION_VALUES: dimensionValuesList || '(No selected hypothesis position was provided)',
     DESIGN_BRIEF: getSectionContent(spec, 'design-brief'),
     RESEARCH_CONTEXT: getSectionContent(spec, 'research-context'),
-    IMAGE_BLOCK: '',
     OBJECTIVES_METRICS: getSectionContent(spec, 'objectives-metrics'),
     DESIGN_CONSTRAINTS: getSectionContent(spec, 'design-constraints'),
     DESIGN_SYSTEM: designSystemOverride ?? getSectionContent(spec, 'design-system'),
+    DESIGN_AGENT_INSTRUCTIONS: designAgentInstructions,
   });
 }

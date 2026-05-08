@@ -13,6 +13,7 @@ export function compileVariantPrompts(
   incubationPlan: IncubationPlan,
   variantTemplate: string,
   designSystemOverride?: string,
+  designAgentInstructions = '',
 ): CompiledPrompt[] {
   return incubationPlan.hypotheses.map((strategy: HypothesisStrategy) => ({
     id: generateId(),
@@ -24,6 +25,7 @@ export function compileVariantPrompts(
       variantTemplate,
       incubationPlan.dimensions,
       designSystemOverride,
+      designAgentInstructions,
     ),
     images: [],
     compiledAt: now(),

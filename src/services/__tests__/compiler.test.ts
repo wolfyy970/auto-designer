@@ -100,7 +100,21 @@ describe('compileVariantPrompts', () => {
     expect(result.prompt).toContain('- layout (variable): single to multi-column');
     expect(result.prompt).toContain('<dimension_values>');
     expect(result.prompt).toContain('- layout: single-column');
+    expect(result.prompt).toContain('<design_agent_instructions>');
+    expect(result.prompt).toContain('</design_agent_instructions>');
     expect(result.prompt).toContain('- density: sparse');
+  });
+
+  it('inlines design-agent instructions text when the caller supplies it', () => {
+    const spec = makeSpec();
+    const strategy = makeStrategy();
+    const plan = makeIncubationPlan([strategy]);
+    const token = 'UniqueDesignAgentInstructionsToken';
+
+    const [result] = compileVariantPrompts(spec, plan, VARIANT_TEMPLATE, undefined, token);
+
+    expect(result.prompt).toContain(`<design_agent_instructions>\n${token}`);
+    expect(result.prompt).toContain(`${token}\n</design_agent_instructions>`);
   });
 
   it('uses explicit fallback text when no exploration axes or positions are available', () => {

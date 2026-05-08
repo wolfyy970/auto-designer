@@ -6,6 +6,7 @@ export type PromptKey =
   | 'designer-agentic-system'
   | 'designer-agentic-revision-user'
   | 'designer-hypothesis-inputs'
+  | 'designer-agent-instructions'
   | 'design-system-extract-system'
   | 'design-system-extract-user-input'
   | 'agents-md-file'
@@ -22,6 +23,7 @@ export const PROMPT_KEYS: PromptKey[] = [
   'designer-agentic-system',
   'designer-agentic-revision-user',
   'designer-hypothesis-inputs',
+  'designer-agent-instructions',
   'design-system-extract-system',
   'design-system-extract-user-input',
   'agents-md-file',

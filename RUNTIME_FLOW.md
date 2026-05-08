@@ -32,8 +32,8 @@ flowchart TD
   end
 
   subgraph BuildStage["3. Build a design"]
-    DesignPrompt["Assemble one design prompt<br/>designer-hypothesis-inputs glue"]
-    Session["Pi sandbox session<br/>_designer-system.md<br/>design SKILL.md files"]
+    DesignPrompt["Assemble hypothesis user prompt<br/>designer-hypothesis-inputs glue<br/>+ designer-agent-instructions body"]
+    Session["Pi sandbox session<br/>_designer-system.md<br/>design-tagged SKILL.md files"]
     Files["Generated static files"]
   end
 
@@ -77,6 +77,15 @@ flowchart TD
   Revise -- "No" --> Done
 ```
 
+### Stage 3 — Hypothesis user prompt assembly
+
+For each design run, **`buildHypothesisWorkspaceBundle()`** (used by `/api/hypothesis/prompt-bundle` and the generate path) stitches the **user** message in this order:
+
+1. **Glue** — [`designer-hypothesis-inputs`](server/lib/prompt-templates.ts) (`DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE`): leading line orients section order, then `<hypothesis>` (strategy + exploration axes / `dimension_values`), then `<design_agent_instructions>{{DESIGN_AGENT_INSTRUCTIONS}}</design_agent_instructions>`, then `<specification>` (brief, research, objectives, constraints, design system). Placeholders are filled by [`buildHypothesisPrompt()`](src/lib/prompts/hypothesis-prompt.ts).
+2. **Design instructions body** — Prompt key [`designer-agent-instructions`](src/lib/prompts/defaults.ts): bundled file [`design-agent-instructions.md`](packages/auto-designer-pi/prompts/design-agent-instructions.md) (YAML frontmatter stripped via [`getPromptBody()`](server/lib/prompt-resolution.ts)). Same tagging style as other package prompts (`<how_to_think>`, `<what_to_write>`, `<tool_use>`, `<quality_bar>`, `<length>`).
+
+The Pi **system** message is still [`_designer-system.md`](packages/auto-designer-pi/prompts/_designer-system.md) (`designer-agentic-system`); **skills** attach by session type — see the shared row below and [Skill Inventory](#skill-inventory).
+
 ## Interface Projection
 
 The current canvas UI stores and edits the source material, then calls the server routes above. It does not own prompt order or prompt semantics. UI nodes map to server inputs and outputs; they are not the canonical prompt pipeline.
@@ -92,6 +101,8 @@ The Incubator does not merely return a list of ideas. It returns an `IncubationP
 
 The model is internal: alpha users do not edit a strategy map. It exists to make hypotheses meaningfully distinct, to give the design agent the full strategic context for one selected hypothesis, and to let strategy evaluation check whether the generated artifact expressed the intended position. `dimensionValues` must not be used for output format, implementation metadata, design-system tokens, metrics, or arbitrary notes.
 
+**Hypothesis text as MVP probe.** Incubation prompts ask the LLM to phrase each strategy so **`hypothesis` + `rationale` + `measurements`** carry a legible **artifact boundary** (smallest credible slice to test the bet—screen, flow, or tight cluster) and **`measurements`** readable as **prove/disprove checks** on the future static mock. Strategic axes stay in `dimensions` / `dimensionValues`; **scope of the build** lives in those prose fields, not in `dimensionValues`.
+
 ## Prompt Inventory
 
 Rows follow the runtime flow above. Shared prompts appear before the task-specific steps they wrap; bundled prompts that are not currently in the active route path appear last.
@@ -104,8 +115,9 @@ Rows follow the runtime flow above. Shared prompts appear before the task-specif
 | Optional spec-section generation | `inputs-gen-design-constraints` / `gen-constraints.md` | Guidance for drafting Design Constraints from the design brief, separating non-negotiables from exploration space. | Inlined by `/api/inputs/generate` for `design-constraints`. |
 | Optional design-system normalization | `design-system-extract-system` / `ds-extract.md` | Authoritative guidance for converting design-system source material into lint-friendly Google/Stitch `DESIGN.md`. | Inlined by `/api/design-system/extract` inside `<design_md_extraction_guidance>`. |
 | Incubation | `incubator-user-inputs` / glue template | Structural wrapper for assembled spec context, reference designs, existing hypotheses, and requested hypothesis count. It contains no behavioral guidance. | Loaded by `/api/incubate`, then filled by `buildIncubatorUserPrompt()`. |
-| Incubation | `hypotheses-generator-system` / `gen-hypotheses.md` | Behavioral guidance for turning the assembled spec into global exploration axes and positioned hypothesis strategies. | Inlined by `/api/incubate` inside `<hypotheses_generator_guidance>`. |
-| Hypothesis prompt bundle | `designer-hypothesis-inputs` / glue template | Structural wrapper for one selected hypothesis, its exploration-axis position, spec sections, and design-system content. It contains no behavioral guidance. | Loaded by `buildHypothesisWorkspaceBundle()` for `/api/hypothesis/prompt-bundle` and `/api/hypothesis/generate`. |
+| Incubation | `hypotheses-generator-system` / `gen-hypotheses.md` | Axes + strategies: infers product scope when unstated; frames each hypothesis as **MVP market-fit probe** with **`measurements` as design-inspectable prove/disprove checks** and prose that implies **artifact boundary**. | Inlined by `/api/incubate` inside `<hypotheses_generator_guidance>`. |
+| Hypothesis prompt bundle | `designer-hypothesis-inputs` / glue template | Short orienting lead-in, then structural XML only: hypothesis block → `<design_agent_instructions>{{DESIGN_AGENT_INSTRUCTIONS}}</design_agent_instructions>` → full `<specification>` (brief through design system—no embedded image block). Behavioral text lives in `design-agent-instructions.md`, not in the glue. | `getPromptBody('designer-hypothesis-inputs')` + `buildHypothesisPrompt()` inside `buildHypothesisWorkspaceBundle()` for `/api/hypothesis/prompt-bundle` and downstream generate. |
+| Hypothesis-stage design instructions | `designer-agent-instructions` / [`design-agent-instructions.md`](packages/auto-designer-pi/prompts/design-agent-instructions.md) | Executes the bet: **aligns artifact breadth** with hypothesis + spec (no default one-pager when flow-shaped), sizes MVP for **`measurements`** to be checkable, tooling, **quality_bar**. | Loaded with the glue via `Promise.all` in `buildHypothesisWorkspaceBundle()`; interpolated as `{{DESIGN_AGENT_INSTRUCTIONS}}`. |
 | Evaluation | `evaluator-design-quality` / `eval-design-quality.md` | LLM evaluator rubric for subjective design quality, originality, craft, and usability. | Loaded by `runEvaluationWorkers()` when evaluation is active. |
 | Evaluation | `evaluator-strategy-fidelity` / `eval-strategy-fidelity.md` | LLM evaluator rubric for fidelity to hypothesis, objectives, constraints, exploration-axis position, and design-system guidance. | Loaded by `runEvaluationWorkers()` when evaluation is active. |
 | Evaluation | `evaluator-implementation` / `eval-implementation.md` | LLM evaluator rubric for static frontend implementation quality: structure, semantics, responsiveness, JavaScript hygiene, and whether the code expresses the bet. | Loaded by `runEvaluationWorkers()` when evaluation is active. |
@@ -121,7 +133,7 @@ All checked-in skills currently carry the `design` tag, so they are visible only
 | Skill key / name | Role | Visible session |
 | --- | --- | --- |
 | `accessibility` / Accessibility basics | Guidance for semantic HTML, keyboard access, screen readers, labels, landmarks, headings, contrast, and focus. | `design` |
-| `design-generation` / Design generation | Guidance for building static HTML/CSS/JS artifacts that embody a design hypothesis, including file organization and validation expectations. | `design` |
+| `design-generation` / Design generation | Guided artifact breadth for **hypothesis MVP**: static HTML/CSS/JS that embodies the bet so **`measurements`** are inspectable on shipped pages; file organization and validation expectations. | `design` |
 | `design-quality` / Design quality basics | Guidance for layout, typography, spacing, hierarchy, scanability, density, and visual craft. | `design` |
 
 ## Editing Contract

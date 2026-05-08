@@ -19,6 +19,7 @@ const EXPECTED_SKILLS = [
 ] as const;
 
 const EXPECTED_PROMPTS = [
+  'design-agent-instructions.md',
   'ds-extract-input.md',
   'ds-extract.md',
   'ds-generate.md',

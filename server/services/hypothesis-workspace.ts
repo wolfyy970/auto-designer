@@ -42,7 +42,10 @@ export async function buildHypothesisWorkspaceBundle(
   if (!ctxRaw) return null;
   const ctx = applyLockdownToHypothesisContext(ctxRaw);
 
-  const hypothesisTemplate = await getPromptBody('designer-hypothesis-inputs');
+  const [hypothesisTemplate, designAgentInstructions] = await Promise.all([
+    getPromptBody('designer-hypothesis-inputs'),
+    getPromptBody('designer-agent-instructions'),
+  ]);
   const filteredPlan = {
     id: generateId(),
     specId: ctx.spec.id,
@@ -57,6 +60,7 @@ export async function buildHypothesisWorkspaceBundle(
     filteredPlan,
     hypothesisTemplate,
     ctx.designSystemContent,
+    designAgentInstructions.trim(),
   );
   const evaluationContext = evaluationPayloadFromHypothesisContext(ctx);
   const provenance = provenanceFromHypothesisContext(ctx);

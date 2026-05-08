@@ -1632,7 +1632,7 @@ const INCUBATOR_USER_INPUTS_TEMPLATE = `Analyze the following design specificati
 </specification>
 
 Produce the exploration-axis map as JSON.{{REFERENCE_DESIGNS_BLOCK}}{{EXISTING_HYPOTHESES_BLOCK}}{{INCUBATOR_HYPOTHESIS_COUNT_LINE}}`;
-const DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE = `Generate a design implementing the following hypothesis, grounded in the specification context below.
+const DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE = `The sections below supply one hypothesis, product execution instructions, and the full specification—in that order.
 
 <hypothesis>
 <name>{{STRATEGY_NAME}}</name>
@@ -1647,6 +1647,10 @@ const DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE = `Generate a design implementing the 
 </dimension_values>
 </hypothesis>
 
+<design_agent_instructions>
+{{DESIGN_AGENT_INSTRUCTIONS}}
+</design_agent_instructions>
+
 <specification>
 
 <design_brief>
@@ -1656,8 +1660,6 @@ const DESIGNER_HYPOTHESIS_INPUTS_TEMPLATE = `Generate a design implementing the 
 <research_context>
 {{RESEARCH_CONTEXT}}
 </research_context>
-
-{{IMAGE_BLOCK}}
 
 <objectives_metrics>
 {{OBJECTIVES_METRICS}}
@@ -1687,7 +1689,8 @@ const PACKAGE_PROMPT_FILES = {
   "design-system-extract-system": "ds-extract.md",
   "design-system-extract-user-input": "ds-extract-input.md",
   "designer-agentic-revision-user": "revise.md",
-  "agents-md-file": "artifact-conventions.md"
+  "agents-md-file": "artifact-conventions.md",
+  "designer-agent-instructions": "design-agent-instructions.md"
 };
 async function getPromptBody(key) {
   if (key === "designer-agentic-system") {
@@ -7581,7 +7584,7 @@ function formatExplorationAxes(dimensions) {
     return `- ${dimension.name} (${constancy}): ${dimension.range}`;
   }).join("\n");
 }
-function buildHypothesisPrompt(spec, strategy2, hypothesisTemplate, dimensions = [], designSystemOverride) {
+function buildHypothesisPrompt(spec, strategy2, hypothesisTemplate, dimensions = [], designSystemOverride, designAgentInstructions = "") {
   const dimensionValuesList = Object.entries(strategy2.dimensionValues).map(([dim, val]) => `- ${dim}: ${val}`).join("\n");
   return interpolate(hypothesisTemplate, {
     STRATEGY_NAME: strategy2.name,
@@ -7592,13 +7595,13 @@ function buildHypothesisPrompt(spec, strategy2, hypothesisTemplate, dimensions =
     DIMENSION_VALUES: dimensionValuesList || "(No selected hypothesis position was provided)",
     DESIGN_BRIEF: getSectionContent(spec, "design-brief"),
     RESEARCH_CONTEXT: getSectionContent(spec, "research-context"),
-    IMAGE_BLOCK: "",
     OBJECTIVES_METRICS: getSectionContent(spec, "objectives-metrics"),
     DESIGN_CONSTRAINTS: getSectionContent(spec, "design-constraints"),
-    DESIGN_SYSTEM: designSystemOverride ?? getSectionContent(spec, "design-system")
+    DESIGN_SYSTEM: designSystemOverride ?? getSectionContent(spec, "design-system"),
+    DESIGN_AGENT_INSTRUCTIONS: designAgentInstructions
   });
 }
-function incubateHypothesisPrompts(spec, incubationPlan, hypothesisTemplate, designSystemOverride) {
+function incubateHypothesisPrompts(spec, incubationPlan, hypothesisTemplate, designSystemOverride, designAgentInstructions = "") {
   return incubationPlan.hypotheses.map((strategy2) => ({
     id: generateId(),
     strategyId: strategy2.id,
@@ -7608,7 +7611,8 @@ function incubateHypothesisPrompts(spec, incubationPlan, hypothesisTemplate, des
       strategy2,
       hypothesisTemplate,
       incubationPlan.dimensions,
-      designSystemOverride
+      designSystemOverride,
+      designAgentInstructions
     ),
     images: [],
     compiledAt: now()
@@ -7627,7 +7631,10 @@ async function buildHypothesisWorkspaceBundle(body) {
   });
   if (!ctxRaw) return null;
   const ctx = applyLockdownToHypothesisContext(ctxRaw);
-  const hypothesisTemplate = await getPromptBody("designer-hypothesis-inputs");
+  const [hypothesisTemplate, designAgentInstructions] = await Promise.all([
+    getPromptBody("designer-hypothesis-inputs"),
+    getPromptBody("designer-agent-instructions")
+  ]);
   const filteredPlan = {
     id: generateId(),
     specId: ctx.spec.id,
@@ -7639,7 +7646,8 @@ async function buildHypothesisWorkspaceBundle(body) {
     ctx.spec,
     filteredPlan,
     hypothesisTemplate,
-    ctx.designSystemContent
+    ctx.designSystemContent,
+    designAgentInstructions.trim()
   );
   const evaluationContext = evaluationPayloadFromHypothesisContext(ctx);
   const provenance = provenanceFromHypothesisContext(ctx);

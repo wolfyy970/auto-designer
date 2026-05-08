@@ -8,6 +8,7 @@ export function incubateHypothesisPrompts(
   incubationPlan: IncubationPlan,
   hypothesisTemplate: string,
   designSystemOverride?: string,
+  designAgentInstructions = '',
 ): CompiledPrompt[] {
   return incubationPlan.hypotheses.map((strategy: HypothesisStrategy) => ({
     id: generateId(),
@@ -19,6 +20,7 @@ export function incubateHypothesisPrompts(
       hypothesisTemplate,
       incubationPlan.dimensions,
       designSystemOverride,
+      designAgentInstructions,
     ),
     images: [],
     compiledAt: now(),
