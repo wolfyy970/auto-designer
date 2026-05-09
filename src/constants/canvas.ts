@@ -70,10 +70,9 @@ export function buildEdgeId(source: string, target: string): string {
 /** React Flow layer: preview node actively generating stays above overlapping nodes */
 export const PREVIEW_NODE_GENERATING_Z_INDEX = 1000;
 
-/** React Flow: interactive controls inside nodes — avoid drag/WheelCapture hijack */
-export const RF_INTERACTIVE = 'nodrag nowheel';
-/** Like {@link RF_INTERACTIVE} plus block canvas pan on nested interactions */
-export const RF_INTERACTIVE_NOPAN = 'nodrag nowheel nopan';
+/** React Flow: interactive controls inside nodes — block node drag, wheel capture,
+ * and canvas pan so mousedown-drag selects text instead of panning the viewport. */
+export const RF_INTERACTIVE = 'nodrag nowheel nopan';
 /** Edge delete / small controls: block node drag and canvas pan */
 export const RF_NODRAG_NOPAN = 'nodrag nopan';
 
