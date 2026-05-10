@@ -258,6 +258,28 @@ export async function runOneCell(spec: CellSpec): Promise<RunOneCellResult> {
     cost.finalizeAndAppendLedger();
   }
 
+  // Post-flow integrity check: some flows write a "Fatal error" line to
+  // summary.md and return cleanly (e.g. inputs-gen stage failures from a
+  // provider stream-idle abort). The canonical signal that the cell
+  // succeeded is the presence of hypotheses.json. If it's missing and we
+  // didn't already capture a fatalError, surface what the summary says so
+  // the matrix orchestrator can class the cell as failed.
+  if (!fatalError) {
+    const hypPath = join(runDir.root, 'hypotheses.json');
+    if (!existsSync(hypPath)) {
+      // Try to recover the underlying error from summary.md.
+      let summaryErr = 'no hypotheses produced (cell completed but artifact missing)';
+      try {
+        const summary = readFileSync(join(runDir.root, 'summary.md'), 'utf8');
+        const m = summary.match(/## ❌ Fatal error\s*\n\s*```text\s*\n([\s\S]*?)\n```/);
+        if (m) summaryErr = m[1].trim().split('\n')[0];
+      } catch {
+        /* keep default */
+      }
+      fatalError = `flow completed without producing hypotheses.json — underlying: ${summaryErr}`;
+    }
+  }
+
   // ── Final summary ───────────────────────────────────────────────────────
   const cpu1 = process.cpuUsage(cpu0);
   const cpuUserSec = cpu1.user / 1_000_000;
