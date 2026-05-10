@@ -36,4 +36,6 @@ test*.html
 # Experiments tool — preserve folder skeletons but ignore generated runs and cost ledger
 experiments/runs/*
 !experiments/runs/.gitkeep
+experiments/matrix/*
+!experiments/matrix/.gitkeep
 experiments/.cost-ledger.jsonl

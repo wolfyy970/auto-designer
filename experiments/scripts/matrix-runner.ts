@@ -27,6 +27,7 @@
 import { performance } from 'node:perf_hooks';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { basename, resolve, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { createRunDir } from '../src/runDir.ts';
 import {
@@ -45,7 +46,7 @@ const DEFAULT_MODEL = 'minimax/minimax-m2.5';
 
 type FlowName = 'canonical' | 'ideation' | 'reframe-upstream' | 'reframe-then-ideate';
 
-interface CellSpec {
+export interface CellSpec {
   flow: FlowName;
   briefPath: string;
   researchPath?: string;
@@ -160,7 +161,16 @@ function readOptionalFile(p: string | undefined): { content: string; sourcePath:
 
 // ── Single-cell run ────────────────────────────────────────────────────────
 
-async function runOneCell(spec: CellSpec): Promise<void> {
+export type FlowNameAll = FlowName;
+
+export interface RunOneCellResult {
+  runId: string;
+  runRoot: string;
+  wallSec: number;
+  fatalError?: string;
+}
+
+export async function runOneCell(spec: CellSpec): Promise<RunOneCellResult> {
   const t0 = performance.now();
   const cpu0 = process.cpuUsage();
   const log = (s: string) => {
@@ -271,6 +281,7 @@ async function runOneCell(spec: CellSpec): Promise<void> {
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   if (fatalError) process.exitCode = 1;
+  return { runId: runDir.id, runRoot: runDir.root, wallSec, fatalError };
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────
@@ -305,7 +316,13 @@ async function main() {
   });
 }
 
-main().catch((err) => {
-  console.error('[matrix-runner] fatal:', err instanceof Error ? err.stack : err);
-  process.exit(1);
-});
+// Only run main() when invoked directly, not when imported (e.g. by matrix.ts).
+const _entry = process.argv[1] ? resolve(process.argv[1]) : '';
+const _self = fileURLToPath(import.meta.url);
+if (_entry === _self) {
+  main().catch((err) => {
+
+    console.error('[matrix-runner] fatal:', err instanceof Error ? err.stack : err);
+    process.exit(1);
+  });
+}
