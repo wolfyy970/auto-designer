@@ -1,7 +1,7 @@
 {
   "name": "auto-designer",
   "private": true,
-  "version": "0.3.145",
+  "version": "0.3.146",
   "packageManager": "pnpm@10.10.0",
   "type": "module",
   "scripts": {
@@ -20,6 +20,7 @@
     "dev:kill": "bash scripts/kill-dev-servers.sh",
     "knip": "knip --include files,dependencies",
     "snap": "tsx scripts/snap.ts",
+    "exp": "tsx experiments/src/cli.ts",
     "prepare": "node scripts/prepare-husky.mjs"
   },
   "dependencies": {

@@ -1,0 +1,10 @@
+The design must allow users to move through the experience at their own pace without being funneled into a predetermined sequence or linear path. Any onboarding, prompts, or content suggestions should feel like options rather than steps to complete. The failure mode to avoid: a design so non-prescriptive that users feel abandoned or unable to find relevance to their specific situation.
+
+Privacy must be foundational to the architecture — grief-related content should never appear in social feeds, search history, or contexts visible to others who share the user's devices or accounts. The design should avoid requiring social graph integration, public sharing, or any visibility that could surface this content unexpectedly. The failure mode to avoid: privacy so restrictive that users cannot legitimately access their own content across devices or recover their accounts.
+
+The interface should demonstrate understanding of grief rather than offering generic mood prompts or hollow check-ins. Content, copy, and interactions should reflect the gravity of the experience without feeling clinical or template-driven. The failure mode to avoid: a design so carefully neutral that it provides no meaningful presence or support during difficult moments.
+
+The experience should adapt to the range of loss types and individual circumstances users bring — different relationships, different timeframes, different support needs — without requiring users to configure extensive personal details upfront. The failure mode to avoid: complexity that burdens users with setup tasks during a vulnerable time, or rigidity that assumes one grief journey resembles another.
+
+The design should feel like a quiet, reliable personal space rather than a social feed, community hub, or engagement-driven product. It should not optimize for session length, frequency of return, or viral sharing. The failure mode to avoid: an experience so isolating that users who want connection have no pathway to it, or a product that inadvertently treats grief as a category to be monetized or optimized.
+

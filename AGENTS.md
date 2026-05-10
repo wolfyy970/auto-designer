@@ -40,6 +40,11 @@ pnpm lint            # eslint
 pnpm test            # root Vitest suite + design-system and Pi package tests
 pnpm test:watch      # vitest (watch mode)
 pnpm vitest run src/hooks/__tests__/resolve-evaluator-settings.test.ts  # single test file
+
+# Experiments tool — prompt and flow iteration outside the canvas
+pnpm exp run <flow> --brief <path>   # flows: ideation (default) | canonical | reframe-upstream | reframe-then-ideate | inputs-gen
+pnpm exp list / show / diff          # browse runs
+pnpm exp run --help                  # full flag list (sourcing, regen, target, caps, dry-run)
 ```
 
 Vitest excludes `server/services/__tests__/browser-playwright-evaluator.test.ts` via `vite.config.ts` so the default suite stays hermetic; run **`pnpm test:playwright-eval`** (or `vitest run -c vitest.playwright.config.ts …` on that file) when changing Playwright merge logic.
@@ -55,6 +60,8 @@ Vitest excludes `server/services/__tests__/browser-playwright-evaluator.test.ts`
 **Upgrading `@mariozechner/pi-coding-agent`.** Follow [ARCHITECTURE.md § Pi design sandbox](ARCHITECTURE.md#pi-design-sandbox) for the tool-surface contract. After bumping the dependency, run `pnpm -F @auto-designer/pi test`; the package tests catch upstream tool-surface drift.
 
 **Version snapshots:** Follow **[USER_GUIDE.md § Version history](USER_GUIDE.md#version-history)**.
+
+**Experiments tool:** [`experiments/`](experiments/README.md) is an in-repo CLI for iterating on prompts and flow shapes outside the canvas. Imports the same provider, prompt-resolution, Pi runtime, and evaluator modules the routes use; writes structured run directories that both an agent and a human can navigate. Use it for cheap iteration on prompt content or flow variants without UI coupling. Surface and matrix: [`experiments/README.md`](experiments/README.md); critique calibration heuristics: [`experiments/critique-guide.md`](experiments/critique-guide.md); chronological log of prompt-edit cycles and outcomes: [`experiments/iteration-log.md`](experiments/iteration-log.md). **A future-session agent picking up this work cold should read all three** — README for surface, critique-guide for judgment, iteration-log for what we changed and why.
 
 ### Two-process dev setup
 

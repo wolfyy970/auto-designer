@@ -1,0 +1,3 @@
+Banking app users get locked out and have to reset their password. Today's flow is hostile — generic "Invalid credentials" errors, multi-step verification that doesn't acknowledge how stressed the user already is, no clear escalation path when the automated reset fails. People are trying to access their account because they need to pay rent or check a balance, and the system makes them feel like a suspect.
+
+Redesign the password-reset experience for someone who's already stressed and needs in NOW. The scope is the reset flow itself, not the rest of the app — but the flow can include whatever pre/post-flow surfaces are necessary to do this well (pre-auth landing, support escalation, post-success state).

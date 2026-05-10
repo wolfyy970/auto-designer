@@ -43,6 +43,40 @@ import { subscribePiSessionBridge } from './pi-session-event-bridge.ts';
 const NO_FILES_MESSAGE =
   'Agent completed without creating design files in the sandbox. Try a model that supports tool use, or ensure the bash tool runs successfully.';
 
+/**
+ * Stream went silent for too long during an active turn. The streamFn promise
+ * resolved (a stream object was returned), but no chunks have been observed
+ * for `STREAM_IDLE_LIMIT_MS`. This is the streaming-aware analogue of a
+ * fetch-level hang — distinct from `StreamPreStartError` (Promise never
+ * resolved) and from a stage-level wall-clock timeout. Surfaces with the
+ * idle duration so callers can correlate to the diagnostic logs.
+ */
+export class StreamIdleError extends Error {
+  override readonly name = 'StreamIdleError';
+  readonly idleMs: number;
+  readonly correlationId: string | undefined;
+  constructor(idleMs: number, correlationId?: string) {
+    super(
+      `Pi session aborted: no stream activity for ${(idleMs / 1000).toFixed(0)}s` +
+        (correlationId ? ` (correlationId=${correlationId})` : '') +
+        '. Likely a server-side stall mid-stream after the request was accepted.',
+    );
+    this.idleMs = idleMs;
+    this.correlationId = correlationId;
+  }
+}
+
+/**
+ * Stream activity watchdog: aborts the session if no observable streaming
+ * event has fired for this long. A working model produces thinking_delta /
+ * text_delta events on a millisecond cadence once a turn starts; the only
+ * legitimate silence is the pre-first-token thinking window, which on the
+ * models we use is typically under 15s and never above ~45s. Past that the
+ * connection is dead, not slow.
+ */
+const STREAM_IDLE_LIMIT_MS = 45_000;
+const STREAM_IDLE_CHECK_INTERVAL_MS = 3_000;
+
 type ProviderConfig =
   | { id: 'openrouter'; baseUrl: string; apiKey: string }
   | { id: 'lmstudio'; baseUrl: string };
@@ -238,8 +272,12 @@ export async function runPiAgentSession(
 
   const handle = await dispatchSessionFactory(params.sessionType, baseOpts, params.seedFiles);
 
-  // Wrap streamFn with the host's LLM-log sink.
+  // Wrap streamFn with the host's LLM-log sink. Track in-flight log
+  // finalizers so we can drain them before returning — without this, a
+  // session that returns within ms of stream end can race the finalize
+  // IIFE and lose its log entry.
   const llmTurnLogRef: { current?: string } = {};
+  const pendingLogFinalizers = new Set<Promise<void>>();
   const prevStream = handle.session.agent.streamFn;
   handle.session.agent.streamFn = wrapPiStreamWithLogging(prevStream, {
     providerId: params.providerId,
@@ -248,10 +286,12 @@ export async function runPiAgentSession(
     phase: params.phase === 'revision' ? PI_LLM_LOG_PHASE.REVISION : PI_LLM_LOG_PHASE.AGENTIC_TURN,
     turnLogRef: llmTurnLogRef,
     correlationId: params.correlationId,
+    pendingLogFinalizers,
   });
 
-  // Layer the host's rich AgentRunEvent bridge on top.
-  const unsubscribeBridge = subscribePiSessionBridge(handle.session, {
+  // Layer the host's rich AgentRunEvent bridge on top. Keep the bridge ctx
+  // bound so the stream-idle watchdog below can read `streamActivityAt`.
+  const bridgeCtx = {
     onEvent,
     trace: createTraceEvent,
     toolPathByCallId: new Map<string, string | undefined>(),
@@ -262,7 +302,8 @@ export async function runPiAgentSession(
     modelTurnId: { current: 0 },
     pendingToolCallsRef: { current: 0 },
     onStreamDeliveryFailure: () => handle.session.agent.abort(),
-  });
+  };
+  const unsubscribeBridge = subscribePiSessionBridge(handle.session, bridgeCtx);
 
   if (env.isDev) {
     console.debug('[pi-agent-runtime] session start', {
@@ -275,10 +316,45 @@ export async function runPiAgentSession(
     });
   }
 
+  /**
+   * Stream-idle watchdog: races against handle.run(). Polls
+   * `bridgeCtx.streamActivityAt` (bumped on every text/thinking/toolcall delta)
+   * and rejects with a typed `StreamIdleError` if the stream goes silent past
+   * the limit. We also call `agent.abort()` so handle.run resolves and any
+   * in-flight fetch is cancelled — the rejection wins the race because the
+   * abort path resolves with `aborted: true`, not throws.
+   *
+   * Without this, a network-layer hang on the LLM request (observed in
+   * cycles 11 and 15) burns wall-clock until the per-stage timeout — which
+   * is much coarser. The idle watchdog is the streaming-aware primary
+   * signal; the stage timeout is the safety net for cases where the stream
+   * never started or the model is in a tool-loop the watchdog can't see.
+   */
+  let watchdogReject: ((err: Error) => void) | undefined;
+  const watchdogPromise = new Promise<never>((_, rej) => {
+    watchdogReject = rej;
+  });
+  const watchdogTimer = setInterval(() => {
+    const idleMs = Date.now() - bridgeCtx.streamActivityAt.current;
+    if (idleMs > STREAM_IDLE_LIMIT_MS) {
+      clearInterval(watchdogTimer);
+      if (env.isDev) {
+        console.warn('[pi-agent-runtime] stream-idle watchdog firing', {
+          correlationId: params.correlationId,
+          idleMs,
+          modelTurnId: bridgeCtx.modelTurnId.current,
+          pendingToolCalls: bridgeCtx.pendingToolCallsRef?.current,
+        });
+      }
+      void handle.session.agent.abort();
+      watchdogReject?.(new StreamIdleError(idleMs, params.correlationId));
+    }
+  }, STREAM_IDLE_CHECK_INTERVAL_MS);
+
   let result: SessionRunResult;
   try {
     const t0 = performance.now();
-    result = await handle.run();
+    result = await Promise.race([handle.run(), watchdogPromise]);
     if (env.isDev) {
       console.debug('[pi-agent-runtime] session done', {
         correlationId: params.correlationId,
@@ -293,9 +369,20 @@ export async function runPiAgentSession(
       console.error('[pi-agent-runtime] handle.run failed', normalizeError(err), err);
     }
     await onEvent({ type: 'error', payload: `Agent error: ${normalizeProviderError(err)}` });
+    if (err instanceof StreamIdleError) {
+      throw err;
+    }
     return null;
   } finally {
+    clearInterval(watchdogTimer);
     unsubscribeBridge();
+    // Drain any in-flight log finalizers before returning so log entries
+    // are durable on disk before the caller proceeds. The wrapper's
+    // fire-and-forget IIFE could otherwise outlive the session and lose
+    // its row if the runtime tears down within ms of stream end.
+    if (pendingLogFinalizers.size > 0) {
+      await Promise.allSettled([...pendingLogFinalizers]);
+    }
   }
 
   if (result.errorMessage) {

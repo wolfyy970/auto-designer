@@ -531,6 +531,31 @@ Single source of truth for string literals shared across the codebase. Eliminate
 3. Register it in `server/services/providers/registry.ts`
 4. Add any task defaults or lockdown pins needed for the new provider id in `config/task-defaults.json` (server clamping flows through `server/lib/lockdown-model.ts` and provider `listModels` registration)
 
+## Experiments tool
+
+[`experiments/`](experiments/README.md) is a small CLI that drives the same prompt-assembly + Pi sandbox + evaluator modules the routes use, without going through Hono. It exists for cheap iteration on prompt content and flow shape (which stages run, in what order, with what outputs) outside the canvas.
+
+- **Location**: in-repo folder, **not** a workspace package. App-coupled — imports from `server/services/`, `server/lib/`, and `src/lib/prompts/` directly.
+- **Entry**: `pnpm exp <command>` → `experiments/src/cli.ts`.
+- **Flows**: TypeScript files in `experiments/src/flows/` (`ideation.ts` is the default; `canonical.ts`, `reframe-upstream.ts`, `reframe-then-ideate.ts`, `inputs-gen.ts`, `ideation-first.ts` are alternates). Each exports `runFlow(input)`. Adding a flow = adding a file.
+- **Stage primitives**: `experiments/src/flow.ts` exposes `runInputsGen` / `runIncubator` / `runDesignBuild` / `runHonestyCheck` / `runEvaluation` — composable wrappers around `runTaskAgentPiSession` and `runEvaluationWorkers`. All flow through `runStageWithTranscript`, the shared scaffolding helper that owns ordinal-bumping, dry-run early-return, cost-cap gating, per-stage timeout (via `withStageTimeout`), single-retry on transient errors (typed-error gated), and transcript write. Cross-cutting concerns added there propagate to every stage. Reuse these in new flows; do not reimplement provider plumbing.
+- **Run output**: `experiments/runs/<run-id>/` with `summary.md`, `spec.md`, `hypotheses.json`, `transcripts/`, `artifacts/`, `evals/`, plus `critique.md` and `feedback.md` placeholders for the paired critique loop.
+- **Cost**: per-run + daily token caps in `experiments/src/cost.ts`; daily ledger at `experiments/.cost-ledger.jsonl` (gitignored).
+- **Reliability**: the runtime ships a stream-idle watchdog (45s) and per-stage wall-clock timeouts (90s–6min depending on stage type) plus typed errors (`StreamIdleError`, `StageTimeoutError`) so transient flakiness retries cleanly and persistent stalls surface with actionable signal. See [`server/services/pi-agent-runtime.ts`](server/services/pi-agent-runtime.ts) and the `STAGE_TIMEOUT_MS` constants in [`experiments/src/flow.ts`](experiments/src/flow.ts).
+- **Honesty check (stage 3.5)**: after each per-hypothesis design build, a fresh Pi session reads the hypothesis prose + JS/HTML files and emits a structured verdict (`clean` / `minor` / `hollow` / `unknown`) flagging hand-waving in bet-critical paths. Verdict surfaces on the variant row in `summary.md`; failures don't invalidate the build.
+- **Dry-run**: `--dry-run` composes prompts and writes them to the run dir without calling providers.
+- **`--no-build`**: skips stage 3 (and dependent stages 4 + 3.5) for matrix experiments that study upstream stages at scale. The matrix runner in [`experiments/scripts/matrix-runner.ts`](experiments/scripts/matrix-runner.ts) drives such experiments in a single process with per-stage timing logs.
+
+This tool is **not** the canvas. Results don't auto-flow back to production — promotion is a separate deliberate step (edit the prompt file in `packages/auto-designer-pi/prompts/` or route code by hand once an experiment validates a change).
+
+**Cross-session continuity** is structured as four durable artifacts:
+- **Snapshots** (`pnpm snap`, `_versions/` directories) — exact prompt content at every checkpoint
+- [`experiments/critique-guide.md`](experiments/critique-guide.md) — evolving calibration heuristics the agent uses when critiquing
+- [`experiments/iteration-log.md`](experiments/iteration-log.md) — chronological narrative of prompt-edit cycles, the gap each one targeted, the run that tested it, headline outcome, and what's still open
+- Per-run `critique.md` + `feedback.md` — run-level evidence and human corrections (captured by the agent from chat into `feedback.md`; the human does not edit it directly)
+
+A future-session agent picking up this work cold should read [`experiments/README.md`](experiments/README.md) for surface, [`experiments/critique-guide.md`](experiments/critique-guide.md) for judgment, and [`experiments/iteration-log.md`](experiments/iteration-log.md) for the iteration story.
+
 ## Deployment
 
 **Vercel:**

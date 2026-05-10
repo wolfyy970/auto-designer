@@ -135,6 +135,16 @@ export interface LoggedPiStreamFnParams {
   phase?: string;
   correlationId?: string;
   turnLogRef: { current?: string };
+  /**
+   * Optional set of in-flight log-finalization promises. The wrapper inserts
+   * each turn's logging Promise on creation and removes it on settle, so the
+   * caller can `await Promise.allSettled(...pending)` before returning to
+   * ensure no log entries are dropped if the runtime tears down before the
+   * fire-and-forget finalize completes. Without this, a runtime that returns
+   * within milliseconds of stream end (e.g. a one-turn task) can race the
+   * finalize IIFE and lose its log entry.
+   */
+  pendingLogFinalizers?: Set<Promise<void>>;
 }
 
 /**
@@ -146,9 +156,42 @@ export function wrapPiStreamWithLogging(
 ): PiAgentStreamFn {
   return ((model, context, options) => {
     const streamMax = piStreamCompletionMaxTokens(model, context, options?.maxTokens);
+    /**
+     * Diagnostic: log every streamFn invocation BEFORE awaiting `inner(...)`.
+     * Without this, a turn whose underlying fetch never resolves (network-level
+     * hang on the LLM request) is invisible — `beginLlmCall` only fires after
+     * the inner Promise resolves, so a hung turn produces zero log entries.
+     * With this debug line, a future hang shows up as "started, never finalized"
+     * which is enough to localize the failure to the fetch layer.
+     */
+    if (process.env.NODE_ENV !== 'production') {
+       
+      console.debug('[pi-llm-log] streamFn invoked', {
+        provider: params.providerId,
+        model: params.modelId || model.id,
+        source: params.source,
+        phase: params.phase,
+        correlationId: params.correlationId,
+        turnMessages: context.messages.length,
+      });
+    }
     return Promise.resolve(
       inner(model, context, { ...options, maxTokens: streamMax }),
     ).then((stream) => {
+      // Paired with the streamFn-invoked log above. Gap between the two
+      // localizes hangs to either pre-stream (inner Promise never resolves)
+      // or intra-stream (inner resolved but no chunks ever flow through the
+      // bridge — caught by the runtime's stream-idle watchdog).
+      if (process.env.NODE_ENV !== 'production') {
+         
+        console.debug('[pi-llm-log] streamFn resolved (stream object received)', {
+          provider: params.providerId,
+          model: params.modelId || model.id,
+          source: params.source,
+          phase: params.phase,
+          correlationId: params.correlationId,
+        });
+      }
       const t0 = performance.now();
       const pv = providerLogFields(params.providerId);
       const modelLabel = params.modelId || model.id;
@@ -166,36 +209,85 @@ export function wrapPiStreamWithLogging(
       });
       params.turnLogRef.current = logId;
 
-      void (async () => {
-        try {
-          const final = await stream.result();
-          const formatted = formatAssistantForLog(final);
-          const streamed = getLlmLogResponseSnapshot(logId) ?? '';
-          const response = mergeStreamedAndFormattedAssistantResponse(streamed, formatted);
-          const toolCalls = toolCallsForLog(final);
-          finalizeLlmCall(logId, {
-            response,
-            durationMs: Math.round(performance.now() - t0),
-            promptTokens: final.usage?.input,
-            completionTokens: final.usage?.output,
-            totalTokens: final.usage?.totalTokens,
-            truncated: final.stopReason === 'length',
-            toolCalls: toolCalls.length ? toolCalls : undefined,
-            error:
-              final.stopReason === 'error' || final.stopReason === 'aborted'
-                ? (final.errorMessage ?? final.stopReason)
-                : undefined,
-          });
-        } catch (err) {
-          failLlmCall(logId, normalizeError(err), Math.round(performance.now() - t0));
-        } finally {
-          if (params.turnLogRef.current === logId) {
-            params.turnLogRef.current = undefined;
-          }
-        }
-      })();
+      const finalizePromise = finalizeLogFromStream(stream, {
+        logId,
+        t0,
+        params,
+      });
+
+      // Track the pending finalize so the caller can drain pending logs
+      // before tearing down. Without this, a runtime that returns within
+      // milliseconds of stream end can race the finalize IIFE and lose its
+      // log entry.
+      if (params.pendingLogFinalizers) {
+        params.pendingLogFinalizers.add(finalizePromise);
+        void finalizePromise.finally(() => {
+          params.pendingLogFinalizers?.delete(finalizePromise);
+        });
+      }
 
       return stream;
     });
   }) as PiAgentStreamFn;
+}
+
+/**
+ * Drains a Pi `stream.result()` into the LLM log: reads the final assistant
+ * message, merges with whatever was streamed live, finalizes (or fails) the
+ * row, and clears `turnLogRef`. Emits paired `[pi-llm-log] logging
+ * finalized` / `logging failed` debug logs so a logging-side issue is
+ * visible instead of being silently swallowed by the prior `void (async
+ * IIFE)` pattern.
+ */
+async function finalizeLogFromStream(
+  stream: Awaited<ReturnType<PiAgentStreamFn>>,
+  args: { logId: string; t0: number; params: LoggedPiStreamFnParams },
+): Promise<void> {
+  const { logId, t0, params } = args;
+  try {
+    const final = await stream.result();
+    const formatted = formatAssistantForLog(final);
+    const streamed = getLlmLogResponseSnapshot(logId) ?? '';
+    const response = mergeStreamedAndFormattedAssistantResponse(streamed, formatted);
+    const toolCalls = toolCallsForLog(final);
+    const durationMs = Math.round(performance.now() - t0);
+    finalizeLlmCall(logId, {
+      response,
+      durationMs,
+      promptTokens: final.usage?.input,
+      completionTokens: final.usage?.output,
+      totalTokens: final.usage?.totalTokens,
+      truncated: final.stopReason === 'length',
+      toolCalls: toolCalls.length ? toolCalls : undefined,
+      error:
+        final.stopReason === 'error' || final.stopReason === 'aborted'
+          ? (final.errorMessage ?? final.stopReason)
+          : undefined,
+    });
+    if (process.env.NODE_ENV !== 'production') {
+       
+      console.debug('[pi-llm-log] logging finalized', {
+        logId,
+        durationMs,
+        correlationId: params.correlationId,
+        stopReason: final.stopReason,
+      });
+    }
+  } catch (err) {
+    const durationMs = Math.round(performance.now() - t0);
+    failLlmCall(logId, normalizeError(err), durationMs);
+    if (process.env.NODE_ENV !== 'production') {
+       
+      console.debug('[pi-llm-log] logging failed', {
+        logId,
+        durationMs,
+        correlationId: params.correlationId,
+        error: normalizeError(err),
+      });
+    }
+  } finally {
+    if (params.turnLogRef.current === logId) {
+      params.turnLogRef.current = undefined;
+    }
+  }
 }

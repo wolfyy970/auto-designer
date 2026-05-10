@@ -83,6 +83,23 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
       },
+      /**
+       * Vite's default chokidar watcher ignores `node_modules` and `.git` but
+       * not the experiments-tool output trees. With parallel `pnpm exp run`
+       * jobs writing thousands of small files per minute (transcripts after
+       * every model turn, observability NDJSON appended per LLM call, artifact
+       * HTML/JS/CSS at build phase), the watcher would invalidate the module
+       * graph nonstop and spike CPU on the dev server while the experiments
+       * tool runs. None of these paths can affect the running app — they're
+       * pure tooling output.
+       */
+      watch: {
+        ignored: [
+          '**/experiments/runs/**',
+          '**/experiments/.cost-ledger.jsonl',
+          '**/logs/**',
+        ],
+      },
     },
     build: {
       /** Streamdown pulls Mermaid (~800k min); that chunk is lazy-loaded from the variant timeline. */

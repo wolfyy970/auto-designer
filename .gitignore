@@ -32,3 +32,8 @@ test*.html
 *.sln
 *.sw?
 .vercel
+
+# Experiments tool — preserve folder skeletons but ignore generated runs and cost ledger
+experiments/runs/*
+!experiments/runs/.gitkeep
+experiments/.cost-ledger.jsonl
