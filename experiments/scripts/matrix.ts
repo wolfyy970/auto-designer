@@ -84,7 +84,7 @@ function buildMatrix(scope: 'pilot' | 'full'): MatrixCell[] {
   const flows = scope === 'pilot' ? FLOWS : FLOWS;
   const briefIds = scope === 'pilot' ? ['grief-app', 'code-onboarding'] : BRIEFS.map((b) => b.id);
   const counts = scope === 'pilot' ? [5] : [3, 5, 7, 10];
-  const reps = scope === 'pilot' ? 1 : 2;
+  const reps = scope === 'pilot' ? 1 : 3;
 
   for (const flow of flows) {
     for (const briefId of briefIds) {
