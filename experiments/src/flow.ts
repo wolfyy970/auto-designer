@@ -467,6 +467,17 @@ function labelFor(target: InputsGenerateTargetSpecId): string {
 export interface RunIncubatorInput {
   spec: DesignSpec;
   count?: number;
+  /**
+   * Strategies that should be excluded from the incubator's output via the
+   * production `existingStrategies` mechanism. When set, the assembled
+   * user-prompt includes the "Existing Hypotheses (already explored)" block
+   * with the anti-repetition instruction "Do NOT reproduce them. Generate
+   * new strategies that explore genuinely different regions of the solution
+   * space." Used to test whether splitting a single c10 call into c5 + c5
+   * with anti-repetition feedback produces more distinct concepts than the
+   * single c10 call. See `experiments/scripts/anti-repetition-experiment.ts`.
+   */
+  existingStrategies?: HypothesisStrategy[];
 }
 
 export interface RunIncubatorResult {
@@ -480,11 +491,20 @@ export async function runIncubator(
 ): Promise<RunIncubatorResult> {
   const userPromptTemplate = await getPromptBody('incubator-user-inputs');
   const guidance = await inlineGuidance('hypotheses-generator-system', 'hypotheses_generator_guidance');
+  const promptOptions =
+    input.count != null || input.existingStrategies?.length
+      ? {
+          ...(input.count != null ? { count: input.count } : {}),
+          ...(input.existingStrategies?.length
+            ? { existingStrategies: input.existingStrategies }
+            : {}),
+        }
+      : undefined;
   const assembledSpec = buildIncubatorUserPrompt(
     input.spec,
     userPromptTemplate,
     undefined,
-    input.count != null ? { count: input.count } : undefined,
+    promptOptions,
   );
   const userPrompt = `<task>
 Analyze the design specification below and produce global exploration axes with hypothesis strategies.
