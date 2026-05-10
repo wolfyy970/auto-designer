@@ -292,21 +292,40 @@ function buildGroups(cells: CellAggregate[], rows: HypRow[]): GroupAggregate[] {
     }
     const crossRepConvergence = pairs ? sim / pairs : 0;
 
-    // Theme clustering across reps' hypotheses (greedy single-link, threshold 0.4).
+    // Theme clustering across reps' hypotheses.
+    //
+    // Greedy single-link clustering, but the similarity metric is weighted to
+    // give title overlap more weight than bet-prose overlap. Reason: titles
+    // are 1-3 tokens of bet-essence; bet prose is 50-100 tokens of
+    // paraphrased product-design language. Two reps describing the same
+    // concept ("Memory vault" / "Memory archive") share 33-50% of title
+    // tokens but only 10-15% of bet-prose tokens. Title-weighted sim with
+    // a lower threshold (0.18) is what actually catches paraphrase clusters.
     const allHyps: HypRow[] = [];
     for (const c of gcells) allHyps.push(...(rowsByCell.get(c.cellId) ?? []));
-    const clusters: Set<string>[] = [];
+    const titleSetOf = (h: HypRow): Set<string> => new Set(tokenize(h.title));
+    const fullSetOf = (h: HypRow): Set<string> => new Set(h.tokens);
+    const weightedSim = (a: HypRow, ab: Set<string>, b: HypRow, bb: Set<string>): number => {
+      const ta = titleSetOf(a);
+      const tb = titleSetOf(b);
+      return 0.6 * jaccard(ta, tb) + 0.4 * jaccard(ab, bb);
+    };
+    const clusters: HypRow[][] = [];
+    const THRESHOLD = 0.18;
     for (const h of allHyps) {
-      const hs = new Set(h.tokens);
+      const hs = fullSetOf(h);
       let placed = false;
       for (const c of clusters) {
-        if (jaccard(hs, c) >= 0.4) {
-          for (const t of hs) c.add(t);
+        // Compare to cluster centroid — first member is canonical for now.
+        const rep = c[0];
+        const repSet = fullSetOf(rep);
+        if (weightedSim(h, hs, rep, repSet) >= THRESHOLD) {
+          c.push(h);
           placed = true;
           break;
         }
       }
-      if (!placed) clusters.push(new Set(hs));
+      if (!placed) clusters.push([h]);
     }
     const themeClusterRatio = allHyps.length ? clusters.length / allHyps.length : 0;
 
