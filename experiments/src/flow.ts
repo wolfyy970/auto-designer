@@ -80,8 +80,8 @@ export const STAGE_TIMEOUT_MS = {
   inputsGen: 2 * 60_000,
   /** Incubator JSON synthesis (~60-90s typical, hard cap 3 min). */
   incubator: 3 * 60_000,
-  /** Per-hypothesis design build (~2-3 min typical, hard cap 6 min for the heaviest legitimate build). */
-  designBuild: 6 * 60_000,
+  /** Per-hypothesis design build (~2-3 min typical, hard cap 8 min — cycle 22's structured-todos contract adds upfront planning, and cycle 22 habit-tracker run hit the prior 6 min cap on Reverse Accountability Incentives without a tool-loop). */
+  designBuild: 8 * 60_000,
   /** Evaluator workers run in parallel (~60-90s typical, hard cap 3 min). */
   evaluation: 3 * 60_000,
 } as const;
