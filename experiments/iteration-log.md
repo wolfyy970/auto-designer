@@ -671,3 +671,64 @@ The real failure mode is narrower and more specific: stubs that **force the user
 - **Per-finding `severity: minor` reporting** — once the auditor surfaces bet-preserving stubs at `minor` severity, the human gets a transparent list of "where the prototype faked things." That's a useful audit trail. The `summary.md` honesty row should be updated to show this (e.g. `🟡 minor (3 bet-preserving stubs)` so the human can spot-check); deferred to cycle 24 if helpful.
 
 ---
+
+## Cycle 24 — Re-audit + budget bump + 50-prototype validation (2026-05-11)
+
+Three coordinated moves:
+
+**Phase A — Honesty-check timeout 3 min → 5 min** (commit [`ff2e97c`](https://github.com/wolfyy970/designer/commit/ff2e97c)).
+Cycle 23 work surfaced two stage-timeouts on the heavier cycle 23 auditor (Voice-Native Habit Control in the re-audit script; Pure zero-friction completion in cycle 23 habit-tracker validation). Bumped to 5 min for headroom; typical runs remain well inside.
+
+**Phase B — Single-path-compression regression check, fresh password-reset run on cycle 23 prompts.**
+Run [`20260511-215718-ideation-7f7e`](runs/20260511-215718-ideation-7f7e) on studio. 3 of 5 hypotheses built; 2 hit StreamIdleError (`Pi session aborted, no stream activity for 45s`) at the design-build stage and produced no artifact. The 3 built artifacts:
+
+- *One-Tap Concierge First* — ✅ clean (3 findings). All findings in scaffold paths / post-bet surfaces. Zero meta-acknowledgments on bet-critical interactions.
+- *Biometric Bypass Recovery* — ✅ clean (0 findings). Faked biometric flow is the canonical cycle 23 bet-preserving infrastructure stub the rule explicitly accepts.
+- *Trusted Circle Social Vouch* — 🟡 minor (4 findings). This is the most interesting case — same hypothesis territory as cycle 19's canonical *Simulate-Alex-accepts* failure. Cycle 24 prompts produced a `<button>Demo: Simulate Vouch Received</button>` that triggers the auto-vouch state and lets the user experience the actual instant-reset flow. The auditor's own reasoning: *"Demo button triggers vouch-received state, then user experiences real instant reset flow. Similar to the 'I arrived at the gym' GPS example in guidelines — honest demo label, interaction from that point is real."* The cycle 19 anti-pattern has evolved into its bet-preserving form, and the auditor correctly distinguishes it.
+
+Phase B pass criterion (zero meta-acknowledgments on bet-critical interactions across buildable artifacts) **met for all 3 buildable hypotheses**. The cycle 23 build-prompt language is preventing the Single-path-compression failure mode at build time, not just catching it at audit time.
+
+**Phase C — 50-prototype end-to-end validation.** New batch harness [`experiments/scripts/cycle24-batch.ts`](scripts/cycle24-batch.ts) (commit [`30b19a0`](https://github.com/wolfyy970/designer/commit/30b19a0)) runs N cells with concurrency-limited `runOneCell` calls and aggregates honesty verdicts into a single report. 10 cells = 5 briefs × 2 reps × 5 hypotheses; concurrency 4; 23.7 min wall.
+
+Aggregate report: [`runs/cycle24-aggregate/aggregate.md`](runs/cycle24-aggregate/aggregate.md).
+
+| Outcome dimension | Count |
+|---|---|
+| Hypotheses attempted | 50 |
+| Hypotheses with honesty verdicts | 28 |
+| Stage errors (no verdict produced) | 22 |
+| Of verdicted: ✅ clean | 27 |
+| Of verdicted: 🟡 minor | 1 |
+| Of verdicted: 🔴 hollow | **0** |
+
+**Headline result on build quality: 0 of 28 verdicted prototypes were bet-killing. Hollow rate 0% (target ≤5%, escalation >10%).** Per-brief breakdown:
+
+| Brief | Hypotheses | Clean | Minor | Hollow | Stage errors |
+|---|---|---|---|---|---|
+| password-reset | 10 | 4 | 0 | 0 | 6 |
+| habit-tracker | 10 | 0 | 0 | 0 | 10 (both cells died at incubator stage) |
+| grief-app | 10 | 4 | 1 | 0 | 5 |
+| code-onboarding | 10 | 10 | 0 | 0 | 0 |
+| icu-handoff | 10 | 9 | 0 | 0 | 1 |
+
+The 1 minor was *grief-app/r2: Stranger Witness* — bet-preserving stubs around video-call infrastructure (matching delay simulated, video placeholder element). The auditor surfaced both as `minor` for transparency; bet's experience intact.
+
+**Stage-error analysis.** All 22 no-verdict cases share the same root cause: `Pi session aborted: no stream activity for 45-47s. Likely a server-side stall mid-stream after the request was accepted.` This is the [`StreamIdleError`](src/flow.ts) pattern that cycle 20's stage-level retry (up to 2 attempts) is supposed to handle. The fact that both attempts failed for 22 cells across multiple briefs strongly suggests OpenRouter / MiniMax was load-shedding during the Phase C window — server-side issue, not a prompt-side problem. 10 of the 22 errors were both habit-tracker cells dying at the **incubator stage** (before any hypotheses were built); the other 12 were build-stage failures within otherwise-successful runs.
+
+**Why this matters for interpretation.** The 28-prototype validation is real and the 0% hollow result is real, but the effective sample is smaller than the 50 we paid for. A fresh re-fire of habit-tracker on a different day would close that gap; the prompt + rule work doesn't need to change.
+
+**Files added / modified**:
+- [`experiments/src/flow.ts`](src/flow.ts) — Phase A timeout bump.
+- [`experiments/scripts/cycle24-batch.ts`](scripts/cycle24-batch.ts) — Phase C harness.
+- [`experiments/scripts/re-audit-cycle23.ts`](scripts/re-audit-cycle23.ts) — pulled out of the cycle 23 work; reusable for any future re-audit when reviewer rules change.
+
+**What this closes**:
+- The "real failure rate" question that's been moving since cycle 21. On 28 fresh builds under cycle 23 prompts, **the rate of bet-killing prototypes is 0%**. Under the cycle 23 rule, on the historical re-audit (cycle 23 entry), it was ~22% — that's the improvement from the cycle 22 → 23 build-prompt work, validated.
+- The cycle 23 entry's "we haven't tested whether cycle 23 prompts prevent Single-path-compression at build time" gap. Phase B confirms: they do.
+
+**What's still open**:
+- **Network/streaming reliability.** 44% stage-error rate across the batch is too high. The cycle 20 retry should have helped; it didn't, today. Options: (a) bump retry attempts from 2 → 3 with longer backoff (1.5s → 5s) to ride out short stalls, (b) re-fire the failed cells on a different day to confirm it was OpenRouter load and not a code regression, (c) add a circuit-breaker that surfaces "OpenRouter/MiniMax appears degraded" instead of silently dying. Lowest-risk start: option (b) — re-run habit-tracker only when OpenRouter is healthy.
+- **Per-finding `severity: minor` summary-row reporting** (carryover from cycle 23's open list) — the report shows `minor (N findings)` but the underlying severity breakdown isn't surfaced in `summary.md`. Small cosmetic win.
+- **Critique-feedback capability** — KC mentioned this earlier as the next arc after validation lands. Cycle 24 closes the validation work; the critique-feedback arc is the next thing to design.
+
+---
