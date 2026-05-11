@@ -763,12 +763,14 @@ const HONESTY_CHECK_TOTAL_CHARS_CAP = 60_000;
 /**
  * Honesty check is a single LLM call but heavier than other inputs-gen stages:
  * the model has to read the hypothesis, scan every JS/HTML file, distinguish
- * bet-critical from scaffold paths, and emit structured JSON with per-finding
- * explanations. Cycle-20 smoke run on `password-reset` showed 3 of 5 checks
- * hitting a 90s budget; 3 min (matching `evaluation`) gives proper headroom
- * without becoming a sleep budget.
+ * bet-critical from scaffold paths, judge each disguised-stub against the
+ * bet-preserving discriminating question (cycle 23), and emit structured JSON
+ * with per-finding explanations. Cycle-20 set this at 3 min; cycle 23 work
+ * surfaced two timeouts (Voice-Native Habit Control in the re-audit script,
+ * Pure zero-friction completion in cycle 23 habit-tracker validation), so
+ * cycle 24 bumps to 5 min for safer headroom on heavier hypotheses.
  */
-const HONESTY_CHECK_TIMEOUT_MS = 3 * 60_000;
+const HONESTY_CHECK_TIMEOUT_MS = 5 * 60_000;
 
 /**
  * Run a post-build honesty-check on a hypothesis's artifact. A separate Pi
