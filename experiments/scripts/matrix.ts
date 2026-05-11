@@ -21,7 +21,7 @@
  *     log.txt           rolling log of orchestrator-level events
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
-import { resolve, basename, join } from 'node:path';
+import { resolve, join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
@@ -68,7 +68,12 @@ const BRIEFS: BriefSpec[] = [
   { id: 'icu-handoff', briefFile: 'icu-handoff.md' },
 ];
 
-const FLOWS: FlowNameAll[] = ['canonical', 'ideation', 'reframe-upstream', 'reframe-then-ideate'];
+/**
+ * `reframe-upstream` was retired post-cycle-21 (matrix showed it within
+ * rep-noise of canonical — no measurable theme-spread benefit). Kept
+ * `reframe-then-ideate` as the only composition-flow data point.
+ */
+const FLOWS: FlowNameAll[] = ['canonical', 'ideation', 'reframe-then-ideate'];
 
 interface MatrixCell {
   cellId: string;

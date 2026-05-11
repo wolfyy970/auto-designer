@@ -42,7 +42,7 @@ pnpm test:watch      # vitest (watch mode)
 pnpm vitest run src/hooks/__tests__/resolve-evaluator-settings.test.ts  # single test file
 
 # Experiments tool — prompt and flow iteration outside the canvas
-pnpm exp run <flow> --brief <path>   # flows: ideation (default) | canonical | reframe-upstream | reframe-then-ideate | inputs-gen
+pnpm exp run <flow> --brief <path>   # flows: ideation (default) | canonical | reframe-then-ideate | inputs-gen
 pnpm exp list / show / diff          # browse runs
 pnpm exp run --help                  # full flag list (sourcing, regen, target, caps, dry-run)
 ```

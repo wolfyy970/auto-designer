@@ -116,6 +116,10 @@ Open **Settings → Reasoning** to choose, per task, the **provider + model** an
 
 Connect spec input nodes to the **Incubator** (structural edges auto-connect on add and stay protected). With at least a minimal **Design Brief** written, click **Generate** and choose how many new hypotheses to create. The Incubator uses **Settings → Reasoning → Incubator** for the model + thinking level. It sends active sources — filled spec inputs and connected preview references — to the LLM and produces that many hypothesis strategy cards. **blank hypothesis** does the same readiness check (brief + model) but adds a single empty strategy card without calling the LLM, for hand-editing.
 
+After the first run, the primary button reads **Generate more** instead of **Generate** — re-clicking adds fresh hypotheses while passing the existing cards back as anti-repetition context, so subsequent clicks explore directions you haven't seen yet rather than producing paraphrases. A single run typically leaves variety on the table; click **Generate more** until you've seen enough.
+
+The **Brainstorm directions first** toggle on the Incubator is off by default. When enabled, the server runs a divergent brainstorm + spread-curation pair before the incubator stage and stitches the five curated directions into the brief — the incubator anchors against those candidates. Use it for open-ended briefs when you want a wider corpus; skip it on tightly-scoped briefs (medical handoff, regulated domains) where brainstorming over-conditions the model. Expect ~50% more wall time on that incubator run.
+
 The Design System is intentionally outside hypothesis incubation. Non-default design-system guidance applies later when a hypothesis is designed, so hypothesis quality is judged against the problem framing before visual-system execution.
 
 ### 4. Edit Hypotheses

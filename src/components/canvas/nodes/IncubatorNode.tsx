@@ -26,9 +26,17 @@ import {
 } from '../../../hooks/task-stream-state';
 import { NodeErrorBlock } from './shared/NodeErrorBlock';
 import { CanvasNodeSelect } from './CanvasNodeSelect';
+import { DsHelpTooltip } from '../../shared/DsHelpTooltip';
 
 const COUNT_OPTIONS = [1, 2, 3, 5];
-const DEFAULT_COUNT = 3;
+/**
+ * Default of 5 (not 3) — the 384-cell matrix showed c5 produces ~12
+ * distinct themes across 3 reps vs c3's ~7, with essentially the same
+ * themeClusterRatio (0.79 vs 0.82). 5 is also the ceiling: anti-rep
+ * experiment showed marginal cards past ~5 are mostly paraphrases.
+ * COUNT_OPTIONS holds at 5; don't extend past it.
+ */
+const DEFAULT_COUNT = 5;
 
 type IncubatorNodeFlowType = Node<IncubatorNodeData, 'incubator'>;
 
@@ -48,6 +56,7 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
   const { providerId, modelId, supportsVision } = useTaskModel('incubate');
 
   const hypothesisCount = (data.hypothesisCount as number | undefined) ?? DEFAULT_COUNT;
+  const brainstormBeforeIncubator = Boolean(data.brainstormBeforeIncubator);
   const [taskStreamState, setTaskStreamState] = useState<TaskStreamState>(() =>
     createInitialTaskStreamState('idle'),
   );
@@ -77,6 +86,12 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
     },
     [id, updateNodeData],
   );
+  const handleBrainstormToggle = useCallback(
+    (checked: boolean) => {
+      updateNodeData(id, { brainstormBeforeIncubator: checked });
+    },
+    [id, updateNodeData],
+  );
   const countOptions = COUNT_OPTIONS.map((n) => ({ value: String(n), label: String(n) }));
 
   const handleAddBlank = useCallback(
@@ -97,6 +112,7 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
     modelId,
     supportsVision,
     hypothesisCount,
+    brainstormBeforeIncubator,
     fitView,
     setTaskStreamState,
   });
@@ -116,6 +132,27 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
 
   // Layer 2: inline readiness hint
   const hint = !isCompiling ? readinessBlockReason ?? null : null;
+
+  /**
+   * After a successful run, the primary button shifts from "Generate" to
+   * "Generate more" so the user understands that re-clicking adds NEW
+   * hypotheses (the existing ones are passed back as anti-repetition
+   * context via `existingStrategies`). Backed by the 60-cell anti-rep
+   * experiment which showed this path produces more distinct concepts
+   * than a single bigger ask.
+   */
+  const hasExistingHypotheses = totalHypotheses > 0;
+  const showRegenerateMode = hasExistingHypotheses && !isCompiling;
+  const primaryLabel = isCompiling
+    ? 'Incubating…'
+    : showRegenerateMode
+      ? 'Generate more'
+      : 'Generate';
+  const primaryAriaLabel = isCompiling
+    ? 'Incubating…'
+    : showRegenerateMode
+      ? 'Generate more hypotheses, avoiding the existing ones'
+      : 'Generate hypotheses';
 
   return (
     <NodeShell
@@ -166,34 +203,84 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
               />
             </div>
 
+            {/*
+              Optional brainstorm prelude (the experimental "ideation" flow
+              promoted into production). Lifts the HypothesisAutoImproveSettings
+              container pattern verbatim. Default off — the matrix shows
+              brainstorming helps on open briefs but actively hurts on
+              high-constraint ones (icu-handoff), so the user owns the call.
+            */}
+            <div className="rounded-md border border-border-subtle bg-surface/40 px-2 py-1.5">
+              <div className="flex items-center gap-1">
+                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 select-none">
+                  <input
+                    type="checkbox"
+                    checked={brainstormBeforeIncubator}
+                    onChange={(e) => handleBrainstormToggle(e.target.checked)}
+                    disabled={isCompiling}
+                    className="accent-accent shrink-0"
+                  />
+                  <span className="text-nano font-medium text-fg-secondary">
+                    Brainstorm directions first
+                  </span>
+                </label>
+                <DsHelpTooltip
+                  aria-label="What Brainstorm directions first does"
+                  content={
+                    <>
+                      <span className="font-medium text-fg-secondary">Off (default):</span> the
+                      incubator generates hypotheses directly from your inputs.{' '}
+                      <span className="font-medium text-fg-secondary">On:</span> an extra step
+                      first brainstorms 10–15 wild product directions, then curates 5 for maximum
+                      spread. Wider variety, ~50% slower. Best for open-ended briefs.
+                    </>
+                  }
+                />
+              </div>
+            </div>
+
             {hint && (
               <div className="flex justify-center">
                 <Badge shape="pill" tone="warning">{hint}</Badge>
               </div>
             )}
 
-            <Button
-              variant="primary"
-              size="md"
-              className="w-full"
-              onClick={handleIncubate}
-              disabled={isCompiling || !isReady}
-              aria-busy={isCompiling}
-              aria-label={isCompiling ? 'Incubating…' : 'Generate hypotheses'}
-              title={isCompiling ? 'Incubating…' : undefined}
-            >
-              {isCompiling ? (
-                <>
-                  <RefreshCw size={12} className="animate-spin" aria-hidden />
-                  Incubating…
-                </>
-              ) : (
-                <>
-                  Generate
-                  <ArrowRight size={12} aria-hidden />
-                </>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="primary"
+                size="md"
+                className="flex-1"
+                onClick={handleIncubate}
+                disabled={isCompiling || !isReady}
+                aria-busy={isCompiling}
+                aria-label={primaryAriaLabel}
+                title={isCompiling ? 'Incubating…' : undefined}
+              >
+                {isCompiling ? (
+                  <>
+                    <RefreshCw size={12} className="animate-spin" aria-hidden />
+                    Incubating…
+                  </>
+                ) : (
+                  <>
+                    {primaryLabel}
+                    <ArrowRight size={12} aria-hidden />
+                  </>
+                )}
+              </Button>
+              {showRegenerateMode && (
+                <DsHelpTooltip
+                  aria-label="What Generate more does"
+                  content={
+                    <>
+                      Each click adds new hypothesis cards. The agent receives the existing cards
+                      as &ldquo;do-not-repeat&rdquo; context, so new clicks explore directions you
+                      haven&rsquo;t seen yet.
+                    </>
+                  }
+                />
               )}
-            </Button>
+            </div>
 
             <Button
               type="button"
@@ -212,9 +299,15 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
         </div>
 
         {totalHypotheses > 0 && !isCompiling && (
-          <p className="text-nano text-fg-secondary">
-            {totalHypotheses} {totalHypotheses === 1 ? 'hypothesis' : 'hypotheses'} total
-          </p>
+          <div className="space-y-0.5">
+            <p className="text-nano text-fg-secondary">
+              {totalHypotheses} {totalHypotheses === 1 ? 'hypothesis' : 'hypotheses'} total
+            </p>
+            <p className="text-nano text-fg-muted">
+              Click <span className="font-medium text-fg-secondary">Generate more</span> to see
+              other directions — won&rsquo;t repeat existing.
+            </p>
+          </div>
         )}
       </div>
     </NodeShell>

@@ -38,13 +38,12 @@ import {
 } from '../src/cost.ts';
 import { runFlow as runCanonical, type CanonicalFlowInput } from '../src/flows/canonical.ts';
 import { runFlow as runIdeation } from '../src/flows/ideation.ts';
-import { runFlow as runReframeUpstream } from '../src/flows/reframe-upstream.ts';
 import { runFlow as runReframeThenIdeate } from '../src/flows/reframe-then-ideate.ts';
 
 const DEFAULT_PROVIDER = 'openrouter';
 const DEFAULT_MODEL = 'minimax/minimax-m2.5';
 
-type FlowName = 'canonical' | 'ideation' | 'reframe-upstream' | 'reframe-then-ideate';
+type FlowName = 'canonical' | 'ideation' | 'reframe-then-ideate';
 
 export interface CellSpec {
   flow: FlowName;
@@ -243,9 +242,6 @@ export async function runOneCell(spec: CellSpec): Promise<RunOneCellResult> {
       case 'ideation':
         await runIdeation({ ...input, designBrief });
         break;
-      case 'reframe-upstream':
-        await runReframeUpstream({ ...input, designBrief });
-        break;
       case 'reframe-then-ideate':
         await runReframeThenIdeate({ ...input, designBrief });
         break;
@@ -316,7 +312,7 @@ async function main() {
     console.error('Usage: tsx experiments/scripts/matrix-runner.ts --flow <flow> --brief <path> [--research P] [--objectives P] [--constraints P] [--count N] [--no-build] [--no-evaluate]');
     process.exit(2);
   }
-  const validFlows: FlowName[] = ['canonical', 'ideation', 'reframe-upstream', 'reframe-then-ideate'];
+  const validFlows: FlowName[] = ['canonical', 'ideation', 'reframe-then-ideate'];
   if (!validFlows.includes(flow)) {
     console.error(`Unknown flow "${flow}". Valid: ${validFlows.join(', ')}`);
     process.exit(2);

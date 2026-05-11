@@ -42,7 +42,6 @@ import 'dotenv/config';
 
 import {
   CostTracker,
-  DEFAULT_DAILY_TOKEN_CAP,
   DEFAULT_PER_RUN_TOKEN_CAP,
   ledgerPathDefault,
 } from '../src/cost.ts';

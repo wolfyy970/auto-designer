@@ -18,8 +18,8 @@ pnpm exp run ideation --brief experiments/briefs/your-brief.md
 # Fast path — canonical, no extra ideation stages (use when you don't need spread)
 pnpm exp run canonical --brief experiments/briefs/your-brief.md
 
-# Variant: opportunity-question reframe inserted upstream of spec prep
-pnpm exp run reframe-upstream --brief experiments/briefs/your-brief.md
+# Variant: reframe + brainstorm composition (HMW recovery, then divergent ideation)
+pnpm exp run reframe-then-ideate --brief experiments/briefs/your-brief.md
 
 # Browse runs
 pnpm exp list
@@ -54,13 +54,13 @@ experiments/runs/<run-id>/
 
 ## Stages
 
-The canonical pipeline (also the spine of `ideation`, `reframe-upstream`, `reframe-then-ideate`):
+The canonical pipeline (also the spine of `ideation` and `reframe-then-ideate`):
 
 | Stage | What it does | Output |
 |---|---|---|
 | 0a (ideation flows) | Wild brainstorm (10-15 categorically different directions) | `transcripts/NN-brainstorm.md` |
 | 0b (ideation flows) | Curation (pick 5 for max spread, with rationale) | `transcripts/NN-curation.md` |
-| 0 (reframe-upstream) | Opportunity reframe (recover HMW question from brief) | `transcripts/NN-reframe.md` |
+| 0 (reframe-then-ideate) | Opportunity reframe (recover HMW question from brief) before brainstorm | `transcripts/NN-reframe.md` |
 | 1 | Inputs-gen for missing R/O/C sections | `transcripts/NN-inputs-<section>.md` |
 | 2 | Incubator (spec → hypotheses) | `hypotheses.json` + `transcripts/NN-incubator.md` |
 | 3 | Per-hypothesis design build | `artifacts/<hyp-id>/` + `transcripts/NN-build-<slug>.md` |
@@ -77,9 +77,10 @@ Current:
 
 - **ideation** — **default flow.** Two extra stages before canonical: (0a) divergent brainstorm — 10-15 categorically different product directions, anti-censorship ("the wilder the better"); (0b) convergent curation — picks 5 directions for *maximum spread*, not maximum plausibility. The 5 picked directions are stitched into the brief as a `<product_shape_candidates>` block and the canonical pipeline runs from there. Validated on both high-gravity and low-gravity briefs (cycles 11, 12, 15) — produces wider, more distinctive corpora than canonical alone with negligible extra cost when the per-hypothesis builds run in parallel. Introduced cycle 11 as `wild-ideation`, renamed to `ideation` cycle 17.
 - **canonical** — fast path. High-fidelity reproduction of production: optional inputs-gen for missing or regen-flagged sections → incubator → per-hypothesis design build → optional evaluation. Use when the divergent/convergent split is overkill (single-hypothesis bug-fix verification, prompt unit-tests, etc.).
-- **reframe-upstream** — variant. Adds a single LLM call before any spec-prep that recovers an opportunity-shaped (HMW) question from the brief. The reframe is prepended to the brief content as a `<opportunity_reframe>` block so every downstream stage sees it. Cycle 19 found this flow alone is too weak to break prescription-grip on prescribed-solution briefs — the recovered HMW question often restates the prescription.
-- **reframe-then-ideate** — composition. Runs reframe → brainstorm → curation → canonical. Tests whether the brainstorm seeing the recovered HMW question produces a wider spread than either flow alone. Untested at scale as of cycle 21; included for the matrix surface-value comparison.
+- **reframe-then-ideate** — composition. Runs reframe → brainstorm → curation → canonical. Tests whether the brainstorm seeing the recovered HMW question produces a wider spread than `ideation` alone. The 384-cell matrix put it within rep-noise of plain `ideation`; kept as the only standing data point for a multi-stage composition.
 - **inputs-gen** — focused. Runs only stage 1 (research / objectives / constraints generation). Skips incubator, build, and evaluation. Use it for tight iteration on `gen-research.md` / `gen-objectives.md` / `gen-constraints.md`.
+
+_Retired cycle 21: `reframe-upstream` (HMW recovery without a downstream brainstorm). The 384-cell matrix and a per-brief breakdown showed it within rep-noise of `canonical` — the recovered HMW often restated the prescription, as cycle 19 had hand-flagged. Historical findings preserved in [iteration-log.md](iteration-log.md)._
 
 To compare runs, use `pnpm exp diff <a> <b>`.
 

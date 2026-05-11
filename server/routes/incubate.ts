@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { buildIncubatorUserPrompt } from '../../src/lib/prompts/incubator-user.ts';
@@ -16,8 +17,11 @@ import { generateId, now } from '../../src/lib/utils.ts';
 import { env } from '../env.ts';
 import { appendIncubateParsedLogEntry } from '../log-store.ts';
 import { runTaskAgentRoute } from '../lib/task-agent-route-runner.ts';
+import { runBrainstormPrelude } from '../lib/incubator-brainstorm.ts';
 import { IncubateRequestSchema } from '../../src/api/request-schemas.ts';
 import { normalizeIncubationPlanExplorationAxes } from '../../src/lib/exploration-axis-normalizer.ts';
+import type { DesignSpec } from '../../src/types/spec.ts';
+import type { Context } from 'hono';
 
 const incubate = new Hono();
 
@@ -80,11 +84,69 @@ const LLMResponseSchema = z
     ),
   }));
 
+/**
+ * Run the brainstorm prelude and mutate the body's design-brief section
+ * in place. Returns `undefined` on success (so the caller continues to
+ * the regular incubator stage) or a JSON error `Response` on failure.
+ *
+ * On success the brief content is replaced with the augmented version
+ * (original brief + `<product_shape_candidates>` block). Downstream the
+ * incubator's `buildInternalContext(spec)` reads the brief content
+ * directly and the new block flows naturally to the model.
+ */
+async function applyBrainstormPrelude(
+  c: Context,
+  body: { spec: DesignSpec; providerId: string; modelId: string },
+  brief: string,
+): Promise<Response | undefined> {
+  try {
+    const { augmentedBrief } = await runBrainstormPrelude({
+      designBrief: brief,
+      providerId: body.providerId,
+      modelId: body.modelId,
+      signal: c.req.raw.signal,
+      correlationId: randomUUID(),
+    });
+    const briefSection = body.spec.sections['design-brief'];
+    if (briefSection) {
+      // Mutate in place: the rest of the route reads body.spec only.
+      body.spec.sections['design-brief'] = {
+        ...briefSection,
+        content: augmentedBrief,
+      };
+    }
+    return undefined;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (env.isDev) {
+      console.debug('[incubate] brainstorm prelude failed', { message });
+    }
+    return c.json(
+      { error: `Brainstorm prelude failed: ${message}` },
+      500,
+    );
+  }
+}
+
 incubate.post('/', async (c) => {
   const parsed = await parseRequestJson(c, IncubateRequestSchema);
   if (!parsed.ok) return parsed.response;
   const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId, 'incubate');
   const body = { ...parsed.data, providerId: pinned.providerId, modelId: pinned.modelId };
+
+  // Optional brainstorm prelude. When enabled, run brainstorm → curation
+  // out-of-band of the SSE stream and stitch the curated 5 directions
+  // into the spec's design-brief section before the incubator runs.
+  // Stitched form is `<product_shape_candidates>…</product_shape_candidates>`
+  // appended to the brief content, which then propagates through
+  // `buildInternalContext(spec)`.
+  if (body.promptOptions?.brainstormFirst === true) {
+    const brief = body.spec.sections['design-brief']?.content?.trim();
+    if (brief) {
+      const preludeError = await applyBrainstormPrelude(c, body, brief);
+      if (preludeError) return preludeError;
+    }
+  }
 
   const userPromptTemplate = await getPromptBody('incubator-user-inputs');
   const assembledSpec = buildIncubatorUserPrompt(

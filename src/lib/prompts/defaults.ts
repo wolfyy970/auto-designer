@@ -15,7 +15,9 @@ export type PromptKey =
   | 'evaluator-implementation'
   | 'inputs-gen-research-context'
   | 'inputs-gen-objectives-metrics'
-  | 'inputs-gen-design-constraints';
+  | 'inputs-gen-design-constraints'
+  | 'incubator-brainstorm-system'
+  | 'incubator-curation-system';
 
 export const PROMPT_KEYS: PromptKey[] = [
   'hypotheses-generator-system',
@@ -33,4 +35,6 @@ export const PROMPT_KEYS: PromptKey[] = [
   'inputs-gen-research-context',
   'inputs-gen-objectives-metrics',
   'inputs-gen-design-constraints',
+  'incubator-brainstorm-system',
+  'incubator-curation-system',
 ];

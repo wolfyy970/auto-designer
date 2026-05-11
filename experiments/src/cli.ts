@@ -373,7 +373,7 @@ async function cmdOpen(args: RawArgs): Promise<number> {
     console.error(`Run not found: ${runId}`);
     return 1;
   }
-  // Prefer preview.html when present (canonical / reframe-upstream); fall back to summary.md.
+  // Prefer preview.html when present (canonical and variants); fall back to summary.md.
   let previewPath = join(runDir, 'preview.html');
   if (!existsSync(previewPath)) {
     // Old run from before preview.html was introduced — regenerate from on-disk data.

@@ -98,4 +98,70 @@ describe('incubator run input assembly', () => {
     expect(out.spec.id).toBe('spec-1');
     expect(out.promptOptions).toEqual({ count: 3, existingStrategies: [] });
   });
+
+  it('threads `brainstormBeforeIncubator: true` through to `promptOptions.brainstormFirst`', async () => {
+    const nodes: WorkspaceNode[] = [
+      { id: 'inc-1', type: NODE_TYPES.INCUBATOR, position: { x: 0, y: 0 }, data: {} },
+      { id: 'brief-1', type: NODE_TYPES.DESIGN_BRIEF, position: { x: 0, y: 0 }, data: {} },
+    ];
+    const edges: WorkspaceEdge[] = [
+      { id: 'brief-1->inc-1', source: 'brief-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } },
+    ];
+    const wiring: DomainIncubatorWiring = {
+      inputNodeIds: ['brief-1'],
+      previewNodeIds: [],
+    };
+
+    const out = await buildIncubatorRunInputs({
+      snapshot: {
+        incubatorId: 'inc-1',
+        nodes,
+        edges,
+        spec,
+        results: [],
+        wiring,
+        incubationPlans: {},
+        hypotheses: {},
+      },
+      hypothesisCount: 5,
+      brainstormBeforeIncubator: true,
+    });
+
+    expect(out.promptOptions).toEqual({
+      count: 5,
+      existingStrategies: [],
+      brainstormFirst: true,
+    });
+  });
+
+  it('omits `brainstormFirst` from the wire payload when toggle is off (keeps requests minimal for the common case)', async () => {
+    const nodes: WorkspaceNode[] = [
+      { id: 'inc-1', type: NODE_TYPES.INCUBATOR, position: { x: 0, y: 0 }, data: {} },
+      { id: 'brief-1', type: NODE_TYPES.DESIGN_BRIEF, position: { x: 0, y: 0 }, data: {} },
+    ];
+    const edges: WorkspaceEdge[] = [
+      { id: 'brief-1->inc-1', source: 'brief-1', target: 'inc-1', type: 'dataFlow', data: { status: 'idle' } },
+    ];
+    const wiring: DomainIncubatorWiring = {
+      inputNodeIds: ['brief-1'],
+      previewNodeIds: [],
+    };
+
+    const out = await buildIncubatorRunInputs({
+      snapshot: {
+        incubatorId: 'inc-1',
+        nodes,
+        edges,
+        spec,
+        results: [],
+        wiring,
+        incubationPlans: {},
+        hypotheses: {},
+      },
+      hypothesisCount: 5,
+      brainstormBeforeIncubator: false,
+    });
+
+    expect(out.promptOptions).not.toHaveProperty('brainstormFirst');
+  });
 });

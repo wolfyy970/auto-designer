@@ -36,6 +36,14 @@ export type InputGhostData = NodeData<{
 
 export type IncubatorNodeData = NodeData<{
   hypothesisCount?: number;
+  /**
+   * When true, the incubate route runs a brainstorm-and-curate prelude
+   * before the main incubator call (the experiments tool's "ideation"
+   * flow, promoted into production). Default false. Matrix evidence: ~15%
+   * more distinct themes across reps at +50% wall time; tends to hurt on
+   * high-constraint briefs, so the user owns the choice via the toggle.
+   */
+  brainstormBeforeIncubator?: boolean;
 }>;
 
 export type HypothesisNodeData = NodeData<{

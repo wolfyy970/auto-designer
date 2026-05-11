@@ -23,6 +23,8 @@ const PACKAGE_PROMPT_FILES: Partial<Record<PromptKey, string>> = {
   'inputs-gen-research-context': 'gen-research.md',
   'inputs-gen-objectives-metrics': 'gen-objectives.md',
   'inputs-gen-design-constraints': 'gen-constraints.md',
+  'incubator-brainstorm-system': 'gen-brainstorm.md',
+  'incubator-curation-system': 'gen-curation.md',
   'design-system-extract-system': 'ds-extract.md',
   'design-system-extract-user-input': 'ds-extract-input.md',
   'designer-agentic-revision-user': 'revise.md',

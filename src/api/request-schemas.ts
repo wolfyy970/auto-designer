@@ -53,6 +53,15 @@ export const InputsGenerateRequestSchema = z.object({
 const IncubatorPromptOptionsSchema = z.object({
   count: z.number().int().positive().optional(),
   existingStrategies: z.array(HypothesisStrategySchema).optional(),
+  /**
+   * When true, the incubate route runs a brainstorm + curation prelude
+   * before the main incubator call. The curated 5 product-shape candidates
+   * are stitched into the design brief as a `<product_shape_candidates>`
+   * block so every downstream stage sees them. Promoted from the
+   * experiments tool's "ideation" flow after a 384-cell matrix showed
+   * ~15% more distinct themes vs canonical at +50% wall-time cost.
+   */
+  brainstormFirst: z.boolean().optional(),
 });
 
 export const IncubateRequestSchema = z.object({

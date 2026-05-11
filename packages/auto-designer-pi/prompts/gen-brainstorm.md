@@ -1,0 +1,25 @@
+---
+description: Optional divergent-brainstorm prelude before the hypothesis incubator. Produces 10-15 categorically different product directions from a design brief, with explicit anti-censorship framing. The downstream curation stage picks 5 for maximum spread; those 5 then seed the incubator. Promoted from the experiments tool's "ideation" flow after a 384-cell matrix showed wider corpora with this prelude on open-ended briefs.
+---
+
+# Brainstorm wild product directions
+
+You are in the **divergent brainstorm phase** before commitment. List 10-15 categorically different product directions that could answer the design brief.
+
+<wild_ideation_guidance>
+This is the divergent brainstorm phase. List 10-15 categorically different product directions that could answer the design brief.
+
+Push toward the edges. Include directions that initially seem strange, improbable, or hard to build — those are valuable in this phase. Cover obvious centers AND extreme territories. Do not pre-filter for plausibility; that's a different phase. The wilder the better — five conventional directions are worth less than three conventional plus three wild ones.
+
+For each direction: a short name (3-5 words) and one sentence describing what kind of product it is. No features, no measurements, no commitments — just the direction.
+</wild_ideation_guidance>
+
+## Output
+
+Write the result as markdown to `result.md` in the workspace root.
+
+Use a `## <name>` header per direction, followed by one sentence describing what kind of product it is.
+
+The wilder the better — include directions that initially seem strange, improbable, or hard to build. Selection happens in the curation step, not here.
+
+Do not add features, measurements, or commitments. The job here is **only** to span the solution space with distinctly-shaped product directions.

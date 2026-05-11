@@ -23,6 +23,7 @@ import TaskStreamMonitor from './TaskStreamMonitor';
 import NodeShell from './NodeShell';
 import NodeHeader from './NodeHeader';
 import { NodeErrorBlock } from './shared/NodeErrorBlock';
+import { DsHelpTooltip } from '../../shared/DsHelpTooltip';
 import {
   thinkingOverrideForWire,
   useTaskConfigStore,
@@ -187,18 +188,41 @@ function InputNode({ id, type, selected }: NodeProps<InputNodeFlowType>) {
                   Cancel
                 </button>
               ) : (
-                <button
-                  type="button"
-                  title="Generate from design brief"
-                  aria-label="Generate from design brief"
-                  disabled={!hasModel || !designBriefContent.trim()}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => void handleGenerateFromBrief()}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-surface-raised px-2 py-1 text-micro font-medium text-fg-secondary transition-colors hover:border-accent hover:text-fg disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <Wand2 size={14} className="text-accent" aria-hidden />
-                  Generate
-                </button>
+                <>
+                  {/*
+                    Generate vs typing aren't interchangeable — the matrix
+                    showed agent-generated R/O/C let the incubator wander
+                    (themeClusterRatio 0.82 across reps) while supplied R/O/C
+                    anchors it (0.69). Surface the choice with a tooltip so
+                    the user picks deliberately. Only shown alongside the
+                    Generate affordance, i.e. at the empty state.
+                  */}
+                  <DsHelpTooltip
+                    aria-label="Generate vs. typing your own"
+                    content={
+                      <>
+                        <span className="font-medium text-fg-secondary">Click Generate</span> to
+                        let the agent explore the space — different runs will produce different
+                        framings.{' '}
+                        <span className="font-medium text-fg-secondary">Type your own</span> to
+                        anchor a specific direction; the rest of the pipeline will commit to it
+                        more tightly.
+                      </>
+                    }
+                  />
+                  <button
+                    type="button"
+                    title="Generate from design brief"
+                    aria-label="Generate from design brief"
+                    disabled={!hasModel || !designBriefContent.trim()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => void handleGenerateFromBrief()}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-surface-raised px-2 py-1 text-micro font-medium text-fg-secondary transition-colors hover:border-accent hover:text-fg disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Wand2 size={14} className="text-accent" aria-hidden />
+                    Generate
+                  </button>
+                </>
               )}
             </div>
             {generateError && <NodeErrorBlock message={generateError} />}

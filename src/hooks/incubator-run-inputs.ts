@@ -32,12 +32,19 @@ export function collectExistingIncubatorStrategies(
 export async function buildIncubatorRunInputs(input: {
   snapshot: IncubatorRunSnapshot;
   hypothesisCount: number;
+  /**
+   * When true, asks the server to run a brainstorm + curation prelude
+   * before the incubator stage. Optional in the wire payload — omitted
+   * when false to keep request bodies minimal for the common case.
+   */
+  brainstormBeforeIncubator?: boolean;
 }): Promise<{
   spec: DesignSpec;
   referenceDesigns: { name: string; code: string }[];
   promptOptions: {
     count: number;
     existingStrategies: HypothesisStrategy[];
+    brainstormFirst?: boolean;
   };
 }> {
   const { partialSpec, referenceDesigns } = await buildIncubateInputs(
@@ -55,6 +62,7 @@ export async function buildIncubatorRunInputs(input: {
     promptOptions: {
       count: input.hypothesisCount,
       existingStrategies: collectExistingIncubatorStrategies(input.snapshot),
+      ...(input.brainstormBeforeIncubator ? { brainstormFirst: true } : {}),
     },
   };
 }

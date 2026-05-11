@@ -88,6 +88,36 @@ describe('POST /api/incubate validation', () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it('accepts `promptOptions.brainstormFirst: false` (or absent) and proceeds without the prelude', async () => {
+    // brainstormFirst absent — default path, no prelude module invoked. We
+    // assert the route accepts the body shape; the unit-test fixture mocks
+    // executeTaskAgentStream and never imports the prelude.
+    const res = await app.request('http://localhost/api/incubate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(
+        bodyWithSpec({
+          promptOptions: { count: 5, brainstormFirst: false },
+        }),
+      ),
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/text\/event-stream/);
+  });
+
+  it('returns 400 when promptOptions.brainstormFirst is a non-boolean', async () => {
+    const res = await app.request('http://localhost/api/incubate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(
+        bodyWithSpec({
+          promptOptions: { brainstormFirst: 'yes' as unknown as boolean },
+        }),
+      ),
+    });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('POST /api/incubate SSE wire', () => {

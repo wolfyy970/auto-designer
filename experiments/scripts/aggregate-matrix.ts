@@ -23,7 +23,7 @@
  *   groups.json      per-config (flow × brief × mix × count) aggregates
  *   report.md        human-readable narrative
  */
-import { existsSync, readFileSync, readdirSync, writeFileSync, appendFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { join, resolve, basename } from 'node:path';
 
 // ── Tokenization (transparent, no deps) ────────────────────────────────────
@@ -61,15 +61,6 @@ function jaccard(a: Set<string>, b: Set<string>): number {
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
-
-interface ManifestCell {
-  cellId: string;
-  flow: string;
-  briefId: string;
-  mix: string;
-  count: number;
-  rep: number;
-}
 
 interface ResultLine {
   cellId: string;

@@ -29,6 +29,13 @@ interface UseIncubatorRunParams {
   modelId: string | null | undefined;
   supportsVision: boolean | undefined;
   hypothesisCount: number;
+  /**
+   * When true, the server runs a brainstorm-and-curate prelude before the
+   * incubator. Stitches a `<product_shape_candidates>` block into the
+   * design brief that propagates through the incubator request. Default
+   * undefined (treated as false server-side).
+   */
+  brainstormBeforeIncubator?: boolean;
   fitView: Parameters<typeof scheduleCanvasFitView>[0];
   setTaskStreamState: Dispatch<SetStateAction<TaskStreamState>>;
 }
@@ -41,6 +48,7 @@ export function useIncubatorRun({
   modelId,
   supportsVision,
   hypothesisCount,
+  brainstormBeforeIncubator,
   fitView,
   setTaskStreamState,
 }: UseIncubatorRunParams): () => Promise<void> {
@@ -86,6 +94,7 @@ export function useIncubatorRun({
           hypotheses: domainState.hypotheses,
         },
         hypothesisCount,
+        brainstormBeforeIncubator,
       });
 
       const taskSession = createTaskStreamSession({
@@ -132,6 +141,7 @@ export function useIncubatorRun({
   }, [
     addPlaceholderHypotheses,
     appendStrategiesToNode,
+    brainstormBeforeIncubator,
     edges,
     fitView,
     hypothesisCount,
