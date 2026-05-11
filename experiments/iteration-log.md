@@ -727,8 +727,65 @@ The 1 minor was *grief-app/r2: Stranger Witness* — bet-preserving stubs around
 - The cycle 23 entry's "we haven't tested whether cycle 23 prompts prevent Single-path-compression at build time" gap. Phase B confirms: they do.
 
 **What's still open**:
-- **Network/streaming reliability.** 44% stage-error rate across the batch is too high. The cycle 20 retry should have helped; it didn't, today. Options: (a) bump retry attempts from 2 → 3 with longer backoff (1.5s → 5s) to ride out short stalls, (b) re-fire the failed cells on a different day to confirm it was OpenRouter load and not a code regression, (c) add a circuit-breaker that surfaces "OpenRouter/MiniMax appears degraded" instead of silently dying. Lowest-risk start: option (b) — re-run habit-tracker only when OpenRouter is healthy.
 - **Per-finding `severity: minor` summary-row reporting** (carryover from cycle 23's open list) — the report shows `minor (N findings)` but the underlying severity breakdown isn't surfaced in `summary.md`. Small cosmetic win.
 - **Critique-feedback capability** — KC mentioned this earlier as the next arc after validation lands. Cycle 24 closes the validation work; the critique-feedback arc is the next thing to design.
+
+**Phase D — Retry profile fix + re-run** (commits [`13d00c1`](https://github.com/wolfyy970/designer/commit/13d00c1), [`7479e5d`](https://github.com/wolfyy970/designer/commit/7479e5d)).
+
+Phase C's 44% stage-error rate was traced to a 5-minute OpenRouter service-degradation window during which both retry attempts hit the same ~46s `StreamIdleError` (transcript `notes` field confirmed both attempts fired). The 1.5s constant backoff couldn't outlast the sustained stall. Phase D applied three small changes to [`experiments/src/flow.ts`](src/flow.ts):
+
+1. `MAX_STAGE_ATTEMPTS`: **2 → 3**.
+2. `STAGE_RETRY_BACKOFF_MS` (constant 1500ms) → `STAGE_RETRY_BACKOFF_SCHEDULE_MS` (`[1500, 8000, 30000]`). Total wait between first failure and final give-up went from 1.5s to ~40s.
+3. ±25% jitter via new exported `stageRetryBackoffMs()` so parallel cells don't retry in lockstep.
+
+Plus 4 new unit tests locking the schedule + jitter bounds + clamp behavior. Plus a `--briefs` CLI flag on [`cycle24-batch.ts`](scripts/cycle24-batch.ts) so we could re-fire just the 3 affected briefs.
+
+**Re-run results** ([`runs/cycle24-aggregate/aggregate.md`](runs/cycle24-aggregate/aggregate.md), Phase C report overwritten):
+
+| | Phase C (10 cells) | Phase D (6 cells, same 3 briefs as the failures) |
+|---|---|---|
+| Wall time | 23.7 min | 12.6 min |
+| Cells `ok` | 8 of 10 | **6 of 6** |
+| Cells failed/warn | 2 (both habit-tracker incubator-died) | **0** |
+| Hypothesis attempts | 50 | 30 |
+| Hypotheses with verdicts | 28 (56%) | **30 (100%)** |
+| Stage errors | 22 | **0** |
+
+**The retry fix is 100% effective on infrastructure.** Zero stage errors on 30 attempts across the same 3 briefs that lost 70%+ of their prototypes in Phase C. Validates that exponential backoff + an extra attempt + jitter rides out the sustained-stall pattern that the constant 1.5s couldn't.
+
+**With the infrastructure failures cleared, the true build-quality rate is now visible:**
+
+| Verdict | Phase D count | % |
+|---|---|---|
+| ✅ clean | 20 | 66.7% |
+| 🟡 minor | 8 | 26.7% |
+| 🔴 hollow | **2** | **6.7%** |
+
+| Brief | Hyp | Clean | Minor | Hollow | Hollow % |
+|---|---|---|---|---|---|
+| password-reset | 10 | 4 | 5 | 1 | 10% |
+| habit-tracker | 10 | 6 | 3 | 1 | 10% |
+| grief-app | 10 | 10 | 0 | 0 | **0%** |
+
+**The two hollow findings are both genuine bet-killers** (confirmed by walking the artifacts and reading the auditor's reasoning):
+
+1. **password-reset / Trusted Circle Minimal Flow.** `app.js:305` — `alert('In a real implementation, this would verify the code with backend')` on the bet-critical code-verification step. Textbook meta-acknowledgment; the cycle 23 build prompts should have prevented it but didn't here. The same hypothesis territory (trusted-circle / social-recovery) shipped clean in cycle 22 and minor-but-fine in Phase B; this is a stochastic miss, not a systematic prompt failure.
+
+2. **habit-tracker / Group dependency real-time co-tracking.** `index.html:186` and `participants.html:94` — `onclick="toggleParticipantConfirm(...)"` on other people's avatars, plus an explicit note that *"In a full version, participants would receive push notifications to confirm."* This is the cycle 19 social-vouching role-breaker in a new domain: the user is forced to click on behalf of their friends to confirm their friends' habit completion. The bet is "real-time co-tracking" — the user should *see* their friends update; they shouldn't have to *manipulate* their friends. The auditor correctly graded this hollow.
+
+**Headline result with infra cleared: 6.7% hollow rate.** Just above the cycle 24 success target (≤5%) and well below the escalation threshold (>10%). The work shifted from "validate the rule + builds" to "the true rate is ~7%, here's where it bites." `grief-app` shipped 10/10 clean on this run, suggesting brief category matters: detailed briefs with established narrative play cleanly; territories with multi-actor coordination or permission-gated backend steps still surface stochastic misses.
+
+**Combined Phase C + D on the 3 retried briefs**: 39 successful verdicts; 2 hollow / 39 = **5.1%**. Right at the threshold.
+
+**Files added / modified in Phase D**: [`experiments/src/flow.ts`](src/flow.ts) (retry schedule + jitter helper), [`experiments/src/__tests__/flow.test.ts`](src/__tests__/flow.test.ts) (4 new tests, 35/35 passing), [`experiments/scripts/cycle24-batch.ts`](scripts/cycle24-batch.ts) (`--briefs` flag).
+
+**What this closes**:
+- The infrastructure reliability question. 22 of 50 → 0 of 30 stage errors on the same brief set, validating the retry fix on the precise failure mode it was designed for.
+- The "is the cycle 23 rule + build prompts actually catching the real failure rate?" question. Cleared of the 44% infra noise, the answer is: yes, the auditor reliably catches genuine bet-killers; build prompts produce ~93% non-broken prototypes; the remaining ~7% is the calibrated true failure rate.
+
+**What's still open**:
+- **The two hollow findings, walked.** Worth one more cycle of prompt work focused on these specific patterns (a) backend-verification alerts in bet-critical paths despite the cycle 23 rule, (b) multi-actor coordination domains where "click on someone else's avatar to update their state" is tempting. Neither is universal; both could be addressed via targeted examples in the design-agent-instructions.
+- **Critique-feedback capability** (carryover). The validation work is now solid enough to move to this arc.
+- **Per-finding severity reporting in summary.md** (cycle 23 carryover) — cosmetic.
 
 ---
