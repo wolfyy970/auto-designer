@@ -820,7 +820,19 @@ export async function runHonestyCheck(
   const userPrompt = `<task>
 You are auditing a build artifact for honesty in its bet-critical paths.
 
-The hypothesis below names features and explicitly tags some as bet-critical (the ones that prove or disprove the hypothesis). The artifact JS/HTML files implement those features. Your job: identify bet-critical paths that are faked, stubbed, or admitted-and-shipped. Look for comments like \`// in a real app this would...\`, \`// simulate ...\`, hardcoded stand-ins where real logic is implied, fake-progress UI in place of a real interaction (e.g., a setInterval-driven progress bar instead of \`audio.currentTime\`-driven progress).
+The hypothesis below names features and explicitly tags some as bet-critical (the ones that prove or disprove the hypothesis). The artifact JS/HTML files implement those features. Your job: identify bet-critical paths that are faked, stubbed, or admitted-and-shipped.
+
+The cycle-14 build prompt banned the comment form of stubbing (\`// in a real app this would...\`, \`// would do X\`, \`// simulate ...\`). After that ban, stubbing migrated to disguised forms — surface them all. Inspect for:
+
+- **Comment-form stubs in JS:** \`// in a real app this would...\`, \`// would do X\`, \`// simulate ...\`, \`// for demo purposes ...\` next to a bet-critical handler that's a no-op or hardcoded.
+- **\`Simulate: X happens\` / \`Demo: Y\` UI labels.** Buttons, links, or text whose visible label admits the bet-critical step is faked. Example: \`<button>Simulate: contact accepts request</button>\` standing in for the bet-critical acceptance flow.
+- **\`alert('In a full implementation, this would...')\`** (or toast, banner, placeholder paragraph, \`console.log\`) — the comment ban applies to user-visible copy too. The pattern is "the artifact narrates the missing functionality at the point a reviewer expects working functionality."
+- **\`setInterval\` driving fake "progress"** as a substitute for a real state change — a queue position counting down on a timer, a loading bar that fills regardless of input, an artificial wait that simulates work. If the bet implies real input drives the change, the timer-driven version fakes it.
+- **\`setTimeout\` simulating an external signal** in a bet-critical path — connection establishment, verification result, network response, etc. If the bet says "video call connects in 60 seconds" and the implementation is \`setTimeout(showConnected, 2000)\`, the bet is unfalsifiable from the artifact.
+- **Hardcoded values rendered as if dynamic.** A "Last memory: Grandma's pie" card baked into HTML when the bet claims persistence; a "You have 3 streaks" counter that's hardcoded \`3\` rather than read from state; a "queue position 3" that started life as a constant. If the bet says the value is derived from user activity, it must come from state the user actually wrote.
+- **Fake validation that accepts anything.** \`if (password.length >= 4) authenticate()\` when the bet is testing matching against historical credentials; \`if (input.length > 0) success()\` when the bet is about a specific verification step.
+
+For each pattern, judge: does the stub sit in a bet-critical path the hypothesis explicitly named, or in a scaffold path the hypothesis declared out-of-scope? Same disguised-stub pattern in a scaffold is fine — that's appropriate scope discipline; the visible "Simulate" UI is acceptable when the hypothesis says "scaffold this feature." A stub in a path the hypothesis named as bet-critical is "hollow" regardless of how the stub is disguised.
 
 Write the result as JSON to \`result.json\` in the workspace root. Schema:
 
