@@ -72,7 +72,8 @@ The primary working interface is a visual node-graph canvas (`/canvas`): spec in
 | [config/README.md](config/README.md)             | Human-editable JSON knobs for feature flags, defaults, evaluator thresholds, browser scoring, and content limits                                                                                       |
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)             | Canonical SPA design-system reference: token semantics, atoms, typography, themes, and package workflow                                                                                 |
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Technical reference: routes, stores, data flow, Pi adapter boundary, **Pi sandbox** (layers, tool inventory, edit cascade)                                                                            |
-| [experiments/README.md](experiments/README.md)   | Experiments CLI for prompt and flow iteration outside the canvas: run directories, transcripts, paired critique loop                                                                                  |
+| [EXPERIMENTER.md](EXPERIMENTER.md)               | Discovery overview of the in-repo experimentation surface: what it is, how to run it, and what the matrix experiments have already promoted into production                                            |
+| [experiments/README.md](experiments/README.md)   | Experiments CLI deep-dive: flags, run directories, transcripts, paired critique loop                                                                                                                  |
 | [DOCUMENTATION.md](DOCUMENTATION.md)             | How this doc set is organized (hub = this README)                                                                                                                                                     |
 
 

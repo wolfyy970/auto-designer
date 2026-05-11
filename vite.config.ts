@@ -8,6 +8,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { DEFAULT_DEV_API_PORT, DEFAULT_DEV_CLIENT_PORT } from './server/dev-defaults.ts';
+import { preloadCriticalFonts } from './scripts/vite-preload-critical-fonts.ts';
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf-8')) as {
@@ -68,7 +69,7 @@ export default defineConfig(({ mode }) => {
         '**/browser-playwright-evaluator.test.ts',
       ],
     },
-    plugins: [react(), tailwindcss(), tsconfigPaths()],
+    plugins: [react(), tailwindcss(), tsconfigPaths(), preloadCriticalFonts()],
     resolve: {
       alias: {
         '@auto-designer/design-system': resolve(rootDir, 'packages/design-system'),
