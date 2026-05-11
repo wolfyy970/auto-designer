@@ -21,6 +21,7 @@ import {
   interruptibleSleep,
   isStageRetryable,
   parseHonestyVerdict,
+  stageRetryBackoffMs,
   withStageTimeout,
 } from '../flow.ts';
 import { StreamIdleError } from '../../../server/services/pi-agent-runtime.ts';
@@ -119,6 +120,40 @@ describe('isStageRetryable', () => {
     expect(isStageRetryable('a string')).toBe(false);
     expect(isStageRetryable(undefined)).toBe(false);
     expect(isStageRetryable({ message: 'plain object' })).toBe(false);
+  });
+});
+
+// ── stageRetryBackoffMs ──────────────────────────────────────────────────
+
+describe('stageRetryBackoffMs', () => {
+  it('returns ~1500ms (±25%) for the first failure', () => {
+    for (let i = 0; i < 20; i++) {
+      const v = stageRetryBackoffMs(1);
+      expect(v).toBeGreaterThanOrEqual(1125);
+      expect(v).toBeLessThanOrEqual(1875);
+    }
+  });
+
+  it('returns ~8000ms (±25%) for the second failure', () => {
+    for (let i = 0; i < 20; i++) {
+      const v = stageRetryBackoffMs(2);
+      expect(v).toBeGreaterThanOrEqual(6000);
+      expect(v).toBeLessThanOrEqual(10000);
+    }
+  });
+
+  it('returns ~30000ms (±25%) for the third failure', () => {
+    for (let i = 0; i < 20; i++) {
+      const v = stageRetryBackoffMs(3);
+      expect(v).toBeGreaterThanOrEqual(22500);
+      expect(v).toBeLessThanOrEqual(37500);
+    }
+  });
+
+  it('clamps beyond schedule length to the last entry', () => {
+    const v = stageRetryBackoffMs(99);
+    expect(v).toBeGreaterThanOrEqual(22500);
+    expect(v).toBeLessThanOrEqual(37500);
   });
 });
 

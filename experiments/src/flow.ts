@@ -202,10 +202,35 @@ export interface StageDef<T> {
   formatUsage?: (result: T) => TranscriptUsage | undefined;
 }
 
-/** Maximum total attempts per stage (initial + retry). */
-const MAX_STAGE_ATTEMPTS = 2;
-/** Backoff between attempts on a retryable error. */
-const STAGE_RETRY_BACKOFF_MS = 1500;
+/** Maximum total attempts per stage (initial + retries). Cycle 24 Phase D bumped 2 → 3 to handle longer service-degradation windows. */
+const MAX_STAGE_ATTEMPTS = 3;
+/**
+ * Exponential backoff between attempts. Entry N is the wait between the
+ * Nth attempt's failure and the (N+1)th attempt's start. Cycle 24 Phase C
+ * surfaced a 5-minute OpenRouter service-degradation window where the prior
+ * constant 1.5s backoff couldn't ride out sustained stalls — both retries
+ * hit the same stall and gave up (run `20260511-220904-ideation-84f8` lost
+ * 4 of 5 builds to back-to-back 47s + 46s `StreamIdleError`s). 1.5s → 8s →
+ * 30s gives the service time to recover between retries while keeping fast
+ * retries for the single-hiccup case. With MAX_STAGE_ATTEMPTS=3, only
+ * indices [0,1] fire; index 2 documents intent if the cap ever moves to 4.
+ */
+const STAGE_RETRY_BACKOFF_SCHEDULE_MS = [1500, 8000, 30000] as const;
+/** ±25% jitter on each backoff so parallel cells don't retry in lockstep against the same recovering server. */
+const STAGE_RETRY_JITTER = 0.25;
+
+/**
+ * Compute the actual wait (with jitter) before the next attempt, given the
+ * attempt number that just failed (1-indexed). Falls back to the last
+ * schedule entry if `failedAttempt` exceeds the schedule length.
+ * Exported for testability.
+ */
+export function stageRetryBackoffMs(failedAttempt: number): number {
+  const idx = Math.max(0, Math.min(failedAttempt - 1, STAGE_RETRY_BACKOFF_SCHEDULE_MS.length - 1));
+  const base = STAGE_RETRY_BACKOFF_SCHEDULE_MS[idx];
+  const jitterMul = 1 + (Math.random() * 2 - 1) * STAGE_RETRY_JITTER;
+  return Math.max(0, Math.round(base * jitterMul));
+}
 
 /**
  * Decide whether an error is worth retrying. Cycle 19's tax-prep died on a
@@ -332,13 +357,14 @@ export async function runStageWithTranscript<T>(
       const hasMoreAttempts = attempt < MAX_STAGE_ATTEMPTS;
       if (!retryable || !hasMoreAttempts) break;
 
+      const backoffMs = stageRetryBackoffMs(attempt);
       if (process.env.NODE_ENV !== 'production') {
-         
+
         console.debug(
-          `[flow] ${def.timeoutLabel} attempt ${attempt} failed (${lastErrorMessage}); retrying after ${STAGE_RETRY_BACKOFF_MS}ms`,
+          `[flow] ${def.timeoutLabel} attempt ${attempt} failed (${lastErrorMessage}); retrying after ${backoffMs}ms`,
         );
       }
-      await interruptibleSleep(STAGE_RETRY_BACKOFF_MS, ctx.signal);
+      await interruptibleSleep(backoffMs, ctx.signal);
       if (ctx.signal?.aborted) break;
     }
   }
