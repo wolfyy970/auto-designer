@@ -23,8 +23,16 @@ vi.mock('../../lib/prompt-resolution.ts', () => ({
   getPromptBody: vi.fn(async () => 'template body'),
 }));
 
+vi.mock('../../lib/incubator-brainstorm.ts', () => ({
+  runBrainstormPrelude: vi.fn(async ({ designBrief }: { designBrief: string }) => ({
+    augmentedBrief: `${designBrief}\n\n<product_shape_candidates>\n## Stubbed direction\n</product_shape_candidates>`,
+    curatedText: '## Stubbed direction',
+  })),
+}));
+
 import app from '../../app.ts';
 import { executeTaskAgentStream } from '../../services/task-agent-execution.ts';
+import { runBrainstormPrelude } from '../../lib/incubator-brainstorm.ts';
 
 const validSection = {
   id: 'design-brief' as const,
@@ -235,5 +243,80 @@ describe('POST /api/incubate SSE wire', () => {
     expect(text).toContain('event: error');
     expect(text).toContain('incubate failed');
     expect(text).toContain('event: done');
+  });
+
+  it('does NOT invoke the brainstorm prelude when promptOptions.brainstormFirst is absent', async () => {
+    vi.mocked(runBrainstormPrelude).mockClear();
+    await app.request('http://localhost/api/incubate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyWithSpec({ promptOptions: { count: 3 } })),
+    });
+    expect(runBrainstormPrelude).not.toHaveBeenCalled();
+  });
+
+  it('invokes the brainstorm prelude when promptOptions.brainstormFirst is true and continues to the incubator with the prelude-augmented brief', async () => {
+    vi.mocked(runBrainstormPrelude).mockClear();
+    vi.mocked(executeTaskAgentStream).mockClear();
+    const briefContent = 'Design something open-ended.';
+    await app.request('http://localhost/api/incubate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(
+        bodyWithSpec({
+          spec: {
+            ...minimalIncubateBody.spec,
+            sections: {
+              'design-brief': { ...validSection, content: briefContent },
+            },
+          },
+          promptOptions: { count: 3, brainstormFirst: true },
+        }),
+      ),
+    });
+
+    // Prelude was invoked with the brief content.
+    expect(runBrainstormPrelude).toHaveBeenCalledTimes(1);
+    expect(runBrainstormPrelude).toHaveBeenCalledWith(
+      expect.objectContaining({
+        designBrief: briefContent,
+        providerId: expect.any(String),
+        modelId: expect.any(String),
+      }),
+    );
+
+    // The route did not short-circuit — the main incubator stage ran
+    // after the prelude completed, i.e. the augmented brief flowed
+    // downstream as designed.
+    expect(executeTaskAgentStream).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns 500 with a clear error message when the brainstorm prelude throws', async () => {
+    vi.mocked(runBrainstormPrelude).mockRejectedValueOnce(new Error('upstream stalled'));
+    vi.mocked(executeTaskAgentStream).mockClear();
+    const res = await app.request('http://localhost/api/incubate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(
+        bodyWithSpec({
+          spec: {
+            ...minimalIncubateBody.spec,
+            sections: {
+              'design-brief': { ...validSection, content: 'Brief content.' },
+            },
+          },
+          promptOptions: { count: 3, brainstormFirst: true },
+        }),
+      ),
+    });
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body).toEqual(
+      expect.objectContaining({
+        error: expect.stringContaining('Brainstorm prelude failed: upstream stalled'),
+      }),
+    );
+    // The incubator stage must NOT run when the prelude failed.
+    expect(executeTaskAgentStream).not.toHaveBeenCalled();
   });
 });
