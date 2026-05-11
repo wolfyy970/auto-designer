@@ -820,19 +820,34 @@ export async function runHonestyCheck(
   const userPrompt = `<task>
 You are auditing a build artifact for honesty in its bet-critical paths.
 
-The hypothesis below names features and explicitly tags some as bet-critical (the ones that prove or disprove the hypothesis). The artifact JS/HTML files implement those features. Your job: identify bet-critical paths that are faked, stubbed, or admitted-and-shipped.
+The hypothesis below names features and explicitly tags some as bet-critical (the ones that prove or disprove the hypothesis). The artifact JS/HTML files implement those features.
 
-The cycle-14 build prompt banned the comment form of stubbing (\`// in a real app this would...\`, \`// would do X\`, \`// simulate ...\`). After that ban, stubbing migrated to disguised forms — surface them all. Inspect for:
+**This is a prototype, not a production app.** Faking adjacent infrastructure (backends, sensors, ML, network, crypto) is a *normal and acceptable* prototype move when it preserves the user's experience of the bet. Your job is **not** to flag every disguised stub; your job is to find the stubs that **kill the user's experience of the hypothesis** — the ones that make the bet unfalsifiable from a reviewer playing the user's role.
 
-- **Comment-form stubs in JS:** \`// in a real app this would...\`, \`// would do X\`, \`// simulate ...\`, \`// for demo purposes ...\` next to a bet-critical handler that's a no-op or hardcoded.
-- **\`Simulate: X happens\` / \`Demo: Y\` UI labels.** Buttons, links, or text whose visible label admits the bet-critical step is faked. Example: \`<button>Simulate: contact accepts request</button>\` standing in for the bet-critical acceptance flow.
-- **\`alert('In a full implementation, this would...')\`** (or toast, banner, placeholder paragraph, \`console.log\`) — the comment ban applies to user-visible copy too. The pattern is "the artifact narrates the missing functionality at the point a reviewer expects working functionality."
-- **\`setInterval\` driving fake "progress"** as a substitute for a real state change — a queue position counting down on a timer, a loading bar that fills regardless of input, an artificial wait that simulates work. If the bet implies real input drives the change, the timer-driven version fakes it.
-- **\`setTimeout\` simulating an external signal** in a bet-critical path — connection establishment, verification result, network response, etc. If the bet says "video call connects in 60 seconds" and the implementation is \`setTimeout(showConnected, 2000)\`, the bet is unfalsifiable from the artifact.
-- **Hardcoded values rendered as if dynamic.** A "Last memory: Grandma's pie" card baked into HTML when the bet claims persistence; a "You have 3 streaks" counter that's hardcoded \`3\` rather than read from state; a "queue position 3" that started life as a constant. If the bet says the value is derived from user activity, it must come from state the user actually wrote.
-- **Fake validation that accepts anything.** \`if (password.length >= 4) authenticate()\` when the bet is testing matching against historical credentials; \`if (input.length > 0) success()\` when the bet is about a specific verification step.
+**Two failure shapes always count as hollow inside a bet-critical path:**
 
-For each pattern, judge: does the stub sit in a bet-critical path the hypothesis explicitly named, or in a scaffold path the hypothesis declared out-of-scope? Same disguised-stub pattern in a scaffold is fine — that's appropriate scope discipline; the visible "Simulate" UI is acceptable when the hypothesis says "scaffold this feature." A stub in a path the hypothesis named as bet-critical is "hollow" regardless of how the stub is disguised.
+1. **Role-breaker:** The stub forces the user to step out of their natural role to fast-forward another actor's action. Canonical example: \`<button>Simulate: Alex accepts request</button>\` standing in for a trusted contact's acceptance — the bet relies on the user *waiting for / seeing* the contact accept; the simulate button makes the user click on behalf of the contact, breaking the experience and replacing it with a meta-acknowledgment.
+2. **Meta-acknowledgment:** The stub replaces the very interaction the hypothesis is testing with a narration of the missing functionality. Example: an \`alert('In a full implementation, this would initiate a video call to a human agent')\` standing in for a "one-tap human concierge" bet — the user was supposed to *experience* the connection; the alert just describes that the experience isn't there.
+
+**Stubs that preserve the user's role and the bet's experience are NOT hollow, even though they share the same surface patterns. These are appropriate prototype moves:**
+
+- **Faked backend / network responses:** \`setTimeout\`-driven "connecting…" delay, or a hardcoded "matched!" result for an ML voiceprint check when the bet is the UX of the recording + result flow (not the ML's accuracy). User records, sees a result; experience intact.
+- **Faked sensor / permission-gated data:** \`<button>I arrived at the gym</button>\` letting the reviewer simulate GPS arrival when the bet is "auto-complete reduces friction once detection happens" — user triggers the location state, then experiences the auto-complete from there. The "Demo" or "Simulation" label is honest about the trigger; the bet's interaction (the auto-complete from that point) is still real.
+- **Faked cryptography / security primitives:** XOR cipher in place of AES when the bet is the UX of zero-knowledge privacy ("my data feels secured by my key"), not the cryptographic strength. User experience is identical regardless of underlying cipher.
+- **Pre-populated demo data** for scaffolded surfaces, or for setup-state the bet doesn't depend on the user generating.
+- **\`setInterval\`-driven animations / transitions** when the animation is the visualization of a state change that *is* real (not a replacement for state).
+
+**The discriminating question to ask for every disguised-stub pattern you find:** *After this stub runs, can a reviewer still experience the hypothesis from inside the user's role and grade the bet?* If yes → severity is \`minor\` (or \`ok\` if it's outside a bet-critical path entirely). If no → severity is \`hollow\`.
+
+Patterns to triage with that question (all are *potential* hollow sites — most will turn out bet-preserving on inspection):
+- Comment-form stubs in JS: \`// in a real app this would...\`, \`// would do X\`, \`// simulate ...\`, \`// for demo purposes ...\`.
+- \`Simulate: X happens\` / \`Demo: Y\` UI labels.
+- \`alert('In a full implementation, this would...')\` / toast / placeholder paragraph / \`console.log\` narrating the missing functionality.
+- \`setInterval\` / \`setTimeout\` standing in for a state change.
+- Hardcoded values rendered as if dynamic.
+- Fake validation that accepts anything.
+
+For each hit, judge by the discriminating question. A grep hit is a triage signal, not a verdict.
 
 Write the result as JSON to \`result.json\` in the workspace root. Schema:
 
@@ -851,11 +866,13 @@ Write the result as JSON to \`result.json\` in the workspace root. Schema:
 }
 
 Verdict semantics:
-- "clean" = no problematic stubs in bet-critical paths
-- "minor" = stubs exist but only in scaffold/non-bet-critical paths, OR appropriate scaffold demo data simulation (e.g., generating sample chart data)
-- "hollow" = at least one bet-critical path is faked or hand-waved; the bet is unfalsifiable from the artifact
+- "clean" = no role-breakers or meta-acknowledgments anywhere; bet-preserving stubs (faked backends, sensors, crypto, demo data) are acceptable prototype moves and don't degrade the verdict.
+- "minor" = bet-preserving stubs exist (worth listing as findings with \`severity: minor\` so the human knows where simulation happens) but the bet remains experienceable end-to-end. Also: any stub in a scaffold-tagged feature regardless of pattern.
+- "hollow" = at least one bet-critical path contains a **role-breaker** (forces the user out of their role to fast-forward another actor) or a **meta-acknowledgment** (replaces the bet's interaction with a narration of what would happen). The bet is unexperienceable from the artifact.
 
-Be strict but precise. The hypothesis prose explicitly identifies which features are bet-critical (often phrased as "Build (1) and (3) to working depth; scaffold (2), (4), (5)"). Honor that distinction — a stub in a scaffold-tagged feature is "minor", a stub in a bet-critical-tagged feature is "hollow".
+Be strict but precise. The hypothesis prose explicitly identifies which features are bet-critical (often phrased as "Build (1) and (3) to working depth; scaffold (2), (4), (5)"). Honor that distinction *and* the bet-preserving carve-out — a faked ML result inside a bet-critical recording flow is "minor" (the recording experience is real, the result fakery is adjacent infrastructure); a "Simulate: contact accepts" button inside a bet-critical vouching flow is "hollow" (the user is forced out of role).
+
+For each finding, set \`severity\` per the same rule: \`ok\` for stubs in scaffold paths, \`minor\` for bet-preserving stubs in bet-critical paths (worth surfacing for transparency), \`hollow\` only for role-breakers or meta-acknowledgments in bet-critical paths.
 
 If you see no problematic stubs, output {"verdict": "clean", "findings": []}.
 </task>

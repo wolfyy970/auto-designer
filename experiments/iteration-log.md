@@ -627,3 +627,37 @@ The diagnostic value matters as much as the enforcement value: the first todo's 
 - **Cycle-19 carryover backlog** — re-fire tax-prep with retry, sharper reframe-upstream prompt. Still parked.
 
 ---
+
+## Cycle 23 — Bet-preserving vs bet-killing: refining the disguised-stub rule (2026-05-11)
+
+**Files edited**:
+- [`packages/auto-designer-pi/prompts/design-agent-instructions.md`](../packages/auto-designer-pi/prompts/design-agent-instructions.md) — rewrote the "Disguised stubs are still stubs" bullet as **"Disguised stubs: the line is the user's experience of the bet, not infrastructure authenticity."** Names two violation shapes (role-breaker, meta-acknowledgment) and four bet-preserving infrastructure-stub categories (backend/network, sensor/permission, crypto, demo data). Adds the discriminating question: *after this stub, can a reviewer still experience the hypothesis from inside the user's role and grade the bet?*
+- [`packages/auto-designer-pi/skills/working-depth/SKILL.md`](../packages/auto-designer-pi/skills/working-depth/SKILL.md) — same carve-out in the depth checklist. Also tightened the self-check step 3 (the grep step) so it routes hits through the discriminating question instead of treating every hit as a violation.
+- [`experiments/src/flow.ts`](src/flow.ts) — refined the honesty-check auditor prompt with the same bet-preserving carve-out + reframed verdict semantics. `clean` now means "no role-breakers or meta-acknowledgments anywhere; bet-preserving stubs don't degrade the verdict." `minor` covers transparent bet-preserving stubs in bet-critical paths. `hollow` is reserved for role-breakers and meta-acknowledgments. Per-finding `severity` follows the same rule.
+
+**Why**: Cycle 22's expanded honesty vocabulary (commit [`6923821`](https://github.com/wolfyy970/designer/commit/6923821)) was too eager. Habit-tracker [run `20260511-162632-ideation-9a40`](runs/20260511-162632-ideation-9a40) flagged 2 hollow:
+- *Zero-Knowledge Privacy Vault* — XOR cipher in place of AES-256.
+- *Location-Aware Auto-Completion* — `<h3>🗺️ Location Simulation (Demo)</h3>` with manual "I arrived" buttons.
+
+KC's correction: this is a **prototype**, not a production app. The bet is the user's **experience** of the hypothesis, not the authenticity of the infrastructure. Both flagged "hollows" preserve the user's experience of the bet:
+- XOR cipher: user sees "encrypted with your 256-bit key" identically; the bet is the UX of zero-knowledge privacy, not the cryptography.
+- "I arrived" button: user clicks the trigger, then experiences auto-complete from the triggered state forward. The bet is "auto-complete reduces friction once detection happens"; the detection-trigger fake is adjacent infrastructure.
+
+The real failure mode is narrower and more specific: stubs that **force the user out of their natural role to fast-forward another actor's action** (cycle 19's canonical `<button>Simulate: Alex accepts request</button>`) or **replace the very interaction the hypothesis is testing with a narration** (`alert('In a full implementation, this would initiate...')`). Those break the bet because the reviewer can no longer experience the hypothesis from inside the user's role.
+
+**Snapshot**: TBD post-snap.
+
+**Tested in**: re-firing habit-tracker on studio for direct comparison vs cycle 22's `20260511-162632-ideation-9a40` (which flagged 2 hollow). Under the refined rule, those two should come back ✅ clean or 🟡 minor (bet-preserving infrastructure stubs surfaced for transparency). Also covers the Reverse Accountability timeout (separate commit bumping `designBuild` budget from 360s → 480s).
+
+**Success criteria**:
+- Zero-Knowledge Privacy Vault and Location-Aware Auto-Completion's same disguised-stub patterns flip from 🔴 hollow → ✅ clean (or 🟡 minor with bet-preserving severity).
+- No new false negatives — a hypothesis with a real role-breaker or meta-acknowledgment in a bet-critical path should still come back 🔴 hollow.
+- Reverse Accountability Incentives completes within the bumped budget without `StageTimeoutError`.
+- Per-hypothesis token spend stays in cycle 22 territory (~30-50k each).
+
+**What's still open after this cycle**:
+- **Layer 3 (revise-on-hollow)** is back to being held in reserve. Under the refined rule, password-reset was 5/5 clean and habit-tracker (re-judged) should also be 5/5 clean once the false positives flip. The revise-loop only becomes worthwhile if the *role-breaker / meta-acknowledgment* failure mode actually keeps appearing — and the rule refinement may push that rate close to zero on its own.
+- **Cycle-19 carryover backlog** — re-fire tax-prep with retry, sharper reframe-upstream prompt. Lower priority.
+- **Per-finding `severity: minor` reporting** — once the auditor surfaces bet-preserving stubs at `minor` severity, the human gets a transparent list of "where the prototype faked things." That's a useful audit trail. The `summary.md` honesty row should be updated to show this (e.g. `🟡 minor (3 bet-preserving stubs)` so the human can spot-check); deferred to cycle 24 if helpful.
+
+---
