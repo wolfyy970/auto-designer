@@ -26,7 +26,7 @@ const REPO_ROOT = process.cwd();
 const BRIEFS_DIR = join(REPO_ROOT, 'experiments', 'briefs');
 const RUNS_DIR = join(REPO_ROOT, 'experiments', 'runs');
 
-const BRIEFS = [
+const DEFAULT_BRIEFS = [
   'password-reset',
   'habit-tracker',
   'grief-app',
@@ -35,6 +35,24 @@ const BRIEFS = [
 ] as const;
 const REPS_PER_BRIEF = 2;
 const CONCURRENCY = 4;
+
+/**
+ * Resolve briefs from CLI: `--briefs a,b,c` overrides the default 5-brief set.
+ * Useful for re-firing a subset (e.g. Phase D re-runs only password-reset,
+ * habit-tracker, grief-app to validate the new retry profile).
+ */
+function resolveBriefs(): readonly string[] {
+  const argv = process.argv.slice(2);
+  const i = argv.indexOf('--briefs');
+  if (i === -1 || !argv[i + 1]) return DEFAULT_BRIEFS;
+  const list = argv[i + 1]
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  if (list.length === 0) return DEFAULT_BRIEFS;
+  return list;
+}
+const BRIEFS = resolveBriefs();
 const PER_RUN_CAP_TOKENS = 1_000_000;
 const DAILY_CAP_TOKENS = 20_000_000; // headroom for the batch
 const HYPOTHESIS_COUNT = 5;
