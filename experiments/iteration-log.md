@@ -558,3 +558,72 @@ The 2×2 picture across cycles 7-10:
 - **Honesty-check on the cycle-19 corpus** — the 4 corpora where we found hand-waving via grep would be useful to re-audit with the structured honesty-check to see how many findings it surfaces and how it categorizes severity. That's a one-day analysis cycle, not a re-run.
 
 ---
+
+## Cycle 21 — Build-side depth contract: disguised-stub ban, ONE-feature floor, build-plan-first, working-depth skill (TBD UTC, 2026-05-11)
+
+**Files edited / created**:
+- [`packages/auto-designer-pi/prompts/design-agent-instructions.md`](../packages/auto-designer-pi/prompts/design-agent-instructions.md) — four surgical edits to `<how_to_think>`:
+  1. New **token-efficiency** bullet near the top: a flat multi-page mock with no closed journey is the worst possible outcome — wastes spend AND fails to make the bet falsifiable.
+  2. New **build-plan-first** bullet requiring `BUILD_PLAN.md` at workspace root before substantive code. The plan commits to: (1) the ONE bet-critical feature (or TWO only if they share a state model), (2) the user journey it must close (sketched concretely with state names), (3) scaffolded surfaces with honest copy, (4) for each `<measurement>`, the file and state a reviewer will inspect.
+  3. **Soft ONE-feature floor** added to the existing bet-critical bullet: if both named bet-critical features can't be implemented to working depth within budget, pick ONE — the most falsifying — and rewrite the other's copy as scaffold. "One built deeply proves more than two faked."
+  4. **Generalized the disguised-stub ban** under the existing "No hand-waved conversions" bullet. The cycle-14 rule covered comment strings (`// in a real`, `// would`, `// simulate`); cycle 19 evidence showed stubbing migrated to user-visible forms after the ban. New explicit prohibitions: `Simulate: X` / `Demo: Y` UI labels, `setInterval`-driven fake "progress" as substitute for real state change, `alert('In a full implementation, this would...')` and equivalents, hardcoded values rendered as if dynamic. Same rule applies — implement or descope to scaffold with honest copy.
+  5. **Measurements-as-build-targets** added to the journey-walk bullet. Each `<measurement>` is no longer just an acceptance gate; it's a contract the artifact must be sized for. Reviewer must be able to grade yes/partial/no by opening a specific file and inspecting state — no "would work in production" inference allowed.
+- [`packages/auto-designer-pi/skills/working-depth/SKILL.md`](../packages/auto-designer-pi/skills/working-depth/SKILL.md) — new auto-load skill. Frontmatter matches `design-generation`'s `when: auto`. Body is the depth contract (`file:line` for state change + every consumer), the four disguised-stub patterns, the scaffold-vs-working-depth distinction, and a concrete journey-walk self-check that includes a grep step for the disguised patterns. Picked up automatically by [`server/lib/skill-discovery.ts`](../server/lib/skill-discovery.ts).
+
+**Why**: Layer 1+2 of the read-the-docs-and-soft-tide plan. Hypothesis generation has been calibrated through cycles 11–20; the build stage is now the bottleneck. User-observed problem: "the agent is still falling short of building anything interesting. It kinda just builds a couple of flat pages that don't really do anything." Concrete evidence sampled in pre-cycle exploration:
+- [`runs/20260510-171828-ideation-f037`](runs/20260510-171828-ideation-f037/) *Social Vouching* shipped `<button id="simulate-accept">Simulate: Alex accepts request</button>` standing in for the bet-critical acceptance flow. Same run had `alert('In a full implementation, this would show additional recovery options...')` at `js/app.js:211`. Honesty-check (cycle 20) caught it post-hoc but no feedback loop existed back to the build.
+- [`runs/20260510-171828-ideation-f037`](runs/20260510-171828-ideation-f037/) *Crisis Priority Lane* passed honesty ✅ clean but its bet-critical wait-time display is `queuePosition = 3; setInterval(decrement, 8000)` — a fake queue. Honesty-check's string grep missed it because the strings are absent.
+
+Root cause: cycle 14's prompt rule blocked the **comment form** of stubbing; the practice migrated to visible UI patterns. Cycle 20's honesty-check is post-hoc with no feedback. "Working depth" was prose-defined with examples, not tied to measurements or to a checklist. No skill addressed depth-verification.
+
+**Snapshot**: `pnpm snap` ran before edits (Everything-up-to-date: baseline already on disk from prior cycles). Will re-run after the build-plan edits are integrated; snap-after will capture the new state tied to whatever run follows.
+
+**Tested in**: not yet run. Plan calls for studio-machine runs (this agent is local; the user runs experiments via SSH for parallel matrix throughput):
+- `pnpm exp run ideation --brief experiments/briefs/password-reset.md --cap-tokens 1000000` — known disguised-stub site.
+- `pnpm exp run ideation --brief experiments/briefs/habit-tracker.md --cap-tokens 1000000` — known permission-gated hand-waving.
+- Optional third: `pnpm exp run ideation --brief experiments/briefs/icu-handoff.md` — high-stakes specialist brief.
+
+**Success criteria** (to evaluate after the runs):
+- Honesty `clean` or `minor` (no bet-critical findings) on ≥4/5 hypotheses across both runs.
+- Hand-walked artifacts close the bet-critical loop end-to-end at the same rate (honesty verdicts are necessary but not sufficient — *Crisis Priority Lane* passed clean while shipping a setInterval-fake queue).
+- Per-hypothesis token spend roughly flat or lower than cycle-19 baseline — the ONE-feature floor and concentration framing should reduce sprawl, not increase it.
+- A `BUILD_PLAN.md` is present in each artifact directory, naming the chosen bet-critical feature and the journey/measurements mapping.
+
+**What's still open / fallback**:
+- **Layer 3 in reserve** — if the post-edit runs still show "looks complete, doesn't work" or honesty surfaces new disguised-stub patterns the prompt missed, the escalation is revise-on-hollow: when `runHonestyCheck` returns `hollow` with bet-critical findings, run one bounded revise pass back through the Pi session with the findings as input. Edit point: [`experiments/src/flows/canonical.ts`](src/flows/canonical.ts) where `runHonestyCheck` is hooked. Per `critique-guide.md` "before reaching for a prompt edit": don't iterate prompt edits a third time on the same issue — escalate the architecture.
+- **Honesty-check vocabulary expansion** — the structured check today greps for comment strings. After this cycle ships, the auditor should also surface `Simulate:` button labels, `setInterval` in bet-critical files, and `alert(` punts. Cheaper change than the revise loop; could land in cycle 22 alongside revise-on-hollow if escalation triggers.
+- **Cycle-19 carryover backlog** — re-fire tax-prep with retry, sharper reframe-upstream prompt, decouple brainstorm/curation variance. Lower priority than landing this cycle's verification.
+
+---
+
+## Cycle 22 — Route bet-critical contract through Pi's native `todo_write` instead of a `BUILD_PLAN.md` file (2026-05-11)
+
+**Files edited**:
+- [`packages/auto-designer-pi/prompts/design-agent-instructions.md`](../packages/auto-designer-pi/prompts/design-agent-instructions.md) — replaced the cycle-21 BUILD_PLAN.md bullet with **"Open with a structured `todo_write`, not code."** The opening `todo_write` payload now must encode the bet-critical contract in five tiers (commit to bet-critical scope, map every measurement to file/state, name every cross-page state edge, list scaffolds with honest copy, final journey-walk + grep). Bet-critical commitment todos go *before* phase milestones. Also fixed the cycle-21 "Each `<measurement>` is a build target" line to reference "bet-critical commitment todos" instead of `BUILD_PLAN.md`.
+- [`packages/auto-designer-pi/prompts/_designer-system.md`](../packages/auto-designer-pi/prompts/_designer-system.md) — rewrote `<how_you_work>` step 2 (the "Plan milestones" bullet) to require the bet-critical commitment todos to come first, then phase milestones (layout / visual system / interactions / content / validation) follow. Added explicit rule: bet-critical commitment todos cannot be marked `completed` while a disguised stub (`Simulate:`, `setInterval`, `alert('In a full implementation...')`, hardcoded-as-if-dynamic) remains in a bet-critical path.
+- [`packages/auto-designer-pi/skills/working-depth/SKILL.md`](../packages/auto-designer-pi/skills/working-depth/SKILL.md) — updated the two BUILD_PLAN.md references in the self-check section to point at the opening `todo_write` instead. Added: "Any todo still marked `in_progress` or `pending` at completion time is a deferred bet-critical commitment — resolve it (implement or descope) before declaring done."
+
+**Why**: Cycle 21's BUILD_PLAN.md contract worked mechanically (all 5 password-reset artifacts had the file) but exposed a sharper failure mode: **the plan itself committed to the simulation up front** for hypotheses whose bet intrinsically requires server/platform capabilities. Historical Credential's BUILD_PLAN.md said *"Simulates matching against historical credentials using JavaScript"* — and the agent dutifully shipped exactly that. The plan was a write-once markdown file, easy to treat as boilerplate and impossible to enforce after the first turn.
+
+KC noticed Pi has a native `todo_write` tool ([`packages/auto-designer-pi/src/extension/designer-tools.ts:71-97`](../packages/auto-designer-pi/src/extension/designer-tools.ts)) that's already wired through to the canvas UI ([`TodoTracker.tsx`](../src/components/canvas/variant-run/TodoTracker.tsx) + [`GeneratingFooter.tsx`](../src/components/canvas/variant-run/GeneratingFooter.tsx) shows the in-flight todo). The tool's own description: *"Always provide the complete current state — full replacement, not incremental updates. Todos survive context compaction."* Three properties that make it strictly better than a markdown file:
+
+1. **Live commitment.** Pi re-prompts the model to update the todos as work progresses — every meaningful step touches the list, not a write-once-and-ignore artifact.
+2. **User-visible during the build.** Todos render in the hypothesis card's TodoTracker mid-stream. The human (and a future critique agent) can SEE the descope decision as it happens, rather than discovering it 10 minutes later in a honesty verdict.
+3. **Compaction-safe.** The tool description explicitly says todos survive context compaction; the markdown plan does not.
+
+The diagnostic value matters as much as the enforcement value: the first todo's wording ("Implement [feature] to working depth — confirm fully implementable in static HTML/JS within budget, OR descope and rewrite copy as scaffold") forces the agent to make the descope/implement decision out loud. Marking that todo `completed` while the next move is `// Simple simulation: any password 4+ chars is 'valid'` is a louder self-contradiction than burying it in markdown.
+
+**Snapshot**: TBD (snap after the next pnpm test pass and before re-firing password-reset on studio).
+
+**Tested in**: re-firing [password-reset on studio](runs/) for direct A/B against cycle 21's `20260511-153102-ideation-0fee` (3 clean / 2 hollow). Same brief, same `ideation` flow, same model. Validation targets:
+- The two cycle-21 hollow hypotheses (Historical Credential, Human-on-Demand Video) — does the structured-todos contract force the descope decision, or do they ship hollow again?
+- Clean rate ≥4/5 (the cycle 21 plan's success criterion that we missed by one).
+- The first `todo_write` payload in transcripts should now show the bet-critical commitment structure, not just phase milestones — agent should also be visibly walking the descope/implement decision as the first todo.
+- No `BUILD_PLAN.md` files in artifact directories (those should go away — the todos are the plan).
+
+**What's still open after this cycle**:
+- **If cycle 22 still ships ≥2 hollow on password-reset**, escalate to Layer 3 (revise-on-hollow loop in [`experiments/src/flows/canonical.ts`](src/flows/canonical.ts)) — this is the third planning-side prompt cycle, the architectural fallback documented in cycle 21's plan, and per `critique-guide.md` the right escalation when prompt-iteration hits diminishing returns.
+- **Honesty-check vocabulary expansion** — the auditor today greps for cycle-14 strings; should also surface `setTimeout` simulating real-time signals, `Simulate:` / `Demo:` button labels, and `alert(` punts. Cheap edit to [`flow.ts`](src/flow.ts) honesty-check prompt; deferred to cycle 23 if cycle 22 holds.
+- **Cycle-19 carryover backlog** — re-fire tax-prep with retry, sharper reframe-upstream prompt. Still parked.
+
+---
