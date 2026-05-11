@@ -56,8 +56,14 @@ export const PREREQUISITE_DEFAULTS: Record<string, Record<string, unknown>> = {
 
 
 // UI timing constants
-/** Duration of the fitView animation after nodes are added to the canvas (ms). */
-export const FIT_VIEW_DURATION_MS = 400;
+/**
+ * Duration of the fitView animation when the user clicks **Fit canvas
+ * view**, when auto-fit runs after a layout settles, or when the camera
+ * focuses on a node post-generation (ms). 250ms is snappy enough that
+ * the user doesn't perceive a pause but slow enough that the camera
+ * move stays legible — was 400ms (felt sluggish on direct clicks).
+ */
+export const FIT_VIEW_DURATION_MS = 250;
 /** Delay before triggering fitView after nodes are placed, to let layout settle (ms). */
 export const FIT_VIEW_DELAY_MS = 200;
 /** Debounce delay for auto-layout recalculation on dimension changes (ms). */

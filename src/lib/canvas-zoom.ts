@@ -3,7 +3,18 @@ import type { Viewport } from '@xyflow/react';
 export const CANVAS_MIN_ZOOM = 0.15;
 export const CANVAS_MAX_ZOOM = 2;
 
-const WHEEL_ZOOM_SENSITIVITY = 0.002;
+/**
+ * Sensitivity of pinch-zoom and ctrl+wheel zoom on the canvas. Used as the
+ * exponent factor in `canvasWheelZoomFactor`. Higher = each tick moves
+ * the zoom further.
+ *
+ * macOS trackpad pinches arrive as wheel events with `ctrlKey` and tiny
+ * `deltaY` (often 1-10 per tick). At sensitivity 0.002 each tick changed
+ * zoom by ~1%, so traversing 100% → 50% took ~70 pinch ticks and felt
+ * glacial. 0.01 is closer to the Figma / Miro / xyflow defaults and feels
+ * responsive without being twitchy; tune here if pinch overshoots.
+ */
+const WHEEL_ZOOM_SENSITIVITY = 0.01;
 
 export type CanvasPoint = {
   x: number;

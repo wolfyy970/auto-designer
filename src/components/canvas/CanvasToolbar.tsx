@@ -53,12 +53,12 @@ export default function CanvasToolbar() {
         <ToolButton
           icon={<ZoomIn size={16} />}
           label="Canvas zoom in"
-          onClick={() => zoomIn({ duration: 200 })}
+          onClick={() => zoomIn({ duration: 100 })}
         />
         <ToolButton
           icon={<ZoomOut size={16} />}
           label="Canvas zoom out"
-          onClick={() => zoomOut({ duration: 200 })}
+          onClick={() => zoomOut({ duration: 100 })}
         />
         <div
           className="w-8 select-none text-center text-[10px] font-semibold tabular-nums text-fg-muted"

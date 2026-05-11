@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { FIT_VIEW_DURATION_MS } from '../constants';
 import {
   scheduleCanvasFocusToNode,
   scheduleCanvasFitView,
@@ -194,7 +195,7 @@ describe('starter canvas camera', () => {
       viewport,
     );
     expect(setCenter).toHaveBeenCalledWith(target!.x, target!.y, {
-      duration: 400,
+      duration: FIT_VIEW_DURATION_MS,
       zoom: target!.zoom,
     });
   });
@@ -207,7 +208,7 @@ describe('starter canvas camera', () => {
     ]);
     vi.runAllTimers();
     expect(setCenter).not.toHaveBeenCalled();
-    expect(fitView).toHaveBeenCalledWith({ duration: 400, padding: 0.15 });
+    expect(fitView).toHaveBeenCalledWith({ duration: FIT_VIEW_DURATION_MS, padding: 0.15 });
   });
 });
 
@@ -232,7 +233,7 @@ describe('scheduleCanvasFocusToNode', () => {
     vi.runAllTimers();
     expect(setCenter).toHaveBeenCalledTimes(1);
     expect(setCenter).toHaveBeenCalledWith(300, 280, {
-      duration: 400,
+      duration: FIT_VIEW_DURATION_MS,
       zoom: NODE_FOCUS_MIN_ZOOM,
     });
     expect(afterFocus).toHaveBeenCalledTimes(1);
