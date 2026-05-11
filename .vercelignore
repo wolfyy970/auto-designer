@@ -1,0 +1,21 @@
+# Don't upload local dev artifacts to Vercel's build environment.
+# These are gitignored but Vercel's CLI does not honor .gitignore by
+# default for direct uploads.
+
+# Observability logs (304 MB+ locally — never needed for production)
+logs/
+
+# Experiments tool — local matrix runs, generated artifacts, cost ledger.
+# All gitignored except the source tree itself, but the runs / matrix
+# dirs can be many MB each.
+experiments/runs/
+experiments/matrix/
+experiments/.cost-ledger.jsonl
+
+# Saved canvas dumps (dev tool)
+saved-canvases/
+
+# Build / cache artifacts
+.turbo/
+.cache/
+coverage/
