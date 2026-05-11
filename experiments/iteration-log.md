@@ -647,13 +647,23 @@ The real failure mode is narrower and more specific: stubs that **force the user
 
 **Snapshot**: TBD post-snap.
 
-**Tested in**: re-firing habit-tracker on studio for direct comparison vs cycle 22's `20260511-162632-ideation-9a40` (which flagged 2 hollow). Under the refined rule, those two should come back ✅ clean or 🟡 minor (bet-preserving infrastructure stubs surfaced for transparency). Also covers the Reverse Accountability timeout (separate commit bumping `designBuild` budget from 360s → 480s).
+**Tested in**: [run `20260511-175536-ideation-a56e`](runs/20260511-175536-ideation-a56e) on studio — habit-tracker, ideation flow, post-edit. 8:22 wall (vs cycle 22's 9:25), 177,769 tokens (vs cycle 22's 148,606 — slight uptick from more involved hypotheses, not bloat).
 
-**Success criteria**:
-- Zero-Knowledge Privacy Vault and Location-Aware Auto-Completion's same disguised-stub patterns flip from 🔴 hollow → ✅ clean (or 🟡 minor with bet-preserving severity).
-- No new false negatives — a hypothesis with a real role-breaker or meta-acknowledgment in a bet-critical path should still come back 🔴 hollow.
-- Reverse Accountability Incentives completes within the bumped budget without `StageTimeoutError`.
-- Per-hypothesis token spend stays in cycle 22 territory (~30-50k each).
+**Headline outcome — verdicts**:
+- Pure zero-friction completion — ✅ clean
+- Micro-celebration completion — ✅ clean (3 findings, all `severity: ok` — `setTimeout(...200)` correctly recognized as legitimate animation implementation, not a stub; scaffolded "coming soon" toasts in scaffold paths correctly graded `ok`)
+- Progress-visible dense list — ✅ clean (3 findings, all `ok`)
+- Loss-aversion streak focus — ✅ clean (2 findings, scaffold disclosures `ok`)
+- Premium-aspiration experience — 🟡 **minor** (2 findings): payment-flow toast `showToast('Premium upgrade would open payment flow in production')` in bet-critical path graded `minor` with explanation *"This stub tells the user what would happen in production but does not replace the core bet interaction - premium features remain visible and locked, the upgrade modal shows with real CTAs, preserving the aspiration experience"*; Instagram-share toast in scaffold path graded `ok`.
+
+**5/5 hypotheses passed.** Zero hollow. The first 🟡 **minor** verdict using the new severity is genuine signal: a bet-preserving stub (payment flow as adjacent infrastructure) in a bet-critical path (premium-aspiration), surfaced for transparency, doesn't degrade the run. Walked Premium-aspiration's [`artifacts/12b70467-4a8d-44fc-b66f-f8ef5a28bb59/`](runs/20260511-175536-ideation-a56e/artifacts/12b70467-4a8d-44fc-b66f-f8ef5a28bb59/) end-to-end: three real localStorage keys (`STORAGE_KEY`, `SETTINGS_KEY`, `COMPLETIONS_KEY`), `showPremiumLock('add more habits')` actually triggered when `MAX_FREE_HABITS` is hit — that *is* the bet's aspiration moment, fully experienceable. Only the post-click payment is faked; the bet is testable end-to-end up to that point. Correct call.
+
+**Critical calibration moments observed**:
+1. **`setTimeout(...200)` for animation correctly NOT flagged as a stub.** "Proper timing mechanism for 200ms animation, not a stub - this IS the implementation of the micro-feedback." Cycle 22's stricter rule would have flagged this; cycle 23's bet-preserving rule recognizes legitimate `setTimeout` use.
+2. **`showToast('Premium upgrade would open payment flow in production')` correctly graded `minor`, not `hollow`.** This is right on the line — it contains the cycle 21-22 banned "would" + "in production" phrasing, but the auditor judged that the bet's experience (aspiration UX with locked features + real CTAs) is intact and only the payment infrastructure is faked. Exactly the bet-preserving-vs-bet-killing call the new rule was designed to make.
+3. **No designBuild stage timeouts** — the 8-min budget covered all 5 builds comfortably. The one stage error (Pure zero-friction completion's evaluation) was on the evaluator (180s budget) not designBuild — different stage, different fix.
+
+**Caveat — could not do per-hypothesis A/B with cycle 22's hollow cases.** The `ideation` flow's curation is a spread-sampler (cycle 18 finding); this run sampled a completely different set of hypotheses than cycle 22's habit-tracker run. So Zero-Knowledge Privacy Vault and Location-Aware Auto-Completion are not in this run's corpus, and we can't directly show "same input → different verdict under the refined rule." The validation is inferential: (a) the auditor's reasoning on Premium-aspiration's payment toast matches the rule we wrote, and (b) no false negatives — no role-breakers or meta-acknowledgments slipped through. Direct A/B would require explicitly seeding the brainstorm with the cycle 22 territories, which isn't currently possible without flow surgery.
 
 **What's still open after this cycle**:
 - **Layer 3 (revise-on-hollow)** is back to being held in reserve. Under the refined rule, password-reset was 5/5 clean and habit-tracker (re-judged) should also be 5/5 clean once the false positives flip. The revise-loop only becomes worthwhile if the *role-breaker / meta-acknowledgment* failure mode actually keeps appearing — and the rule refinement may push that rate close to zero on its own.
