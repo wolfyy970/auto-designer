@@ -260,9 +260,9 @@ async function main(): Promise<void> {
     dryRun: false,
   });
 
-  // eslint-disable-next-line no-console
+   
   console.log(`Re-audit run: ${runDir.id}`);
-  // eslint-disable-next-line no-console
+   
   console.log(`Report: ${join(runDir.root, 're-audit-report.md')}\n`);
 
   interface ReportRow {
@@ -281,24 +281,24 @@ async function main(): Promise<void> {
   const rows: ReportRow[] = [];
 
   for (const entry of SAMPLE) {
-    // eslint-disable-next-line no-console
+     
     console.log(`\n=== ${entry.brief} (${entry.era}) — run ${entry.runId} ===`);
     let samples: SourceHypothesis[];
     try {
       samples = loadSampleEntry(entry);
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.error(`  Failed to load: ${(err as Error).message}`);
       continue;
     }
-    // eslint-disable-next-line no-console
+     
     console.log(`  ${samples.length} hypotheses with artifacts\n`);
 
     for (const sample of samples) {
       const oldLabel = sample.oldVerdict
         ? `${emoji(sample.oldVerdict)} ${sample.oldVerdict}${sample.oldFindings != null ? ` (${sample.oldFindings} findings)` : ''}`
         : '— (no prior verdict on file)';
-      // eslint-disable-next-line no-console
+       
       console.log(`  ▶ ${sample.name}\n      old: ${oldLabel}`);
 
       try {
@@ -308,7 +308,7 @@ async function main(): Promise<void> {
         const keyFinding =
           verdict.findings.find((f) => f.severity === 'hollow')?.explanation ??
           verdict.findings.find((f) => f.severity === 'minor')?.explanation;
-        // eslint-disable-next-line no-console
+         
         console.log(`      new: ${newLabel}   → ${classification}`);
         rows.push({
           brief: entry.brief,
@@ -323,7 +323,7 @@ async function main(): Promise<void> {
           keyFinding,
         });
       } catch (err) {
-        // eslint-disable-next-line no-console
+         
         console.error(`      ERROR: ${(err as Error).message}`);
         rows.push({
           brief: entry.brief,
@@ -392,7 +392,7 @@ async function main(): Promise<void> {
 
   const reportPath = join(runDir.root, 're-audit-report.md');
   writeFileSync(reportPath, report.join('\n'), 'utf8');
-  // eslint-disable-next-line no-console
+   
   console.log(`\nReport written: ${reportPath}`);
 }
 

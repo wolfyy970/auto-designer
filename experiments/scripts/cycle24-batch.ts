@@ -17,7 +17,7 @@
  * be run later if needed.
  */
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 
 import { runOneCell, type CellSpec, type RunOneCellResult } from './matrix-runner.ts';
 import { DEFAULT_PER_RUN_TOKEN_CAP } from '../src/cost.ts';
@@ -383,9 +383,9 @@ async function main(): Promise<void> {
   const outDir = join(RUNS_DIR, 'cycle24-aggregate');
   mkdirSync(outDir, { recursive: true });
 
-  // eslint-disable-next-line no-console
+   
   console.log(`Cycle 24 batch: ${cells.length} cells, concurrency=${CONCURRENCY}`);
-  // eslint-disable-next-line no-console
+   
   console.log(`Cells: ${cells.map((c) => `${c.brief}/r${c.rep}`).join(', ')}`);
 
   const startedAt = Date.now();
@@ -428,11 +428,11 @@ async function main(): Promise<void> {
   const rows = collectRows(outcomes);
   const reportPath = writeAggregateReport(outDir, outcomes, rows);
 
-  // eslint-disable-next-line no-console
+   
   console.log(`\nTotal wall: ${totalWallSec.toFixed(0)}s (${(totalWallSec / 60).toFixed(1)} min)`);
-  // eslint-disable-next-line no-console
+   
   console.log(`Report: ${reportPath}`);
-  // eslint-disable-next-line no-console
+   
   console.log(`Manifest: ${join(outDir, 'manifest.json')}`);
 }
 

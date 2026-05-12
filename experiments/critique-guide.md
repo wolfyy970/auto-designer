@@ -124,7 +124,7 @@ These are the principles we've established that should shape critique. Update wi
 
 ### Curation pick-stability (the `ideation` flow)
 
-The `ideation` flow's Stage 0b curation is a spread-*sampler*, not a spread-*selector*. The model is explicitly instructed to maximize spread, not to pick the canonical-best 5; this produces run-to-run pick variance by design. Cycle 18 measured this on the grief brief across 5 runs (cycles 11, 15, plus 3 fresh): 25 unique picks, zero exact-name match across any pair, but a clear two-tier territory pattern — a stable backbone of 3-5 territories that recurs in 60-100% of runs (ambient, pre-loss, archive on grief), and a long tail of ~8-10 territories sampled 1-2 per run (anonymous, somatic, anti-design, browser-extension, etc).
+The `ideation` flow's Stage 0b curation is a spread-*sampler*, not a spread-*selector*. The model is explicitly instructed to maximize spread across **digital products** (cycle 26 added the product-shape filter; cycle 27 added the hypothesis-stage switch-reason check) — not to pick the canonical-best 5; this produces run-to-run pick variance by design. Cycle 18 measured this on the grief brief across 5 runs (cycles 11, 15, plus 3 fresh): 25 unique picks, zero exact-name match across any pair, but a clear two-tier territory pattern — a stable backbone of 3-5 territories that recurs in 60-100% of runs (ambient, pre-loss, archive on grief), and a long tail of ~8-10 territories sampled 1-2 per run (anonymous, somatic, anti-design, browser-extension, etc).
 
 How to read curation outputs in critique:
 
@@ -132,7 +132,7 @@ How to read curation outputs in critique:
 - **Use the stable-backbone territories as a ground-truth signal.** Picks that recur in 4-5/5 runs are unambiguously the territories the brief most strongly invites — useful as an anchor for evaluating whether a single-run corpus covers the obvious bets.
 - **Read each run's long-tail picks as that run's distinctive contribution.** A run that picked "anti-design text stream" or "somatic anchor" is exploring a corner the typical run doesn't reach; that's signal, not noise.
 - **Repeated runs compound coverage of the imagination space.** If a critique question is "what could this brief be?" rather than "what should this brief commit to?", multiple ideation runs are the answer; a single run covers ~5 territories, three runs cover ~12-13.
-- **The incubator renames everything downstream of curation.** Each run's `hypotheses.json` reflects the incubator's framing of the curated picks, not the picks themselves. To see what curation actually picked, read the `02-curation.md` transcript's `## Spread rationale` paragraph and the `## <name>` headers above it.
+- **The incubator renames everything downstream of curation.** Each run's `hypotheses.json` reflects the incubator's framing of the curated picks, not the picks themselves. To see what curation actually picked, read the `02-curation.md` transcript's `## Spread rationale` section (two paragraphs since cycle 26: paragraph 1 is the spread justification across digital-product kinds, paragraph 2 is the audit trail naming transformations and set-asides) and the `## <name>` headers above it.
 
 ### Brief shape changes what the corpus tests
 

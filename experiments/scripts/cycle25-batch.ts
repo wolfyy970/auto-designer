@@ -464,7 +464,7 @@ async function main(): Promise<void> {
   const outDir = join(RUNS_DIR, 'cycle25-aggregate');
   mkdirSync(outDir, { recursive: true });
 
-  // eslint-disable-next-line no-console
+   
   console.log(
     `Cycle 25 batch: ${BRIEFS.length} briefs × ${REPS_PER_BRIEF} reps × ${HYPOTHESIS_COUNT} hypotheses = ${cells.length} cells, ${cells.length * HYPOTHESIS_COUNT} hypotheses target. Concurrency=${CONCURRENCY}.`,
   );
@@ -474,7 +474,7 @@ async function main(): Promise<void> {
     cells,
     CONCURRENCY,
     (c, slot, idx, total) => {
-      // eslint-disable-next-line no-console
+       
       console.log(`[slot ${slot}] (${idx + 1}/${total}) starting ${c.brief}/r${c.rep}`);
     },
     (outcome, slot, idx, total) => {
@@ -483,7 +483,7 @@ async function main(): Promise<void> {
         : outcome.result?.fatalError
           ? `WARN: ${outcome.result.fatalError.slice(0, 80)}`
           : `ok (${outcome.result?.runId})`;
-      // eslint-disable-next-line no-console
+       
       console.log(
         `[slot ${slot}] (${idx + 1}/${total}) done ${outcome.brief}/r${outcome.rep} in ${outcome.wallSec.toFixed(0)}s — ${status}`,
       );
@@ -514,11 +514,11 @@ async function main(): Promise<void> {
   const rows = collectRows(outcomes);
   const reportPath = writeAggregateReport(outDir, outcomes, rows);
 
-  // eslint-disable-next-line no-console
+   
   console.log(`\nTotal wall: ${totalWallSec.toFixed(0)}s (${(totalWallSec / 60).toFixed(1)} min)`);
-  // eslint-disable-next-line no-console
+   
   console.log(`Report: ${reportPath}`);
-  // eslint-disable-next-line no-console
+   
   console.log(`Manifest: ${join(outDir, 'manifest.json')}`);
 }
 

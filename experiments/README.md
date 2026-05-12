@@ -59,7 +59,7 @@ The canonical pipeline (also the spine of `ideation` and `reframe-then-ideate`):
 | Stage | What it does | Output |
 |---|---|---|
 | 0a (ideation flows) | Wild brainstorm (10-15 categorically different directions) | `transcripts/NN-brainstorm.md` |
-| 0b (ideation flows) | Curation (pick 5 for max spread, with rationale) | `transcripts/NN-curation.md` |
+| 0b (ideation flows) | Curation (product-shape filter → surface fit → spread, with audit trail in spread rationale) | `transcripts/NN-curation.md` |
 | 0 (reframe-then-ideate) | Opportunity reframe (recover HMW question from brief) before brainstorm | `transcripts/NN-reframe.md` |
 | 1 | Inputs-gen for missing R/O/C sections | `transcripts/NN-inputs-<section>.md` |
 | 2 | Incubator (spec → hypotheses) | `hypotheses.json` + `transcripts/NN-incubator.md` |
@@ -75,7 +75,7 @@ Each flow is a TypeScript file in `src/flows/` that exports a `runFlow(input)` f
 
 Current:
 
-- **ideation** — **default flow.** Two extra stages before canonical: (0a) divergent brainstorm — 10-15 categorically different product directions, anti-censorship ("the wilder the better"); (0b) convergent curation — picks 5 directions for *maximum spread*, not maximum plausibility. The 5 picked directions are stitched into the brief as a `<product_shape_candidates>` block and the canonical pipeline runs from there. Validated on both high-gravity and low-gravity briefs (cycles 11, 12, 15) — produces wider, more distinctive corpora than canonical alone with negligible extra cost when the per-hypothesis builds run in parallel. Introduced cycle 11 as `wild-ideation`, renamed to `ideation` cycle 17.
+- **ideation** — **default flow.** Two extra stages before canonical: (0a) divergent brainstorm — 10-15 categorically different product directions, anti-censorship ("the wilder the better"); (0b) convergent curation in three parts: (i) **product-shape filter** — each pick must be a digital product (cycle 26); service / meeting / config seeds are transformed into product seeds or set aside; (ii) **surface fit** — when the constraints declare a `Target surfaces` value, picks must fit it; (iii) **spread maximization across digital products**. The 5 picked directions are stitched into the brief as a `<product_shape_candidates>` block and the canonical pipeline runs from there. Validated on both high-gravity and low-gravity briefs (cycles 11, 12, 15); the product-shape gate validated cycle 26 (92% pass); the cycle-27 hypothesis-stage backstop adds a switch-reason check that requires the rationale to name a software-unique mechanism, not an adjective. Introduced cycle 11 as `wild-ideation`, renamed to `ideation` cycle 17.
 - **canonical** — fast path. High-fidelity reproduction of production: optional inputs-gen for missing or regen-flagged sections → incubator → per-hypothesis design build → optional evaluation. Use when the divergent/convergent split is overkill (single-hypothesis bug-fix verification, prompt unit-tests, etc.).
 - **reframe-then-ideate** — composition. Runs reframe → brainstorm → curation → canonical. Tests whether the brainstorm seeing the recovered HMW question produces a wider spread than `ideation` alone. The 384-cell matrix put it within rep-noise of plain `ideation`; kept as the only standing data point for a multi-stage composition.
 - **inputs-gen** — focused. Runs only stage 1 (research / objectives / constraints generation). Skips incubator, build, and evaluation. Use it for tight iteration on `gen-research.md` / `gen-objectives.md` / `gen-constraints.md`.

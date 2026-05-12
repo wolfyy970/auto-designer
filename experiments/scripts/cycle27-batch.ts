@@ -259,7 +259,7 @@ async function main(): Promise<void> {
   const outDir = join(RUNS_DIR, 'cycle27-aggregate');
   mkdirSync(outDir, { recursive: true });
 
-  // eslint-disable-next-line no-console
+   
   console.log(
     `Cycle 27 batch: ${BRIEFS.length} briefs × ${REPS_PER_BRIEF} reps × ${HYPOTHESIS_COUNT} hypotheses = ${cells.length} cells, ${cells.length * HYPOTHESIS_COUNT} hypotheses target. Concurrency=${CONCURRENCY}.`,
   );
@@ -269,7 +269,7 @@ async function main(): Promise<void> {
     cells,
     CONCURRENCY,
     (c, slot, idx, total) => {
-      // eslint-disable-next-line no-console
+       
       console.log(`[slot ${slot}] (${idx + 1}/${total}) starting ${c.brief}/r${c.rep}`);
     },
     (outcome, slot, idx, total) => {
@@ -278,7 +278,7 @@ async function main(): Promise<void> {
         : outcome.result?.fatalError
           ? `WARN: ${outcome.result.fatalError.slice(0, 80)}`
           : `ok (${outcome.result?.runId})`;
-      // eslint-disable-next-line no-console
+       
       console.log(
         `[slot ${slot}] (${idx + 1}/${total}) done ${outcome.brief}/r${outcome.rep} in ${outcome.wallSec.toFixed(0)}s — ${status}`,
       );
@@ -319,13 +319,13 @@ async function main(): Promise<void> {
     'utf8',
   );
 
-  // eslint-disable-next-line no-console
+   
   console.log(`\nTotal wall: ${totalWallSec.toFixed(0)}s (${(totalWallSec / 60).toFixed(1)} min)`);
-  // eslint-disable-next-line no-console
+   
   console.log(`Manifest: ${join(outDir, 'manifest.json')}`);
-  // eslint-disable-next-line no-console
+   
   console.log(`Flat hypotheses (for hand-scoring): ${join(outDir, 'hypotheses-flat.json')}`);
-  // eslint-disable-next-line no-console
+   
   console.log(`Curation transcripts (audit trail): ${join(outDir, 'curation-transcripts.json')}`);
 }
 
