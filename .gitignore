@@ -39,3 +39,8 @@ experiments/runs/*
 experiments/matrix/*
 !experiments/matrix/.gitkeep
 experiments/.cost-ledger.jsonl
+
+# Claude Code project workspace — keep skills (commit-worthy), ignore user/runtime artifacts
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/.local/

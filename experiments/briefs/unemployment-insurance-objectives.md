@@ -1,0 +1,9 @@
+The design must reduce the time and friction between job loss and first benefit payment for eligible claimants. The failure mode to avoid: optimizing the application flow at the expense of accurate eligibility determination, which produces denials and appeals that take longer than a delayed correct decision would have.
+
+The design must surface claim status accurately and in plain language. Claimants need to know what's happening with their claim, what (if anything) they owe in next steps, and when payment will arrive. The failure mode to avoid: false reassurance — a "your claim is being processed" message that hides a stalled file is worse than a clear message that names the blocker.
+
+The design must work for the audiences that fall through the current system: variable-schedule and gig workers whose work histories don't fit the forms cleanly, workers with limited English proficiency, workers without a stable home address, formerly-incarcerated claimants navigating reentry, workers using a phone as their only device. The failure mode to avoid: a redesigned flow that polishes the median experience while leaving the same populations excluded.
+
+The design must respect the eligibility worker on the agency side. Workers are themselves users of the system and are typically over-loaded; a redesign that produces submissions they cannot process slows determinations for every claimant. The failure mode to avoid: a claimant-side experience that creates downstream rework for civil servants.
+
+The design must defend against fraud without making honest claimants feel like suspects. The failure mode to avoid: identity-proofing patterns that fail asymmetrically against the populations that most need benefits (older adults, people without a long credit history, people whose documents don't match standard databases).

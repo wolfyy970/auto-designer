@@ -789,3 +789,53 @@ Plus 4 new unit tests locking the schedule + jitter bounds + clamp behavior. Plu
 - **Per-finding severity reporting in summary.md** (cycle 23 carryover) — cosmetic.
 
 ---
+
+## Cycle 25 — 20 research-grounded brief packages + reusable authoring skill (2026-05-12)
+
+**Files added / modified:**
+- New project skill: [`.claude/skills/research-grounded-design-briefs/SKILL.md`](../.claude/skills/research-grounded-design-briefs/SKILL.md). Documents the shape of a real PM-to-designer problem statement (NN/g three-part model, Intercom three-key-parts, Lenny's situation/complication/resolution), distinguishes it from PRDs / feature lists / research dossiers / constraints lists, names sourcing standards (no invented stats; explicit `(Inferred)` marker for inferences; source-quality hierarchy), maps domains to public-research source families (AHRQ, CFPB, Code for America, Nava, Eviction Lab, KFF, AARP, Brookings, CCCSE, etc.), and enumerates anti-patterns from this project's experience.
+- 20 new brief packages in `experiments/briefs/`, each with 4 files (`<id>.md` plus `<id>-research.md`, `<id>-objectives.md`, `<id>-constraints.md`):
+  1. `snap-application` — Code for America / GetCalFresh
+  2. `hospital-discharge` — AHRQ Project RED / Care Transitions / IDEAL
+  3. `deceased-accounts` — CFPB / FTC / FDCPA
+  4. `remote-onboarding-week-one` — Gusto / Lattice
+  5. `unemployment-insurance` — Nava / California EDD
+  6. `apartment-with-eviction` — Eviction Lab / PolicyLink / Shelterforce
+  7. `primary-care-search` — KFF Health News / JAMA / AHRQ
+  8. `pre-travel-prescription` — CDC Yellow Book / FDA
+  9. `housing-court-defense` — Legal Aid networks / NCSC
+  10. `voter-name-change` — TurboVote / Brennan Center
+  11. `dmv-cross-state` — state DMV documentation / REAL ID
+  12. `crisis-line-first-contact` — SAMHSA 988 / FCC / PMC evaluations
+  13. `type-2-first-90-days` — ADA/ADCES DSMES Consensus Report / BMC / PLOS One
+  14. `first-manager-review` — SHRM / Gallup / Lattice
+  15. `retro-after-miss` — Atlassian / Scrum.org / Edmondson
+  16. `multi-currency-expense` — Brex / Ramp / Concur product documentation
+  17. `credit-report-dispute` — CFPB FCRA / NCLC
+  18. `cc-adult-reentry` — CCCSE / OCCRL / Innovative Higher Education
+  19. `parent-finding-tutor` — Brookings / Hechinger
+  20. `caregiver-coordination` — AARP Caregiving 2025 / Family Caregiver Alliance
+- Header notes prepended to [`habit-tracker.md`](briefs/habit-tracker.md) and [`tax-prep.md`](briefs/tax-prep.md) explaining their cycle-17/19 purpose as deliberately-prescribed and deliberately-sparse test cases — kept for validation continuity, marked not-to-use-as-template.
+
+**Why**: KC observed that even the briefs we'd been validating against were a mix of real problem statements (`grief-app`, `password-reset`, `code-onboarding`, `manager-1on1`, `icu-handoff`, `triage-nurse`) and writing prompts (`habit-tracker`, `tax-prep`). Real validation of the pipeline needs realistic input; realism standard from KC was explicit: "Do not hallucinate, do not imagine, do not bullshit, do not fill in. Do the research, get it right." The research arc validated 20 domains against public-research sources, drafted 80 documents (20 briefs + 60 supporting nodes) grounded in cited sources, and captured the sourcing methodology in a reusable skill that auto-loads when authoring future briefs.
+
+**Snapshot**: no prompt edits in this cycle (the build / honesty prompts are unchanged).
+
+**Methodology**:
+- Every empirical claim is sourced or marked `(Inferred)`.
+- Established research frameworks (Yerkes-Dodson, Cognitive Load Theory, WCAG 2.2 AA, plain-language guidelines, NIST 800-63, HIPAA, FCRA, FDCPA, COPPA, FERPA, ADA, FHA) are cited by name where relevant — not invented.
+- No invented user quotes or personas with specific names; aggregate user-research findings only.
+- Brief-text shape follows NN/g + Intercom guidance: 2–4 paragraphs of plain prose; names user, moment, what's hostile today, stakes; solution-open.
+- Supporting nodes follow the grief-app pattern: research-context names audience + pain + current tools' failure modes; objectives-metrics name each outcome paired with a failure mode to avoid; design-constraints cover regulatory frame + accessibility + cognitive-load + data-privacy + jurisdiction-variance where applicable.
+
+**What this closes**:
+- The "our validation briefs may not be realistic" question. The new portfolio is grounded in public research with sources cited inline.
+- The "I keep defaulting to weak briefs" anti-pattern. The skill captures the lesson and auto-loads in future sessions.
+- The brief portfolio expands from 8 (6 strong + 2 deliberately-weak) to 28 total (26 strong-shaped + 2 deliberately-weak, with header notes on the weak two).
+
+**What's still open**:
+- **Validation runs against the new briefs.** Adding briefs is content work; firing one of them through the pipeline is a separate decision. Strong demo candidates given designer-audience relevance: `grief-app` (already proven, 10/10 clean), `crisis-line-first-contact` (rich emotional/design territory), `housing-court-defense` (clear stakes), `hospital-discharge` (real product depth with multi-user complexity).
+- **Critique-feedback capability** — KC mentioned this as the next arc after the validation work landed. Cycle 24 closed validation; cycle 25 added the brief portfolio. The critique-feedback arc is the next thing to design.
+- **Brief-portfolio matrix re-run** with the expanded set. Cycle 19's brief portfolio matrix (5 briefs × N reps) is now under-sampled; with 20 new briefs spanning civic / healthcare / financial / work / consumer / education, a fresh matrix would surface system behaviors by brief category much more sharply.
+
+---

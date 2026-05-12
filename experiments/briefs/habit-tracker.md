@@ -1,3 +1,7 @@
+> **Note**: this is a deliberately-prescribed brief used in cycles 17–19 to test the system's resistance to feature-list prescription. It is not a real problem statement; it is a feature spec written as a PRD. Kept for validation continuity. **Do not use as a template for new briefs** — see other files in this directory (`grief-app.md`, `password-reset.md`, etc.) for real problem-statement shape.
+
+---
+
 Build a habit tracker app. Core features:
 
 - Set up multiple habits (daily, weekly, custom frequency)
