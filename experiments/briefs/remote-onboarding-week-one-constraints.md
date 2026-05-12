@@ -1,3 +1,5 @@
+Target surfaces: responsive-web. The audience uses laptops and desktops during the working day, with mobile web as a secondary surface for after-hours messages and notifications. No mobile-native app for first-week onboarding — the friction of an install during week one disqualifies that surface.
+
 The audience is professional adults across timezones, often working from home, sometimes in shared spaces. The design cannot assume a quiet, dedicated office; it must work in living rooms, kitchens, coffee shops, parents' houses, and shared workspaces. Audio-first experiences must consider environmental sensitivity; video-first experiences must respect that some people do not want to be on camera all day.
 
 Company-specific tooling varies dramatically: Slack vs Teams vs Discord; Notion vs Confluence vs Coda vs Google Docs; GitHub vs GitLab vs Bitbucket; Linear vs Jira vs Asana; Zoom vs Meet vs Webex. The design must either integrate broadly (large surface area, real implementation cost) or operate above the tooling (lighter-weight but with reduced fidelity to actual work).

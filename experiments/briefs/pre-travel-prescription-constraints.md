@@ -1,3 +1,5 @@
+Target surfaces: responsive-web. The user is most often planning the trip from a laptop alongside flight and hotel research, and the experience needs to surface dense regulatory information that benefits from larger viewport. Mobile web as a secondary surface for the customs-documents moment (passport pouch, airport) but the primary planning surface is the web.
+
 Federal law and DEA rules govern controlled substances. Schedule II medications (stimulants for ADHD, many opioids) cannot be filled early in many circumstances; some destinations restrict their import. The design must hold these rules accurately and not produce guidance that violates them.
 
 Destination-country drug law is the binding constraint on legality abroad, and it varies dramatically. Reliable sources include destination embassies and consulates, the US State Department's destination pages, and CDC's Yellow Book. The design must keep current with changes — country rules change.

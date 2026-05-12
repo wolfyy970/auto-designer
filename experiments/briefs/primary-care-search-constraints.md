@@ -1,3 +1,5 @@
+Target surfaces: responsive-web + mobile-web. The patient may search on a laptop at home, a phone during a lunch break, or a tablet from a hospital lobby. Mobile-web (not native app) because the user is establishing care with a new provider — install friction is wrong for a one-time search-and-book experience. Larger-viewport features (comparison tables, map views, dense filters) need responsive treatment that degrades to single-column scannable cards on phone.
+
 HIPAA and state privacy law apply to any handling of patient health information. Even basic information about chronic-condition match (e.g., "I have diabetes") qualifies as PHI in many architectures. The design must handle this data with HIPAA-compliant architecture, BAAs where required, and explicit consent for any disclosure.
 
 Stark Law and the federal anti-kickback statute regulate referral relationships between health-care entities. Any tool that steers patients to specific practices must avoid becoming an unlawful referral arrangement, especially if compensated by practices.
