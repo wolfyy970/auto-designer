@@ -916,3 +916,58 @@ And from `deceased-accounts`:
 **Rollback plan (unused).** All changes were isolated to prompts + 5 brief files + 1 new script. Snapshots of the 4 edited prompts were captured pre-edit by the husky `snap` hook (`packages/auto-designer-pi/prompts/_versions/{gen-brainstorm,gen-constraints,gen-curation,gen-hypotheses}/2026-05-12T20-29-24-*.md`). Revert with `git revert 2b2ea68` if needed.
 
 ---
+
+## Cycle 27 — Switch-reason check at the hypothesis stage (2026-05-12)
+
+**What the previous cycle revealed.** Cycle 26's product-shape gate closed the "is this a digital product" gap and validated at 92% pass on hand-scoring. But the cycle-26 outputs left two borderlines (*Ambient Office Channel*, *Calendar Sandbagging Engine*) that were software-shaped but commoditized — well-shaped digital products that duplicated existing patterns (Around/Tandem; Google Calendar plugins) without naming what would make them differentiated. KC named this clearly: the rationale doesn't ask the model *why a user would prefer this product*. The product-shape gate checks "is this a product?"; nothing checks "would anyone switch to it?"
+
+**What this cycle did.** Added a switch-reason requirement to `gen-hypotheses.md` — one positive instruction in the `<output_contract>` rationale spec and one negative check in the `<quality_bar>`. The rationale must now name *why a user would prefer this product*, and that reason must rest on a **software-unique mechanism** — verbs of what software does as a *cause* of value (holding state across sessions, retrieving information instantly, accumulating signal, matching/recommending, real-time updates, mediating async communication, programmatic integration, computation/inference, automation, network effect) — not adjectives describing the result ("better UX," "more convenient," "simpler," "intuitive," "delightful").
+
+**Files modified:**
+- [`packages/auto-designer-pi/prompts/gen-hypotheses.md`](../packages/auto-designer-pi/prompts/gen-hypotheses.md): two additions, both in service of the same check. The rationale spec gained a "Name the switch reason" paragraph; the `<quality_bar>` gained a "Switch reason absent or vibe-based" negative check.
+- [`experiments/scripts/cycle27-batch.ts`](../experiments/scripts/cycle27-batch.ts): test harness — identical 5-brief × 1-rep × 5-hyp shape as cycle 26 (intentional, for apples-to-apples comparison).
+
+**Prompt engineering lesson surfaced mid-cycle.** First pass of the rationale guidance included concrete example switch reasons inline ("*the lookup returns in seconds via aggregation across hundreds of sources* (computation + aggregation)" etc.). KC flagged it as a prompt-anchoring risk: naming specific examples teaches the model to mimic the example shape rather than discover its own mechanism per hypothesis. The first cycle-27 batch (a few minutes into a 25-min run) was killed and the prompt was rewritten to describe the *kind of work* software does without naming any concrete switch reason. The mechanism list moved into category names (verbs of action: holding, retrieving, accumulating, mediating, computing, automating) and the example phrases were removed entirely. The corrected version is what cycle 27's results below reflect.
+
+**Test 1 — Cycle 27 batch on the studio.** 5 cells, concurrency=3, 19.9 min wall (vs cycle 26's 22.4 min — slightly faster, possibly because the cleaner prompt shortens agent loops). 0 failures. All 25 hypotheses produced.
+
+**Test 2 — Hand-scoring against the switch-reason / mechanism rubric.**
+
+| Brief | n | Switch reason present | Mechanism named (not vibe) | Distinct mechanisms within brief |
+|---|---|---|---|---|
+| `remote-onboarding-week-one` | 5 | 5/5 | 5/5 | 5/5 |
+| `pre-travel-prescription` | 5 | 5/5 | 5/5 | 5/5 |
+| `deceased-accounts` | 5 | 5/5 | 5/5 | 5/5 |
+| `housing-court-defense` | 5 | 5/5 | 5/5 | 5/5 |
+| `primary-care-search` | 5 | 5/5 | 5/5 | 5/5 |
+| **Total** | **25** | **25/25 (100%)** | **25/25 (100%)** | **25/25** |
+
+Mechanisms named across the corpus (one per hypothesis, no within-brief duplicates): ambient presence computing, gamified exploration, search/retrieval through accumulated conversations, social-graph computation, behavioral inference + proactive nudging, conversational ambiguity handling, multi-variable computation, multi-party workflow orchestration, document generation + rules engine, adaptive temporal urgency, personalized task sequencing, instant retrieval during distress, dependency-aware timeline computation, OCR + extraction, LLM-mediated legal translation, AI defense classification, court rehearsal simulation, auto-organization of evidence, async voice intake, branching-narrative consequence learning, peer aggregation, ML availability forecast, marketplace inversion, narrative-similarity matching, real-time availability claiming.
+
+**Compare to cycle 26**: cycle 26 produced rationales that *implicitly* claimed differentiation but rarely named the mechanism. Cycle 27's rationales make the mechanism *explicit and distinct between siblings*. The cycle-26 borderlines (*Ambient Office Channel* — same idea as cycle-27's *Ambient Office Presence*, but cycle 27 names "ambient presence computing" as a distinct mechanism with rationale framing; *Calendar Sandbagging Engine* — gone, replaced by varied alternatives) are either sharpened or set aside by the curator.
+
+**The curation audit trail also fired correctly.** Sample from `remote-onboarding-week-one` Paragraph 2:
+
+> *"The Un-Agenda (calendar restructuring is a meeting policy/config, not a digital product — the value collapses to 'don't schedule meetings'); Unmeetings (meeting format, not software — a facilitator could run these without any digital surface); Buddy-as-a-Service (human concierge service — removing software leaves a personal assistant); Organizational ASMR (curated media content — the value is the audio/video content itself, not software-unique affordances like persistence, personalization, or search)."*
+
+The set-aside language *internalizes the prompt vocabulary* — "the value collapses," "software-unique affordances," the four categories from the digital-product definition. This is the gate working, not the model memorizing examples (the prompt now has no examples).
+
+**Token impact:** the rationale soft target moved from ~100-120 words to ~120-150. The corrected prompt (without example switch reasons) is ~80 tokens longer than the cycle-26 baseline. Per-cell token impact is within margin; cycle-27 cells averaged ~4.5 min faster than cycle-26 cells on the same briefs, suggesting if anything the sharper instruction reduced agent backtracking.
+
+**Worth watching:** the model is using the literal phrase *"the 'remove the software' test"* in several cycle-27 rationales — language imported from the digital-product gate, applied as the model reasons about its own hypotheses. This is the prompt successfully internalized. But the same internalization risks producing formulaic rationales in future cycles. If a rationale ever opens with *"The 'remove the software' test:"* and produces a stock answer, we'll know the prompt has anchored on its own phrasing and needs to be rotated.
+
+**What this closes:**
+- The "well-shaped product that duplicates existing patterns without naming a differentiator" failure mode that survived cycle 26.
+- The implicit-value-claim gap. Switch reasons are now explicitly required, with mechanism naming, with rejection criteria for vibe-based phrasing.
+- KC's specific corollary concern about prompt anchoring — the rewrite removed all concrete example switch reasons, and the validation run shows the model discovers its own mechanisms cleanly.
+
+**What's still open:**
+- **Roll the gate out to the remaining 15 cycle-25 briefs** by adding `Target surfaces:` declarations to their constraints files (held over from cycle 26's open items).
+- **Full-portfolio re-run** (cycle 28 candidate) — once `Target surfaces:` is declared on all 20 briefs, re-run the matrix with both gates active and compare hypothesis quality across the full set.
+- **Surfacing curation rationale to the canvas user.** Still out of scope; transcripts remain in `transcripts/02-curation.md`.
+- **Critique-feedback arc.** Still the next planned capability after the gate work is fully rolled out.
+- **Prompt-language rotation watch.** Re-read rationales in cycle 28's outputs for formulaic openings; rotate language if the model starts producing stock phrasings.
+
+**Rollback plan (unused).** Two commits to revert if needed: `c2cb71b` (initial switch-reason check with examples) and `e18ef30` (example removal). Either is a single-file change to `gen-hypotheses.md` with a pre-edit snapshot at `_versions/gen-hypotheses/2026-05-12T21-{16-56,22-38}*.md`. Revert with `git revert e18ef30 c2cb71b` to return to the cycle-26 state.
+
+---
