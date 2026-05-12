@@ -839,3 +839,80 @@ Plus 4 new unit tests locking the schedule + jitter bounds + clamp behavior. Plu
 - **Brief-portfolio matrix re-run** with the expanded set. Cycle 19's brief portfolio matrix (5 briefs × N reps) is now under-sampled; with 20 new briefs spanning civic / healthcare / financial / work / consumer / education, a fresh matrix would surface system behaviors by brief category much more sharply.
 
 ---
+
+## Cycle 26 — Product-shape gate at curation + hypothesis stages (2026-05-12)
+
+**What the previous cycle revealed.** Cycle 25's 300-hypothesis batch (60 cells across 20 new briefs) hit a quota cliff at cell ~32 and surfaced a structural gap once KC inspected the strongest-rated brief's output. The honesty check passed prototypes as "clean" 72% of the time (the prototype matched its claim), but when KC read the actual hypotheses for `remote-onboarding-week-one`, **4 of 5 were not digital products at all**:
+
+- *Failure Archive Walkthrough* — a senior employee narrating dead projects = a meeting
+- *Senior Shadow Mode* — read-only access to another employee's calendar/Slack = a permissions config (also a privacy nightmare)
+- *Protected Exploration Windows* — auto-blocking calendar slots = a Google Calendar setting
+- *Always-On Ambient Watercooler* — a 24/7 video room = an existing product (Around/Tandem/Discord clone)
+
+Applying the same lens to `pre-travel-prescription` and `primary-care-search`, only 2 of 5 in each were actually novel digital products. The honesty check is a *truth* check ("did the prototype implement the claim"); it wasn't asking the orthogonal question "*is this claim about something software is the right medium for?*"
+
+KC framed the second axis too: *what makes a good mobile app ≠ what makes a good website ≠ what makes a good SMS flow.* The system also wasn't asking whether the hypothesis fit the declared surface.
+
+**What this cycle did.** Two-pronged product-shape gate, inserted at the convergence point (curation, Stage 0b) and the structured-output point (incubator, Stage 2), plus a new input-side field (`Target surfaces:` declarations in the design-constraints node):
+
+**Files modified:**
+- [`packages/auto-designer-pi/prompts/gen-brainstorm.md`](../packages/auto-designer-pi/prompts/gen-brainstorm.md): one-sentence soft note that service-shaped seeds are fine here — the curator downstream will transform or set aside. Brainstorm stays divergent.
+- [`packages/auto-designer-pi/prompts/gen-curation.md`](../packages/auto-designer-pi/prompts/gen-curation.md): three-part curation guidance with explicit *product-shape filter* (remove-the-software test), *surface fit* (when declared), and *spread maximization across digital products*. Output now includes a two-paragraph spread rationale where paragraph 2 names transformed and set-aside directions as an audit trail.
+- [`packages/auto-designer-pi/prompts/gen-hypotheses.md`](../packages/auto-designer-pi/prompts/gen-hypotheses.md): backstop checks in `<quality_bar>` ("Not a digital product", "Wrong product shape for declared surface") and a positive `<how_to_think>` rule ("Every hypothesis must be a digital product").
+- [`packages/auto-designer-pi/prompts/gen-constraints.md`](../packages/auto-designer-pi/prompts/gen-constraints.md): new section instructing the constraints document to declare a target surface when known (`mobile-native-ios`, `mobile-web`, `responsive-web`, `voice`, `sms`, `kiosk`, etc., or `open` to defer).
+- [`experiments/src/flows/ideation.ts`](../experiments/src/flows/ideation.ts): inline `BRAINSTORM_GUIDANCE` and `CURATION_GUIDANCE` updated to mirror the production prompts.
+- 5 cycle-25 briefs' `-constraints.md` files updated with explicit `Target surfaces:` declarations: `remote-onboarding-week-one` (`responsive-web`), `pre-travel-prescription` (`responsive-web`), `deceased-accounts` (`responsive-web`), `housing-court-defense` (`mobile-web + paper-companion`), `primary-care-search` (`responsive-web + mobile-web`).
+- [`experiments/scripts/cycle26-batch.ts`](../experiments/scripts/cycle26-batch.ts): test harness, 5 briefs × 1 rep × 5 hyp = 25 hypotheses, concurrency=3. Output includes `hypotheses-flat.json` for hand-scoring and `curation-transcripts.json` for audit-trail review.
+
+**Pipeline insertion decision (with reasoning for the no's):**
+
+| Stage | Gate? | Why |
+|---|---|---|
+| Brainstorm (0a) | soft note only | Divergence is the whole point. A hard filter here kills creativity. Many service-shaped brainstorm directions contain a digital-product seed; filtering too early loses the seed. |
+| Curation (0b) | **primary gate** | Convergence point. Curator now applies the remove-the-software test, transforms service-seeds into digital products, or sets aside. Surface-fit check when declared. |
+| Incubator (Stage 2) | **backstop** | Already has `<quality_bar>` with negative checks. Adding two more is small-text + high-leverage. Catches anything that slipped past curation, including the `ideation-first` flow that has no separate curation stage. |
+| Honesty check (3.5) | no | Wrong level. Honesty is truth-of-build; we don't want to overload it with product-quality judgment. |
+
+**Test 1 — Cycle 26 batch on the studio.** 5 cells, concurrency=3, 22.4 min wall, 0 failures. All 25 hypotheses produced.
+
+**Test 2 — Hand-scoring against the remove-the-software test.** Score the 25 hypotheses against Definition 1 (digital product) and Definition 2 (surface fit). Results:
+
+| Brief | n | Pass | Borderline | Fail | Surface fit |
+|---|---|---|---|---|---|
+| `remote-onboarding-week-one` | 5 | 3 | 2 | 0 | 5/5 |
+| `pre-travel-prescription` | 5 | 5 | 0 | 0 | 5/5 |
+| `deceased-accounts` | 5 | 5 | 0 | 0 | 5/5 |
+| `housing-court-defense` | 5 | 5 | 0 | 0 | 5/5 |
+| `primary-care-search` | 5 | 5 | 0 | 0 | 5/5 |
+| **Total** | **25** | **23** | **2** | **0** | **25/25 (100%)** |
+
+**Pass rate: 92% strict (borderlines excluded), 100% generous (borderlines counted as software-shaped).** Target was ≥80%. The two borderlines (`Ambient Office Channel`, `Calendar Sandbagging Engine`) are software-shaped products but commoditized — neither is a fail mode of the gate; they're real digital products that happen to overlap existing tools.
+
+**Compare to the cycle-25 baseline** on `remote-onboarding-week-one`: 1 of 5 was a digital product (Anonymous AI Q&A). Cycle 26 produced 3 clean passes plus 2 borderlines on the same brief — a categorical improvement. Even the closest-to-fail patterns from cycle 25 are gone: no `Senior Shadow Mode`, no `Failure Archive Walkthrough`, no `Protected Exploration Windows` directly. (`Calendar Sandbagging Engine` is the descendant of `Protected Exploration Windows` but it's now elevated to intelligent filtering — a real software product, not a Google Calendar setting.)
+
+**Test 4 (gate-fired audit-trail check, embedded in the batch).** The curation transcripts explicitly name directions transformed or set aside. Sampled output from `remote-onboarding-week-one`:
+
+> *"The Shadow Mode (set aside because it is a permissions config, not a software product — the 'product' is merely read-only access to existing tools, not a distinct interactive surface); The Meeting Debrief Service (set aside because it is a human-run service — the value collapses without the human interpreter); The Psychological Safety Contract (set aside because it is a ritualized agreement/contract — removing software leaves the core interaction intact)."*
+
+And from `deceased-accounts`:
+
+> *"Executor Concierge Service (service, not digital product — value collapses without human guides), Estate Closing Workbook (physical product), Creditor Shield Service (service that intercepts communications — software is tool for service delivery), Bank Consortium Executor Portal (config/agreement between institutions, not a product), Death Notification Relay Service (service that sends notifications on behalf of users)."*
+
+**The audit trail is the proof the gate fired**, not luck. The brainstorms produced 15 directions per brief (including the exact service-shaped patterns from cycle 25); the curator picked 5, explained the spread across digital-product kinds, and named the set-asides with reasons.
+
+**Test 3 — Token impact.** The added prompt text in curation + hypothesis stages is ~800 tokens. Per-cell token impact was within 5% of cycle 25's comparable cells (within margin; no measurable degradation in model coherence).
+
+**What this closes:**
+- The "good idea ≠ good digital product" gap. The gate now explicitly tests software-as-medium.
+- The surface-fit gap. Constraints docs that declare a target surface now have a downstream filter that respects the declaration; constraints docs that leave it `open` get all digital-product candidates without surface narrowing.
+- The "system seems good but the outputs aren't really products" failure mode KC identified after cycle 25.
+
+**What's still open:**
+- **Roll the gate out to the remaining 15 cycle-25 briefs** by adding `Target surfaces:` declarations to their constraints files. Test 1 used 5; the other 15 still have implicit surfaces. (Some are cliffed briefs from cycle 25 that need a different fix — the safety-refusal patterns on `crisis-line-first-contact` etc. were a different problem unrelated to the product-shape gate.)
+- **Full-portfolio re-run** (cycle 27 candidate) — once `Target surfaces:` is declared on all 20 briefs, re-run the matrix with the gate active and compare hypothesis quality across the full set.
+- **Surfacing curation rationale to the canvas user.** The audit trail lives in `transcripts/02-curation.md` today; the canvas product doesn't show it. Surfacing "we set aside Senior Shadow Mode because it's a permissions config" would be valuable user-facing feedback.
+- **Critique-feedback arc.** Still the next planned capability. The product-shape gate is the prerequisite — feeding critique-feedback into non-product hypotheses would have been wasted work.
+
+**Rollback plan (unused).** All changes were isolated to prompts + 5 brief files + 1 new script. Snapshots of the 4 edited prompts were captured pre-edit by the husky `snap` hook (`packages/auto-designer-pi/prompts/_versions/{gen-brainstorm,gen-constraints,gen-curation,gen-hypotheses}/2026-05-12T20-29-24-*.md`). Revert with `git revert 2b2ea68` if needed.
+
+---
