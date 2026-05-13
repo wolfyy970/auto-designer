@@ -1,6 +1,6 @@
 ---
 name: Design brief
-description: Use when authoring or critiquing a design brief — the problem statement that frames a design effort. Covers (1) how to write — the target shape, templates, the four-shape spectrum briefs take in practice, what to never put in the brief body, sources to draw on. (2) How to evaluate — a 12-criterion rubric run on every brief before it ships. Forcing function: author + evaluate is one workflow, not two; no silent author-and-ship.
+description: Use when authoring or critiquing a design brief — the problem statement that frames a design effort. Covers (1) how to write — the SCPC canonical structure (Situation → Complication → People → Cost), templates, what to never put in the brief body, sources to draw on. (2) How to evaluate — a 12-criterion rubric run on every brief before it ships. Forcing function: author + evaluate is one workflow, not two; no silent author-and-ship.
 tags:
   - design
   - research
@@ -19,7 +19,7 @@ A design brief is typically accompanied by three supporting documents. Each does
 
 | Document | What it carries | Job |
 |---|---|---|
-| **Design Brief** | The directive. Problem statement only — user, situation, stakes. Solution-open. | Frame the problem. |
+| **Design Brief** | The directive. Problem statement only — situation, complication, target user(s), cost. Solution-open. | Frame the problem. |
 | Research Context | What user research has revealed. Real signals from real interviews, surveys, ethnography. Citations live here. | Back the framing with evidence. |
 | Design Evaluation Criteria | Design properties any viable solution must exhibit; failure-modes-of-overpursuit. | Define what good looks like at the design level. |
 | Design Constraints | Non-negotiable boundaries that filter strategic viability. | Hold the bet inside reality. |
@@ -36,7 +36,7 @@ In practice, briefs come in four shapes. The skill names all four so an author c
 
 | Shape | What it looks like | How the system handles it |
 |---|---|---|
-| **Problem statement** *(canonical; what this skill teaches you to write)* | NN/g three-component framing; user, situation, stakes; solution-open. | Wide exploration; the hypotheses span the solution space. |
+| **Problem statement** *(canonical; what this skill teaches you to write)* | SCPC four-component framing: situation, complication, target user(s), cost; solution-open. | Wide exploration; the hypotheses span the solution space. |
 | **Directive pitch** *(Shape Up shape)* | The user has done the discovery and wants the design exploration to honor a specific product/feature shape. *"Design a habit tracker with streaks, reminders, and a calendar view."* | The system honors 1–2 hypotheses on the prescribed direction and uses the remaining slots to explore alternatives the user did not propose. The directive is real; the value of the exploration is still in the territory beyond it. |
 | **Sparse one-liner** | A sentence or two. *"Design a tax-prep tool."* | The system pushes hard into divergent product shapes; lower grounding produces wider exploration. |
 | **Research dossier** *(failure mode)* | The brief body contains citations, statistics, audience demographics, regulatory frames, success metrics, and a list of candidate solutions. | The system reads the dossier as grounding and explores anyway, but the over-stuffed brief narrows the model's framing. The fix is content-architectural: move the embedded material to the appropriate companion node and rewrite the brief tight. |
@@ -47,11 +47,13 @@ In practice, briefs come in four shapes. The skill names all four so an author c
 
 What "best" looks like — synthesized from the strongest practitioner sources, not averaged across them:
 
-- **Three-component framing** is the canonical structure. Two equivalent vocabularies are acceptable:
-  - **NN/g (Anna Kaley):** Background → People affected → Stakes
-  - **Lenny (Rachitsky):** Situation → Complication → Resolution
-  - Both encode the same content order. Pick whichever fits the brief; do not mix.
-- **5 Ws answered.** Who (user), What (problem), Where (context), When (moment in time/journey), Why (the stake). NN/g treats this as the readability check; if a reader can't extract all five, the brief is too vague.
+- **Four-component framing (SCPC).** The canonical structure: **Situation → Complication → People → Cost.** Each component carries a distinct load:
+  - **Situation** — the world the target user is in. Stable backdrop; context; status quo before the design has to act.
+  - **Complication** — the specific failure inside that world. What's wrong, what's missing, what's drifting. Named without asserting *why* (cause is the designer's reasoning territory; see Criterion 7).
+  - **People** — the design's *target user(s)*, named at useful specificity. When the brief involves a multi-actor system, name the target and distinguish them from other stakeholders the design will need to accommodate but is not optimizing for. If the target is a dyad (parent + child, outgoing + oncoming nurse, caller + counselor), name both and the relationship between them at the moment of design. "People involved" is a superset; the brief has to be explicit about who the design is *for*.
+  - **Cost** — what the unsolved problem takes from the target user. The consequence in their life. Why anyone should care.
+  - Related: NN/g's three-component framing (Background → People → Stakes) collapses Situation + Complication into "Background." Acceptable for shorter briefs, but the compression makes causal-pre-determination drift easier — when both go in one paragraph, the writer reaches for *why* to bind them, and "why" tips into asserted cause. SCPC keeps the slots cleanly separated.
+- **5 Ws readability check** (NN/g). Who (target user), What (the complication), Where (the situation), When (the moment in time/journey), Why (the cost). SCPC covers the 5 Ws implicitly; if a reader can't extract all five from a brief written under SCPC, one of the four components is underspecified.
 - **The outcome is named, not the feature** (Intercom). The brief states what the user is trying to *accomplish* or *avoid*, not what is going to be built. Intercom's example: "easily track query status and prevent queries from getting lost" (outcome), not "Tickets" (feature).
 - **Length: target 150–200 words, max 250.** NN/g argues shorter ("a few sentences to a paragraph"); briefs run better with the slightly fuller form because downstream readers need lived-experience grounding to reason from. A canonical fuller exemplar runs to ~280 words / three paragraphs; below 250 is the working target for most briefs.
 - **Voice.** Narrative, present tense. Concrete imagery — named medications, named documents, named conditions, the user doing the thing right now. The user is a person, not a persona.
@@ -62,7 +64,7 @@ Pick one. Don't stack.
 
 - **Narrative three-paragraph** *(situation paragraph, user-state paragraph, one-line scope)*: often the most flexible shape; carries the most lived-experience grounding.
 - **User-need template** (NN/g — Sarah Gibbons): `[User] needs [need] in order to [goal]` as the headline, with one paragraph of surrounding context.
-- **Situation / Complication / Resolution** (Lenny Rachitsky): three short paragraphs, one each.
+- **SCPC four-paragraph** *(this skill's canonical)*: one short paragraph each for Situation, Complication, People (target user(s) named at specificity), and Cost. Most explicit form of the structure; useful when authors want to verify each component is present and slot-by-slot well-formed.
 - **How Might We question** (Stanford d.school): `How might we [verb] [outcome] for [user] [context]?` — useful when the team wants the brief to be inherently generative.
 
 Each template can be a clean problem statement. Mixing templates produces a packet.
@@ -88,13 +90,13 @@ Two separate canons. Use both.
 
 | Source | What it gives you |
 |---|---|
-| **[NN/g — Anna Kaley, "How to Write a Problem Statement"](https://www.nngroup.com/articles/problem-statements/)** | The three-component canonical (background / people / impact) + 5 Ws. The UX-research lens. |
+| **[NN/g — Anna Kaley, "How to Write a Problem Statement"](https://www.nngroup.com/articles/problem-statements/)** | The three-component canonical (background / people / impact) + 5 Ws. This skill extends NN/g to four components (SCPC) by separating Situation from Complication. The UX-research lens. |
 | **[NN/g — Sarah Gibbons, "User Need Statements"](https://www.nngroup.com/articles/user-need-statements/)** | Companion: `[User] needs [need] in order to [goal]` template. |
 | **[Intercom — "How to write problem statements"](https://www.intercom.com/blog/how-to-write-problem-statements/)** | Sharpest product-practitioner take. The "Tickets vs easily track query status" example. Best at separating problem from feature. |
 | **[GDS Service Manual — Discovery phase](https://www.gov.uk/service-manual/agile-delivery/how-the-discovery-phase-works)** | UK government. Rigorous public-service framing; pairs problem statement with user research methods. |
 | **[18F Methods Guide](https://guides.18f.gov/methods/)** | US government. Practical, tactical, government-scale problem framing. |
 | **[Stanford d.school — Design Thinking Bootleg](https://dschool.stanford.edu/resources/design-thinking-bootleg)** | "How Might We" reframing pattern; turn a problem into a generative question. |
-| **[Lenny Rachitsky — "A Three-Step Framework for Solving Problems"](https://www.lennysnewsletter.com/p/a-three-step-framework-for-solving)** | Situation / Complication / Resolution. PM-craft framing. |
+| **[Lenny Rachitsky — "A Three-Step Framework for Solving Problems"](https://www.lennysnewsletter.com/p/a-three-step-framework-for-solving)** | Situation / Complication / Resolution (from Barbara Minto's Pyramid Principle). Note: "Resolution" sits in solution-prescription territory; this skill replaces SCR's third component with **Cost** (consequence to the target user) to keep briefs solution-open. PM-craft framing. |
 | **[Teresa Torres — *Continuous Discovery Habits* (Opportunity-Solution Tree)](https://www.producttalk.org/opportunity-solution-tree/)** | "Opportunities" as a vocabulary for problems; structures problem framing into a tree. |
 | **Marty Cagan / SVPG — *Inspired*, *Empowered*** | Product-management lens; discover-vs-deliver; problem before solution. |
 | **Ryan Singer — *Shape Up* (Basecamp)** | The "pitch" format. Note: a pitch is deliberately more prescriptive than a problem statement — useful counterpoint when the brief is allowed to be directive. |
@@ -166,15 +168,15 @@ A well-calibrated brief scores 12/12 on the rubric below. If a corpus of exempla
 
 | # | Criterion | What Pass looks like | What Fail looks like |
 |---|---|---|---|
-| 1 | **Background present** | A reader can answer "where in the world does this problem happen?" from the first paragraph. | The brief starts with a user description but never names the situation/context. |
-| 2 | **People affected named** | The user is identified specifically (a remote new hire, a tenant facing eviction, an executor settling an estate). | "Users" or "people" with no further specificity. |
-| 3 | **Stakes named** | A consequence-if-unsolved exists for the user, the business, or both. | The brief describes a situation with no named consequence — the reader can't tell why this matters. |
-| 4 | **5 Ws answered** | Who, what, where, when, why-it-matters all extractable from the brief. | One or more of the five is missing or unclear. |
+| 1 | **Situation present** | A reader can answer "where in the world does the target user live with this problem?" from the brief's opening. The world / context / status quo is sketched concretely. | The brief opens with a user description or feature ask but never names the situation/context. |
+| 2 | **Complication named** | The specific failure inside the world is named — what's wrong, what's missing, what's drifting. Distinct from Situation: Situation is the stable backdrop, Complication is the specific failure the brief asks design to address. | The brief describes the world but doesn't name the specific failure; OR merges Situation + Complication so a reader can't tell what changed or what's broken. |
+| 3 | **Target user(s) named at useful specificity** | The design's target user(s) are identified specifically (a remote new hire, a tenant facing eviction, an executor settling an estate) and distinguished from other stakeholders the design will accommodate but is not optimizing for. When the target is a dyad (parent + child; outgoing + oncoming nurse; caller + counselor), both are named with the relationship between them at the moment of design. | "Users" or "people" with no target identification; OR a multi-actor brief that names *who is affected* without naming *who the design is for*; OR a dyad brief that names one side of the pair only. |
+| 4 | **Cost named** | The cost the unsolved problem imposes on the target user — what's lost, what's drifting, what's at risk — is named concretely in the user's life (rent due today; the slow drift away from a tool that doesn't meet them; confiscation at customs). | The brief describes a situation with no named cost — the reader can't tell why this matters in the user's life. |
 | 5 | **Brief outcome stated** | The user-side outcome the work has to deliver is named (e.g., "feeling onboard by Friday," "appointment booked"). | The brief names a feature ("a tracker," "a directory") instead of an outcome. |
 | 6 | **Solution-free** | No feature prescription, no list of candidate solution shapes *for the design* ("it could be SMS, voice…"). A list of options the user *currently confronts in the landscape* (services, tools, or institutions they're already choosing among) is description of reality and passes. Exception: a deliberate **directive pitch** is allowed — but it must be labeled as such. | Embedded feature lists, candidate-solution voiceovers *for the design*, or implementation choices. |
 | 7 | **Causal pre-determination avoided** | The brief describes the situation; it does not assert *why* the situation is what it is. | Sentences that assert cause or institutional intent: "the directory hides exactly the information that would let a patient route themselves," "the application is the structural barrier," "the system was built for [adversary]." Tells include *is the barrier / is the cause / is what makes / is designed to / is built for / carries every cost of*. |
 | 8 | **Concrete, not vague** | Specific imagery, named documents, named conditions, lived-experience details. | "Users want better X" / "the experience is frustrating" / "the process is complex." |
-| 9 | **Length appropriate; no landscape inventory in the brief body** | 150–250 words. The longer end is fine if the content earns it (grief-app exemplar is ~280). The brief describes the landscape categorically (e.g., "the journaling apps that bolt on a mood tag") without enumerating specific products. | > 350 words, or duplicating content from a companion node. *Also*: a vendor / tool / service inventory enumerating ≥3 specific named products (e.g., "Concur, Ramp, Brex, Emburse") consuming a paragraph of brief body — landscape inventories at that scale belong in `-research.md`. |
+| 9 | **Length appropriate; no landscape inventory in the brief body** | 150–250 words. The longer end is fine if the content earns it (a canonical fuller exemplar can run to ~280). The brief describes the landscape categorically (e.g., "the journaling apps that bolt on a mood tag") without enumerating specific products. | > 350 words, or duplicating content from a companion node. *Also*: a vendor / tool / service inventory enumerating ≥3 specific named products (e.g., "Concur, Ramp, Brex, Emburse") consuming a paragraph of brief body — landscape inventories at that scale belong in `-research.md`. |
 | 10 | **No research citations or unsourced sourced-claims in body** | No source names, study titles, agency citations, named reports. *Also catches* unsourced claims that read as research findings — sentences that assert a number or a research-shaped fact without naming a source. | "AHRQ notes that 14% of hospital patients…" inside the brief. *Also*: "a meaningful share of 30-day readmissions are preventable" — sourced-shaped finding asserted without citation. Either cite it in `-research.md` and remove from the brief, or describe the situation qualitatively without the research shape. |
 | 11 | **No success metrics in body** | No conversion targets, KPIs, OKRs, or rate goals. Those live in `-objectives.md`. | "We want a 25% improvement in retention" inside the brief. |
 | 12 | **No constraints in body** | No regulatory citations, accessibility floors, surface declarations, or cognitive-load research findings. Those live in `-constraints.md`. | "WCAG 2.2 AA must be met" or "Target surfaces: mobile-web" inside the brief. |
@@ -194,10 +196,10 @@ How the inline output looks (worked example, brief about traveling international
 ```
 Brief: pre-travel-prescription.md (196 words)
 
- 1. Background present                  Pass — "preparing for a long international trip"
- 2. People affected named               Pass — traveller on regular prescription medication
- 3. Stakes named                        Pass — "confiscation at customs to denial of entry to arrest"
- 4. 5 Ws answered                       Pass — all five extractable
+ 1. Situation present                   Pass — "preparing for a long international trip with regular prescription medication"
+ 2. Complication named                  Pass — customs uncertainty + country variance + no single source of truth on what's allowed
+ 3. Target user(s) named                Pass — traveller on regular prescription medication; pharmacist/prescriber are stakeholders, not the target
+ 4. Cost named                          Pass — "confiscation at customs to denial of entry to arrest" + supply exhaustion mid-trip
  5. Brief outcome stated                Pass — across the world with medication intact, legal,
                                                packaged how customs expects
  6. Solution-free                       Pass — no feature prescription
