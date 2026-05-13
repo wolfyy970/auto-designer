@@ -44,3 +44,6 @@ experiments/.cost-ledger.jsonl
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .claude/.local/
+
+# Excel temp lock files
+~$*
