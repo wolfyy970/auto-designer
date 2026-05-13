@@ -1,6 +1,6 @@
 ---
 name: Design brief
-description: Use when authoring or critiquing a design brief — the problem statement that frames a design effort. Covers (1) how to write — the SCPC canonical structure (Situation → Complication → People → Cost), templates, what to never put in the brief body, sources to draw on. (2) How to evaluate — a 12-criterion rubric run on every brief before it ships. Forcing function: author + evaluate is one workflow, not two; no silent author-and-ship.
+description: Use when authoring or critiquing a design brief — the problem statement that frames a design effort. Covers (1) how to write — the SCUC canonical structure (Situation → Complication → Users → Cost), templates, what to never put in the brief body, sources to draw on. (2) How to evaluate — a 12-criterion rubric run on every brief before it ships. Forcing function: author + evaluate is one workflow, not two; no silent author-and-ship.
 tags:
   - design
   - research
@@ -36,7 +36,7 @@ In practice, briefs come in four shapes. The skill names all four so an author c
 
 | Shape | What it looks like | How the system handles it |
 |---|---|---|
-| **Problem statement** *(canonical; what this skill teaches you to write)* | SCPC four-component framing: situation, complication, target user(s), cost; solution-open. | Wide exploration; the hypotheses span the solution space. |
+| **Problem statement** *(canonical; what this skill teaches you to write)* | SCUC four-component framing: situation, complication, users (target), cost; solution-open. | Wide exploration; the hypotheses span the solution space. |
 | **Directive pitch** *(Shape Up shape)* | The user has done the discovery and wants the design exploration to honor a specific product/feature shape. *"Design a habit tracker with streaks, reminders, and a calendar view."* | The system honors 1–2 hypotheses on the prescribed direction and uses the remaining slots to explore alternatives the user did not propose. The directive is real; the value of the exploration is still in the territory beyond it. |
 | **Sparse one-liner** | A sentence or two. *"Design a tax-prep tool."* | The system pushes hard into divergent product shapes; lower grounding produces wider exploration. |
 | **Research dossier** *(failure mode)* | The brief body contains citations, statistics, audience demographics, regulatory frames, success metrics, and a list of candidate solutions. | The system reads the dossier as grounding and explores anyway, but the over-stuffed brief narrows the model's framing. The fix is content-architectural: move the embedded material to the appropriate companion node and rewrite the brief tight. |
@@ -47,13 +47,13 @@ In practice, briefs come in four shapes. The skill names all four so an author c
 
 What "best" looks like — synthesized from the strongest practitioner sources, not averaged across them:
 
-- **Four-component framing (SCPC).** The canonical structure: **Situation → Complication → People → Cost.** Each component carries a distinct load:
+- **Four-component framing (SCUC).** The canonical structure: **Situation → Complication → Users → Cost.** Each component carries a distinct load:
   - **Situation** — the world the target user is in. Stable backdrop; context; status quo before the design has to act.
   - **Complication** — the specific failure inside that world. What's wrong, what's missing, what's drifting. Named without asserting *why* (cause is the designer's reasoning territory; see Criterion 7).
-  - **People** — the design's *target user(s)*, named at useful specificity. When the brief involves a multi-actor system, name the target and distinguish them from other stakeholders the design will need to accommodate but is not optimizing for. If the target is a dyad (parent + child, outgoing + oncoming nurse, caller + counselor), name both and the relationship between them at the moment of design. "People involved" is a superset; the brief has to be explicit about who the design is *for*.
+  - **Users** — the design's *target user(s)*, named at useful specificity (a person, not a persona; the brief sketches them as real). When the brief involves a multi-actor system, name the target user(s) and distinguish them from other stakeholders the design accommodates but is not optimizing for. If the target is a dyad (parent + child, outgoing + oncoming nurse, caller + counselor), name both and the relationship between them at the moment of design. *People involved* is a superset; **Users** is the subset the design is *for*.
   - **Cost** — what the unsolved problem takes from the target user. The consequence in their life. Why anyone should care.
-  - Related: NN/g's three-component framing (Background → People → Stakes) collapses Situation + Complication into "Background." Acceptable for shorter briefs, but the compression makes causal-pre-determination drift easier — when both go in one paragraph, the writer reaches for *why* to bind them, and "why" tips into asserted cause. SCPC keeps the slots cleanly separated.
-- **5 Ws readability check** (NN/g). Who (target user), What (the complication), Where (the situation), When (the moment in time/journey), Why (the cost). SCPC covers the 5 Ws implicitly; if a reader can't extract all five from a brief written under SCPC, one of the four components is underspecified.
+  - Related: NN/g's three-component framing (Background → People → Stakes) collapses Situation + Complication into "Background" and uses "People" for what SCUC names "Users." Acceptable for shorter briefs, but the compression makes causal-pre-determination drift easier — when Situation and Complication go in one paragraph, the writer reaches for *why* to bind them, and "why" tips into asserted cause. SCUC keeps the slots cleanly separated and names the design's target explicitly.
+- **5 Ws readability check** (NN/g). Who (target user), What (the complication), Where (the situation), When (the moment in time/journey), Why (the cost). SCUC covers the 5 Ws implicitly; if a reader can't extract all five from a brief written under SCUC, one of the four components is underspecified.
 - **The outcome is named, not the feature** (Intercom). The brief states what the user is trying to *accomplish* or *avoid*, not what is going to be built. Intercom's example: "easily track query status and prevent queries from getting lost" (outcome), not "Tickets" (feature).
 - **Length: target 150–200 words, max 250.** NN/g argues shorter ("a few sentences to a paragraph"); briefs run better with the slightly fuller form because downstream readers need lived-experience grounding to reason from. A canonical fuller exemplar runs to ~280 words / three paragraphs; below 250 is the working target for most briefs.
 - **Voice.** Narrative, present tense. Concrete imagery — named medications, named documents, named conditions, the user doing the thing right now. The user is a person, not a persona.
@@ -64,7 +64,7 @@ Pick one. Don't stack.
 
 - **Narrative three-paragraph** *(situation paragraph, user-state paragraph, one-line scope)*: often the most flexible shape; carries the most lived-experience grounding.
 - **User-need template** (NN/g — Sarah Gibbons): `[User] needs [need] in order to [goal]` as the headline, with one paragraph of surrounding context.
-- **SCPC four-paragraph** *(this skill's canonical)*: one short paragraph each for Situation, Complication, People (target user(s) named at specificity), and Cost. Most explicit form of the structure; useful when authors want to verify each component is present and slot-by-slot well-formed.
+- **SCUC four-paragraph** *(this skill's canonical)*: one short paragraph each for Situation, Complication, Users (target user(s) named at specificity), and Cost. Use **bold inline headers** in the brief body — `**Situation.** …`, `**Complication.** …`, `**Users.**  …`, `**Cost.** …`, one per paragraph — so any downstream reader (human or agent) can extract each slot at a glance. Most explicit form of the structure; useful when authors want to verify each component is present and slot-by-slot well-formed.
 - **How Might We question** (Stanford d.school): `How might we [verb] [outcome] for [user] [context]?` — useful when the team wants the brief to be inherently generative.
 
 Each template can be a clean problem statement. Mixing templates produces a packet.
@@ -90,7 +90,7 @@ Two separate canons. Use both.
 
 | Source | What it gives you |
 |---|---|
-| **[NN/g — Anna Kaley, "How to Write a Problem Statement"](https://www.nngroup.com/articles/problem-statements/)** | The three-component canonical (background / people / impact) + 5 Ws. This skill extends NN/g to four components (SCPC) by separating Situation from Complication. The UX-research lens. |
+| **[NN/g — Anna Kaley, "How to Write a Problem Statement"](https://www.nngroup.com/articles/problem-statements/)** | The three-component canonical (background / people / impact) + 5 Ws. This skill extends NN/g to four components (SCUC) by separating Situation from Complication and naming the design's target explicitly as Users (not all People affected). The UX-research lens. |
 | **[NN/g — Sarah Gibbons, "User Need Statements"](https://www.nngroup.com/articles/user-need-statements/)** | Companion: `[User] needs [need] in order to [goal]` template. |
 | **[Intercom — "How to write problem statements"](https://www.intercom.com/blog/how-to-write-problem-statements/)** | Sharpest product-practitioner take. The "Tickets vs easily track query status" example. Best at separating problem from feature. |
 | **[GDS Service Manual — Discovery phase](https://www.gov.uk/service-manual/agile-delivery/how-the-discovery-phase-works)** | UK government. Rigorous public-service framing; pairs problem statement with user research methods. |
