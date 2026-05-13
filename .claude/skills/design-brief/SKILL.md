@@ -1,6 +1,6 @@
 ---
 name: Design brief
-description: Use when authoring or critiquing design briefs and problem statements that feed the Designer pipeline (or any agentic design pipeline that takes a brief + supporting research/objectives/constraints as input). Covers (1) how to write — the target shape, templates, the four-shape spectrum the brief node receives in practice, what to never put in the brief body, sources to draw on. (2) How to evaluate — a 12-criterion rubric the agent runs on every brief before it ships. Forcing function: author + evaluate is one workflow, not two; no silent author-and-ship.
+description: Use when authoring or critiquing a design brief — the problem statement that frames a design effort. Covers (1) how to write — the target shape, templates, the four-shape spectrum briefs take in practice, what to never put in the brief body, sources to draw on. (2) How to evaluate — a 12-criterion rubric run on every brief before it ships. Forcing function: author + evaluate is one workflow, not two; no silent author-and-ship.
 tags:
   - design
   - research
@@ -11,22 +11,20 @@ when: auto
 
 # Design brief
 
-This skill is the single source of truth for what a brief is, what a brief is not, and how to know whether the one you just wrote is any good. It exists because the Designer pipeline is sensitive to brief quality: a PRD goes in, feature-shuffled hypotheses come out; a real problem statement goes in, strategically distinct hypotheses come out. The fastest way to ship hollow hypotheses is to give the pipeline a brief that's secretly a research dossier with a solution voiceover.
+This skill is the source of truth for what a brief is, what a brief is not, and how to know whether the one you just wrote is any good. It exists because brief quality is the most consequential input to direction choice: a PRD goes in, feature-shuffled hypotheses come out; a real problem statement goes in, strategically distinct hypotheses come out. The fastest way to ship hollow hypotheses is to give downstream readers a brief that's secretly a research dossier with a solution voiceover.
 
-## The architectural ground rule
+## The document family
 
-The Designer product separates the brief from its supporting context across four input nodes:
+A design brief is typically accompanied by three supporting documents. Each does one job, and content leaking between them produces a mixed signal downstream readers reason against badly.
 
-| Node | What it carries | Job |
+| Document | What it carries | Job |
 |---|---|---|
 | **Design Brief** | The directive. Problem statement only — user, situation, stakes. Solution-open. | Frame the problem. |
-| **Research Context** | What user research has revealed. Real signals from real interviews, surveys, ethnography. Citations live here. | Back the framing with evidence. |
-| **Objectives & Metrics** | What success looks like. Outcomes and their failure modes. | Tell downstream stages what good means. |
-| **Design Constraints** | Non-negotiable boundaries — regulatory, accessibility, surface declarations, cognitive-load research findings. | Hold the bet inside reality. |
+| Research Context | What user research has revealed. Real signals from real interviews, surveys, ethnography. Citations live here. | Back the framing with evidence. |
+| Design Evaluation Criteria | Design properties any viable solution must exhibit; failure-modes-of-overpursuit. | Define what good looks like at the design level. |
+| Design Constraints | Non-negotiable boundaries that filter strategic viability. | Hold the bet inside reality. |
 
-The brief stays tight *because the other three nodes carry the load.* Every time content gets crammed into the brief that belongs in a companion node, the brief becomes worse and the system runs worse. Node separation is the rule everything else hangs off.
-
-The canonical exemplar in this repo: `experiments/briefs/grief-app.md` (the brief) plus `grief-app-research.md`, `grief-app-objectives.md`, `grief-app-constraints.md` (the supporting set). Read all four when calibrating.
+The brief stays tight *because the other three documents carry the load.* Every time content gets crammed into the brief that belongs in a companion document, the brief becomes worse and downstream work reasons against a mixed signal. The sibling skills `design-research`, `design-constraints`, and `design-evaluation` are calibrated to keep their documents honest. This skill is the one for the brief.
 
 ---
 
@@ -34,7 +32,7 @@ The canonical exemplar in this repo: `experiments/briefs/grief-app.md` (the brie
 
 ## 1.1 The shape spectrum
 
-In practice, the brief node receives four kinds of input. The system works best with the first; the skill names all four so the brief is recognized and handled correctly.
+In practice, briefs come in four shapes. The skill names all four so an author can recognize what they're writing — and so a reviewer can read what shape they got and adapt to it.
 
 | Shape | What it looks like | How the system handles it |
 |---|---|---|
@@ -55,14 +53,14 @@ What "best" looks like — synthesized from the strongest practitioner sources, 
   - Both encode the same content order. Pick whichever fits the brief; do not mix.
 - **5 Ws answered.** Who (user), What (problem), Where (context), When (moment in time/journey), Why (the stake). NN/g treats this as the readability check; if a reader can't extract all five, the brief is too vague.
 - **The outcome is named, not the feature** (Intercom). The brief states what the user is trying to *accomplish* or *avoid*, not what is going to be built. Intercom's example: "easily track query status and prevent queries from getting lost" (outcome), not "Tickets" (feature).
-- **Length: target 150–200 words, max 250.** NN/g argues shorter ("a few sentences to a paragraph"); the working system runs better with the slightly fuller form because the model needs lived-experience grounding to reason from. `grief-app.md` (~280 words, three paragraphs) is the canonical fuller exemplar. Below 250 is the working target for the rest.
+- **Length: target 150–200 words, max 250.** NN/g argues shorter ("a few sentences to a paragraph"); briefs run better with the slightly fuller form because downstream readers need lived-experience grounding to reason from. A canonical fuller exemplar runs to ~280 words / three paragraphs; below 250 is the working target for most briefs.
 - **Voice.** Narrative, present tense. Concrete imagery — named medications, named documents, named conditions, the user doing the thing right now. The user is a person, not a persona.
 
 ## 1.3 Templates that work
 
 Pick one. Don't stack.
 
-- **Narrative three-paragraph** *(what `grief-app.md` and the 20 cycle-25 rewrites use):* situation paragraph, user-state paragraph, one-line scope.
+- **Narrative three-paragraph** *(situation paragraph, user-state paragraph, one-line scope)*: often the most flexible shape; carries the most lived-experience grounding.
 - **User-need template** (NN/g — Sarah Gibbons): `[User] needs [need] in order to [goal]` as the headline, with one paragraph of surrounding context.
 - **Situation / Complication / Resolution** (Lenny Rachitsky): three short paragraphs, one each.
 - **How Might We question** (Stanford d.school): `How might we [verb] [outcome] for [user] [context]?` — useful when the team wants the brief to be inherently generative.
@@ -153,7 +151,7 @@ These are non-negotiable for any sourced material (which lives in the companion 
 
 # Part 2: How to evaluate
 
-**You don't ship a brief without scoring it.** Every brief authored through this project goes through the rubric before it's used downstream. This is the forcing function; it is the entire point of Part 2 existing as its own section.
+**You don't ship a brief without scoring it.** Every brief goes through the rubric before it's used downstream. This is the forcing function; it is the entire point of Part 2 existing as its own section.
 
 ## 2.1 The author + evaluate workflow
 
@@ -162,7 +160,7 @@ These are non-negotiable for any sourced material (which lives in the companion 
 3. **Decide.** If the rubric shows ≥ 10 Pass with no Fail, the brief is ready. Otherwise, rewrite and re-score before using.
 4. **Surface the score to the human.** Don't bury the rubric output. Make it visible alongside the brief so the reviewer can sanity-check.
 
-The brief in `experiments/briefs/grief-app.md` is the canonical exemplar — score against the rubric returns 12/12 Pass.
+A well-calibrated brief scores 12/12 on the rubric below. If a corpus of exemplars is available, read those for voice and grain before authoring.
 
 ## 2.2 The 12-criterion rubric
 
@@ -191,7 +189,7 @@ The brief in `experiments/briefs/grief-app.md` is the canonical exemplar — sco
 
 ## 2.3 Example evaluation
 
-How the inline output looks. (Worked example using `pre-travel-prescription.md` after the cycle-25 rewrite.)
+How the inline output looks (worked example, brief about traveling internationally with a regular prescription):
 
 ```
 Brief: pre-travel-prescription.md (196 words)
@@ -220,14 +218,14 @@ If a Partial or Fail shows up, the line names the specific issue and the rewrite
 
 ## Anti-patterns (lessons learned)
 
-These are mistakes that have actually happened in this project. Each line is a warning.
+These are mistakes that emerge in practice. Each line is a warning.
 
-1. **Conflating brief with packet.** Multi-page briefs with research and objectives baked in. The Designer architecture separates them. Each node is short. Each does one job.
-2. **Defaulting to a PRD-shaped brief and trying to "fix it."** When asked to pick a demo brief, the first reflex was `habit-tracker.md` — which is a feature list. The fix is to use a brief that is actually a problem statement, not to dress up a PRD.
+1. **Conflating brief with packet.** Multi-page briefs with research and objectives baked in. The document family separates them: brief, research, evaluation criteria, constraints. Each is short. Each does one job.
+2. **Defaulting to a PRD-shaped brief and trying to "fix it."** The reflex to pick a feature-list as a "brief" (a habit tracker with streaks and reminders; a "tax-prep tool") happens often. The fix is to write a brief that is actually a problem statement, not to dress up a PRD.
 3. **Inventing personas with detail.** "Sara is a senior PM with eight meetings today…" feels real but is fabricated. Use research aggregates (*"PMs report difficulty…"*) not invented individuals.
 4. **Inventing statistics.** "60% of users abandon" — if there's no citation, it's hallucinated. Use qualitative descriptors or find a real source.
 5. **Writing problem statements as marketing.** A brief is a directive, not a sales pitch. Describe the problem; don't sell it.
-6. **Writing the skill, then violating it.** Cycle 25 produced 20 briefs that violated this skill in the same session it was written. The fix is the rubric in Part 2. Don't author without scoring.
+6. **Writing the skill, then violating it.** Authoring drift happens even with the discipline known. The fix is the rubric in Part 2. Don't author without scoring.
 
 ---
 
