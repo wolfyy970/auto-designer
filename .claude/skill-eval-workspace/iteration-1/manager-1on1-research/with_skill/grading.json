@@ -1,0 +1,54 @@
+{
+  "expectations": [
+    {
+      "text": "Audience characterized at a useful specificity — narrow enough that some direction shapes are clearly right and some clearly wrong",
+      "passed": true,
+      "evidence": "Para 1: 'manager in their first 6–18 months in the role, with multiple direct reports and a recurring 1:1 cadence already established'; rules in new-manager shapes, rules out tenured-leader shapes."
+    },
+    {
+      "text": "Current state of the landscape named — what tools or services the audience uses today, and the named ways those tools fail",
+      "passed": true,
+      "evidence": "Para 2 names three categories (Lighthouse/Hypercontext agenda templates; Lattice/15Five/CultureAmp/Leapsome talent suites; Apple Notes/Notion personal docs) each with their specific failure modes."
+    },
+    {
+      "text": "Real research signals only — aggregate signals, sourced findings, paraphrased user behavior; no fabricated quotes; no composite case studies with first-name attribution",
+      "passed": true,
+      "evidence": "Aggregate signals only; cites named frameworks (Hill, Gallup, Edmondson, MIT Sloan). No invented quotes or first-name personas."
+    },
+    {
+      "text": "Citations or (Inferred) markers on empirical claims — sources cited where claims are empirical; (Inferred) marks extensions",
+      "passed": true,
+      "evidence": "Linda Hill's Becoming a Manager (HBSP 2003; HBR 2007), CCL, SHRM, Gallup State of the Global Workplace, Edmondson ASQ 1999, MIT Sloan Management Review all cited; two (Inferred) markers explicitly flag extensions."
+    },
+    {
+      "text": "Source-quality hierarchy respected AND the highest-tier source available was reached for — primary government, peer-reviewed, or established non-profit sources used where they exist for this domain",
+      "passed": true,
+      "evidence": "Peer-reviewed (Edmondson ASQ 1999), established research orgs and academic (Hill HBSP, CCL, MIT Sloan, Gallup, SHRM, HBR). Practitioner-product mentions only as landscape, not as foundational claims."
+    },
+    {
+      "text": "Strategic, not execution — every claim passes the operational test; no rendering-layer guidance appears",
+      "passed": true,
+      "evidence": "All claims affect direction choice (which moment to support, audience variance, prep-stance vs topic list); no rendering or visual-design content."
+    },
+    {
+      "text": "No success criteria smuggled in — quantified targets and KPIs are absent",
+      "passed": true,
+      "evidence": "Gallup's 70% manager-engagement variance is a fact about the landscape, not a target for the design."
+    },
+    {
+      "text": "No direction candidates smuggled in for the design — solution-shape proposals for the design are absent; landscape players (what the audience confronts today) is fine",
+      "passed": true,
+      "evidence": "Strategic-positioning paragraph names the gap (prep moment, relational stance) without prescribing shape; landscape products are existing players, not design proposals."
+    },
+    {
+      "text": "No execution-layer guidance — no typography, contrast, sizing, motion, ARIA, copy-pattern specifics",
+      "passed": true,
+      "evidence": "No execution-layer rendering content anywhere in the doc."
+    },
+    {
+      "text": "Length appropriate — 4–6 short paragraphs",
+      "passed": true,
+      "evidence": "Five short paragraphs (audience; landscape; behavioral/prep moment; audience variance; strategic positioning); within range."
+    }
+  ]
+}

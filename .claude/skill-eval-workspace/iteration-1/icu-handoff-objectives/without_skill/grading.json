@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "Each criterion is a design property — something an internal reviewer can score from the artifact itself, not a downstream user outcome that requires post-ship measurement, not a business metric",
+      "passed": true,
+      "evidence": "Each of the 10 criteria names something a reviewer can score by looking at the artifact (salience hierarchy, tacit-capture slot, two-sided symmetry, ergonomics, etc.)."
+    },
+    {
+      "text": "Each property has a named failure-mode-of-overpursuit — the trade-off is explicit: 'the failure mode to avoid is X'",
+      "passed": true,
+      "evidence": "Each criterion has an explicit 'Failure mode of over-pursuit' subsection naming what goes wrong when the property is pushed too far."
+    },
+    {
+      "text": "User-side outcomes translated to design-side properties — the brief's outcome is not restated verbatim with 'The design must' prepended; the design move that would produce the outcome is what's named",
+      "passed": true,
+      "evidence": "Each criterion names a design move (salience hierarchy collapsing stable content, tacit-capture slot, time-anchored axis) rather than restating brief outcomes verbatim."
+    },
+    {
+      "text": "No business metrics including denumeralized ones — KPIs, conversion targets, retention rates, engagement metrics, growth metrics absent (and 'accelerate / increase / reduce X' patterns absent)",
+      "passed": false,
+      "evidence": "Criterion 5 'Zero net documentation burden' is a denumeralized 'reduce documentation' framing — it asks whether the tool reduces a measurable burden, not whether the design exhibits a visible property."
+    },
+    {
+      "text": "No regulatory constraints — regulatory frameworks are absent (those belong in design-constraints)",
+      "passed": false,
+      "evidence": "Criterion 5 mentions 'a handoff note that satisfies regulatory requirements is generated as a byproduct' — regulatory requirements appear as part of an objective rather than being routed to constraints."
+    },
+    {
+      "text": "No craft-hygiene criteria — accessibility execution, design-system conformance, state completeness, semantic HTML, responsive CSS absent",
+      "passed": false,
+      "evidence": "Criterion 4 (thumb reach, rotation, pinch, precise tapping) and criterion 7 (labels, prompts, empty states, confirmations, toast text, terseness) are execution-layer copy/ergonomic concerns that belong in build-stage evaluation."
+    },
+    {
+      "text": "No direction-specific criteria — every criterion applies to all viable directions for this brief, not to one specific candidate",
+      "passed": true,
+      "evidence": "No criterion presupposes a specific direction (e.g., voice-first, AI summary)."
+    },
+    {
+      "text": "Length appropriate — 4–6 short paragraphs, one per property",
+      "passed": false,
+      "evidence": "Doc has 10 numbered properties plus framing and 'how to use' coda — well beyond the 4-6 range."
+    }
+  ]
+}

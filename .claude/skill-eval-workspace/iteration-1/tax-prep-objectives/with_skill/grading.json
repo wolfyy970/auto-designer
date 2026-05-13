@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "Each criterion is a design property — something an internal reviewer can score from the artifact itself, not a downstream user outcome that requires post-ship measurement, not a business metric",
+      "passed": true,
+      "evidence": "All 6 paragraphs name properties a reviewer can score from the artifact (landing-surface status legibility, session-completable units, label hierarchy plain/technical, point-of-decision visibility, in-place help affordances, calmer visual register)."
+    },
+    {
+      "text": "Each property has a named failure-mode-of-overpursuit — the trade-off is explicit: 'the failure mode to avoid is X'",
+      "passed": true,
+      "evidence": "Every paragraph ends with explicit 'The failure mode to avoid:' clause naming the over-pursuit failure."
+    },
+    {
+      "text": "User-side outcomes translated to design-side properties — the brief's outcome is not restated verbatim with 'The design must' prepended; the design move that would produce the outcome is what's named",
+      "passed": true,
+      "evidence": "Implicit brief outcomes (reduce dread, make progress, understand questions) are translated to design moves on the screen (status surface, session granularity, label hierarchy, decision-point visibility, in-place help, visual restraint)."
+    },
+    {
+      "text": "No business metrics including denumeralized ones — KPIs, conversion targets, retention rates, engagement metrics, growth metrics absent (and 'accelerate / increase / reduce X' patterns absent)",
+      "passed": true,
+      "evidence": "No KPIs, no 'increase satisfaction' or 'get more users to finish' style denumeralized framings; properties are pre-ship scoreable."
+    },
+    {
+      "text": "No regulatory constraints — regulatory frameworks are absent (those belong in design-constraints)",
+      "passed": true,
+      "evidence": "IRS rules, e-file mandates, data-retention requirements are not framed as objectives in the criteria."
+    },
+    {
+      "text": "No craft-hygiene criteria — accessibility execution, design-system conformance, state completeness, semantic HTML, responsive CSS absent",
+      "passed": true,
+      "evidence": "No mention of contrast, ARIA, focus rings, tokens, or responsive breakpoints; properties stay at the strategic level."
+    },
+    {
+      "text": "No direction-specific criteria — every criterion applies to all viable directions for this brief, not to one specific candidate",
+      "passed": true,
+      "evidence": "Properties apply to any viable direction (assistant-led, form-style, document-scanning, accountant-handoff-first); none describes a feature unique to one candidate."
+    },
+    {
+      "text": "Length appropriate — 4–6 short paragraphs, one per property",
+      "passed": true,
+      "evidence": "Six short paragraphs, one per property — squarely within 4-6 range."
+    }
+  ]
+}

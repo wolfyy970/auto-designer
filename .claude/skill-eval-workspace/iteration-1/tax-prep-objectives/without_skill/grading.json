@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "Each criterion is a design property — something an internal reviewer can score from the artifact itself, not a downstream user outcome that requires post-ship measurement, not a business metric",
+      "passed": false,
+      "evidence": "Criterion 7 (deadline honesty about March-15, April-15, late-payment vs late-filing) requires post-ship correctness measurement — 'taking responsibility for being correct about what the deadlines actually are' is not scoreable by design inspection alone. Criterion 3 'audit exposure' similarly tracks a post-ship outcome."
+    },
+    {
+      "text": "Each property has a named failure-mode-of-overpursuit — the trade-off is explicit: 'the failure mode to avoid is X'",
+      "passed": true,
+      "evidence": "Every one of the 7 paragraphs closes with explicit 'The failure mode to avoid:' clause."
+    },
+    {
+      "text": "User-side outcomes translated to design-side properties — the brief's outcome is not restated verbatim with 'The design must' prepended; the design move that would produce the outcome is what's named",
+      "passed": false,
+      "evidence": "Repeatedly uses 'The design should ...' wrapping (e.g., 'should treat the owner's filing posture as a single object', 'should make deduction surface honest', 'should be honest about deadlines') — these are user-side outcomes wrapped, not design moves on the screen. The criteria describe what the system should do, not what is visible on the artifact."
+    },
+    {
+      "text": "No business metrics including denumeralized ones — KPIs, conversion targets, retention rates, engagement metrics, growth metrics absent (and 'accelerate / increase / reduce X' patterns absent)",
+      "passed": true,
+      "evidence": "No explicit KPIs, retention, or 'increase/reduce X' framings appear in the body of the criteria."
+    },
+    {
+      "text": "No regulatory constraints — regulatory frameworks are absent (those belong in design-constraints)",
+      "passed": false,
+      "evidence": "Criterion 7 names specific regulatory dates (March-15 S-corp date, April-15 individual date, extension mechanics, late-payment-vs-late-filing penalty distinction) as objectives the design must satisfy. IRS deadline structure belongs in design-constraints, not as a design property."
+    },
+    {
+      "text": "No craft-hygiene criteria — accessibility execution, design-system conformance, state completeness, semantic HTML, responsive CSS absent",
+      "passed": true,
+      "evidence": "No contrast, ARIA, tokens, semantic HTML, or responsive CSS appear; the doc stays out of build-stage execution territory."
+    },
+    {
+      "text": "No direction-specific criteria — every criterion applies to all viable directions for this brief, not to one specific candidate",
+      "passed": true,
+      "evidence": "Properties apply across viable directions (assistant-led, form-driven, accountant-handoff); none presupposes a specific candidate."
+    },
+    {
+      "text": "Length appropriate — 4–6 short paragraphs, one per property",
+      "passed": false,
+      "evidence": "Doc has 7 properties — beyond the 4-6 paragraph range."
+    }
+  ]
+}

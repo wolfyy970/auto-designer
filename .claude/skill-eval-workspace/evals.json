@@ -1,0 +1,174 @@
+{
+  "skill_evaluation": "design-research + design-evaluation + design-constraints",
+  "iteration": 1,
+  "evals": [
+    {
+      "id": 1,
+      "name": "icu-handoff-research",
+      "doc": "research",
+      "skill": "design-research",
+      "threshold": "\u22658 of 10 Pass, 0 Fail",
+      "assertions": [
+        "Audience characterized at a useful specificity \u2014 narrow enough that some direction shapes are clearly right and some clearly wrong",
+        "Current state of the landscape named \u2014 what tools or services the audience uses today, and the named ways those tools fail",
+        "Real research signals only \u2014 aggregate signals, sourced findings, paraphrased user behavior; no fabricated quotes; no composite case studies with first-name attribution",
+        "Citations or (Inferred) markers on empirical claims \u2014 sources cited where claims are empirical; (Inferred) marks extensions",
+        "Source-quality hierarchy respected AND the highest-tier source available was reached for \u2014 primary government, peer-reviewed, or established non-profit sources used where they exist for this domain",
+        "Strategic, not execution \u2014 every claim passes the operational test; no rendering-layer guidance appears",
+        "No success criteria smuggled in \u2014 quantified targets and KPIs are absent",
+        "No direction candidates smuggled in for the design \u2014 solution-shape proposals for the design are absent; landscape players (what the audience confronts today) is fine",
+        "No execution-layer guidance \u2014 no typography, contrast, sizing, motion, ARIA, copy-pattern specifics",
+        "Length appropriate \u2014 4\u20136 short paragraphs"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "icu-handoff-objectives",
+      "doc": "objectives",
+      "skill": "design-evaluation",
+      "threshold": "\u22657 of 8 Pass, 0 Fail",
+      "assertions": [
+        "Each criterion is a design property \u2014 something an internal reviewer can score from the artifact itself, not a downstream user outcome that requires post-ship measurement, not a business metric",
+        "Each property has a named failure-mode-of-overpursuit \u2014 the trade-off is explicit: 'the failure mode to avoid is X'",
+        "User-side outcomes translated to design-side properties \u2014 the brief's outcome is not restated verbatim with 'The design must' prepended; the design move that would produce the outcome is what's named",
+        "No business metrics including denumeralized ones \u2014 KPIs, conversion targets, retention rates, engagement metrics, growth metrics absent (and 'accelerate / increase / reduce X' patterns absent)",
+        "No regulatory constraints \u2014 regulatory frameworks are absent (those belong in design-constraints)",
+        "No craft-hygiene criteria \u2014 accessibility execution, design-system conformance, state completeness, semantic HTML, responsive CSS absent",
+        "No direction-specific criteria \u2014 every criterion applies to all viable directions for this brief, not to one specific candidate",
+        "Length appropriate \u2014 4\u20136 short paragraphs, one per property"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "icu-handoff-constraints",
+      "doc": "constraints",
+      "skill": "design-constraints",
+      "threshold": "\u22659 of 11 Pass, 0 Fail",
+      "assertions": [
+        "Strategic-vs-execution test passes \u2014 every constraint passes the operational test; no rendering-layer guidance (sizing, contrast, motion, copy patterns) appears as if it filters the exploration space",
+        "Applicable regulatory frameworks named \u2014 the author has identified the specific frameworks that constitute deal-breakers for this brief's audience and use case",
+        "Target surface(s) declared \u2014 first sentence states the target surface(s): specific surface, surface mix, or explicit `open` marker",
+        "Audience reach realities named where they filter viability \u2014 phrased as exploration-space filters; not as execution-layer accessibility-rendering rules",
+        "Cognitive / institutional / operational realities at the strategic level \u2014 phrased as filters on the exploration space, not as rendering rules for the prototype",
+        "Hard data and access realities surfaced where applicable \u2014 when the data, institutional relationship, or audience-side context doesn't exist",
+        "No execution-layer guidance \u2014 none of the cross-reference categories (typography, color, motion, contrast, sizing, copy patterns, response-time targets) appears in the body",
+        "No success criteria \u2014 design properties for evaluation and their failure-modes-of-overpursuit are absent (those belong in design-evaluation)",
+        "No research findings beyond what's needed to make a constraint relevant \u2014 research findings appear only where they ground a constraint's relevance",
+        "Length appropriate \u2014 4\u20136 short paragraphs",
+        "Empirical claims sourced or marked (Inferred) \u2014 sourced claims have citations; extensions are marked (Inferred); qualitative magnitude language used where no source is available"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "tax-prep-research",
+      "doc": "research",
+      "skill": "design-research",
+      "threshold": "\u22658 of 10 Pass, 0 Fail",
+      "assertions": [
+        "Audience characterized at a useful specificity \u2014 narrow enough that some direction shapes are clearly right and some clearly wrong",
+        "Current state of the landscape named \u2014 what tools or services the audience uses today, and the named ways those tools fail",
+        "Real research signals only \u2014 aggregate signals, sourced findings, paraphrased user behavior; no fabricated quotes; no composite case studies with first-name attribution",
+        "Citations or (Inferred) markers on empirical claims \u2014 sources cited where claims are empirical; (Inferred) marks extensions",
+        "Source-quality hierarchy respected AND the highest-tier source available was reached for \u2014 primary government, peer-reviewed, or established non-profit sources used where they exist for this domain",
+        "Strategic, not execution \u2014 every claim passes the operational test; no rendering-layer guidance appears",
+        "No success criteria smuggled in \u2014 quantified targets and KPIs are absent",
+        "No direction candidates smuggled in for the design \u2014 solution-shape proposals for the design are absent; landscape players (what the audience confronts today) is fine",
+        "No execution-layer guidance \u2014 no typography, contrast, sizing, motion, ARIA, copy-pattern specifics",
+        "Length appropriate \u2014 4\u20136 short paragraphs"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "tax-prep-objectives",
+      "doc": "objectives",
+      "skill": "design-evaluation",
+      "threshold": "\u22657 of 8 Pass, 0 Fail",
+      "assertions": [
+        "Each criterion is a design property \u2014 something an internal reviewer can score from the artifact itself, not a downstream user outcome that requires post-ship measurement, not a business metric",
+        "Each property has a named failure-mode-of-overpursuit \u2014 the trade-off is explicit: 'the failure mode to avoid is X'",
+        "User-side outcomes translated to design-side properties \u2014 the brief's outcome is not restated verbatim with 'The design must' prepended; the design move that would produce the outcome is what's named",
+        "No business metrics including denumeralized ones \u2014 KPIs, conversion targets, retention rates, engagement metrics, growth metrics absent (and 'accelerate / increase / reduce X' patterns absent)",
+        "No regulatory constraints \u2014 regulatory frameworks are absent (those belong in design-constraints)",
+        "No craft-hygiene criteria \u2014 accessibility execution, design-system conformance, state completeness, semantic HTML, responsive CSS absent",
+        "No direction-specific criteria \u2014 every criterion applies to all viable directions for this brief, not to one specific candidate",
+        "Length appropriate \u2014 4\u20136 short paragraphs, one per property"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "tax-prep-constraints",
+      "doc": "constraints",
+      "skill": "design-constraints",
+      "threshold": "\u22659 of 11 Pass, 0 Fail",
+      "assertions": [
+        "Strategic-vs-execution test passes \u2014 every constraint passes the operational test; no rendering-layer guidance (sizing, contrast, motion, copy patterns) appears as if it filters the exploration space",
+        "Applicable regulatory frameworks named \u2014 the author has identified the specific frameworks that constitute deal-breakers for this brief's audience and use case",
+        "Target surface(s) declared \u2014 first sentence states the target surface(s): specific surface, surface mix, or explicit `open` marker",
+        "Audience reach realities named where they filter viability \u2014 phrased as exploration-space filters; not as execution-layer accessibility-rendering rules",
+        "Cognitive / institutional / operational realities at the strategic level \u2014 phrased as filters on the exploration space, not as rendering rules for the prototype",
+        "Hard data and access realities surfaced where applicable \u2014 when the data, institutional relationship, or audience-side context doesn't exist",
+        "No execution-layer guidance \u2014 none of the cross-reference categories (typography, color, motion, contrast, sizing, copy patterns, response-time targets) appears in the body",
+        "No success criteria \u2014 design properties for evaluation and their failure-modes-of-overpursuit are absent (those belong in design-evaluation)",
+        "No research findings beyond what's needed to make a constraint relevant \u2014 research findings appear only where they ground a constraint's relevance",
+        "Length appropriate \u2014 4\u20136 short paragraphs",
+        "Empirical claims sourced or marked (Inferred) \u2014 sourced claims have citations; extensions are marked (Inferred); qualitative magnitude language used where no source is available"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "manager-1on1-research",
+      "doc": "research",
+      "skill": "design-research",
+      "threshold": "\u22658 of 10 Pass, 0 Fail",
+      "assertions": [
+        "Audience characterized at a useful specificity \u2014 narrow enough that some direction shapes are clearly right and some clearly wrong",
+        "Current state of the landscape named \u2014 what tools or services the audience uses today, and the named ways those tools fail",
+        "Real research signals only \u2014 aggregate signals, sourced findings, paraphrased user behavior; no fabricated quotes; no composite case studies with first-name attribution",
+        "Citations or (Inferred) markers on empirical claims \u2014 sources cited where claims are empirical; (Inferred) marks extensions",
+        "Source-quality hierarchy respected AND the highest-tier source available was reached for \u2014 primary government, peer-reviewed, or established non-profit sources used where they exist for this domain",
+        "Strategic, not execution \u2014 every claim passes the operational test; no rendering-layer guidance appears",
+        "No success criteria smuggled in \u2014 quantified targets and KPIs are absent",
+        "No direction candidates smuggled in for the design \u2014 solution-shape proposals for the design are absent; landscape players (what the audience confronts today) is fine",
+        "No execution-layer guidance \u2014 no typography, contrast, sizing, motion, ARIA, copy-pattern specifics",
+        "Length appropriate \u2014 4\u20136 short paragraphs"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "manager-1on1-objectives",
+      "doc": "objectives",
+      "skill": "design-evaluation",
+      "threshold": "\u22657 of 8 Pass, 0 Fail",
+      "assertions": [
+        "Each criterion is a design property \u2014 something an internal reviewer can score from the artifact itself, not a downstream user outcome that requires post-ship measurement, not a business metric",
+        "Each property has a named failure-mode-of-overpursuit \u2014 the trade-off is explicit: 'the failure mode to avoid is X'",
+        "User-side outcomes translated to design-side properties \u2014 the brief's outcome is not restated verbatim with 'The design must' prepended; the design move that would produce the outcome is what's named",
+        "No business metrics including denumeralized ones \u2014 KPIs, conversion targets, retention rates, engagement metrics, growth metrics absent (and 'accelerate / increase / reduce X' patterns absent)",
+        "No regulatory constraints \u2014 regulatory frameworks are absent (those belong in design-constraints)",
+        "No craft-hygiene criteria \u2014 accessibility execution, design-system conformance, state completeness, semantic HTML, responsive CSS absent",
+        "No direction-specific criteria \u2014 every criterion applies to all viable directions for this brief, not to one specific candidate",
+        "Length appropriate \u2014 4\u20136 short paragraphs, one per property"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "manager-1on1-constraints",
+      "doc": "constraints",
+      "skill": "design-constraints",
+      "threshold": "\u22659 of 11 Pass, 0 Fail",
+      "assertions": [
+        "Strategic-vs-execution test passes \u2014 every constraint passes the operational test; no rendering-layer guidance (sizing, contrast, motion, copy patterns) appears as if it filters the exploration space",
+        "Applicable regulatory frameworks named \u2014 the author has identified the specific frameworks that constitute deal-breakers for this brief's audience and use case",
+        "Target surface(s) declared \u2014 first sentence states the target surface(s): specific surface, surface mix, or explicit `open` marker",
+        "Audience reach realities named where they filter viability \u2014 phrased as exploration-space filters; not as execution-layer accessibility-rendering rules",
+        "Cognitive / institutional / operational realities at the strategic level \u2014 phrased as filters on the exploration space, not as rendering rules for the prototype",
+        "Hard data and access realities surfaced where applicable \u2014 when the data, institutional relationship, or audience-side context doesn't exist",
+        "No execution-layer guidance \u2014 none of the cross-reference categories (typography, color, motion, contrast, sizing, copy patterns, response-time targets) appears in the body",
+        "No success criteria \u2014 design properties for evaluation and their failure-modes-of-overpursuit are absent (those belong in design-evaluation)",
+        "No research findings beyond what's needed to make a constraint relevant \u2014 research findings appear only where they ground a constraint's relevance",
+        "Length appropriate \u2014 4\u20136 short paragraphs",
+        "Empirical claims sourced or marked (Inferred) \u2014 sourced claims have citations; extensions are marked (Inferred); qualitative magnitude language used where no source is available"
+      ]
+    }
+  ]
+}

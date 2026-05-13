@@ -1,0 +1,54 @@
+{
+  "expectations": [
+    {
+      "text": "Audience characterized at a useful specificity — narrow enough that some direction shapes are clearly right and some clearly wrong",
+      "passed": true,
+      "evidence": "Para 1: 'first-time manager 6–18 months into the role: recent enough that the work still feels unfamiliar, far enough in that the calendar is already structurally full of recurring 1:1s'; narrow enough to filter directions."
+    },
+    {
+      "text": "Current state of the landscape named — what tools or services the audience uses today, and the named ways those tools fail",
+      "passed": true,
+      "evidence": "Para 2 names three landscape categories with extensive product lists (Lighthouse, Lattice, 15Five, Culture Amp, Leapsome, Officevibe, Friday, Range, Soapbox/Hypercontext, Notion, etc.) and the specific failure mode of each category."
+    },
+    {
+      "text": "Real research signals only — aggregate signals, sourced findings, paraphrased user behavior; no fabricated quotes; no composite case studies with first-name attribution",
+      "passed": true,
+      "evidence": "Aggregate signals only; refers to 'practitioner-blog and Reddit r/managers patterns' as aggregate. No fabricated quotes or first-name composites."
+    },
+    {
+      "text": "Citations or (Inferred) markers on empirical claims — sources cited where claims are empirical; (Inferred) marks extensions",
+      "passed": true,
+      "evidence": "CCL, DDI, Gallup State of the American Workplace, HBR/Julia Rozovsky Project Aristotle, Marcus Buckingham/Manager Tools podcast cited; two (Inferred) markers explicitly flag extensions."
+    },
+    {
+      "text": "Source-quality hierarchy respected AND the highest-tier source available was reached for — primary government, peer-reviewed, or established non-profit sources used where they exist for this domain",
+      "passed": true,
+      "evidence": "Established research orgs (CCL, DDI, Gallup), HBR coverage of Project Aristotle and Buckingham; products only as landscape. No vendor blogs grounding foundational claims. Slightly weaker than with_skill (no Edmondson ASQ citation) but reaches highest tier reasonably available."
+    },
+    {
+      "text": "Strategic, not execution — every claim passes the operational test; no rendering-layer guidance appears",
+      "passed": true,
+      "evidence": "All claims affect direction choice (which moment to support, report-type variance, tooling-stack variance); no rendering or visual-design content."
+    },
+    {
+      "text": "No success criteria smuggled in — quantified targets and KPIs are absent",
+      "passed": true,
+      "evidence": "No quantified targets for the design appear. The Gallup framing is descriptive about the landscape."
+    },
+    {
+      "text": "No direction candidates smuggled in for the design — solution-shape proposals for the design are absent; landscape players (what the audience confronts today) is fine",
+      "passed": true,
+      "evidence": "Strategic-positioning paragraph names the gap (the 'before' moment, preparation vs capture) without proposing solution shapes. Landscape products are existing players the audience confronts."
+    },
+    {
+      "text": "No execution-layer guidance — no typography, contrast, sizing, motion, ARIA, copy-pattern specifics",
+      "passed": true,
+      "evidence": "No execution-layer rendering content anywhere in the doc."
+    },
+    {
+      "text": "Length appropriate — 4–6 short paragraphs",
+      "passed": true,
+      "evidence": "Five paragraphs (audience; landscape; the prep moment specifically; audience variance; strategic positioning). Paragraphs are dense but within the 4-6 count."
+    }
+  ]
+}

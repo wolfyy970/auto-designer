@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "Each criterion is a design property — something an internal reviewer can score from the artifact itself, not a downstream user outcome that requires post-ship measurement, not a business metric",
+      "passed": true,
+      "evidence": "All 6 paragraphs name properties visible on the artifact (salience hierarchy, scannability within 20-30s, soft-signal slot, compositional posture with EHR/phone/WoW, authoring locus, symmetry of handoff artifact)."
+    },
+    {
+      "text": "Each property has a named failure-mode-of-overpursuit — the trade-off is explicit: 'the failure mode to avoid is X'",
+      "passed": true,
+      "evidence": "Every paragraph closes with an explicit 'The failure mode to avoid:' clause naming what over-pursuit produces."
+    },
+    {
+      "text": "User-side outcomes translated to design-side properties — the brief's outcome is not restated verbatim with 'The design must' prepended; the design move that would produce the outcome is what's named",
+      "passed": true,
+      "evidence": "Brief outcomes are translated to design moves on the screen — e.g., 'salience model that recesses stable content', 'first-class soft-signal slot' — rather than restated as user outcomes."
+    },
+    {
+      "text": "No business metrics including denumeralized ones — KPIs, conversion targets, retention rates, engagement metrics, growth metrics absent (and 'accelerate / increase / reduce X' patterns absent)",
+      "passed": true,
+      "evidence": "No KPIs, no 'reduce handoff errors', no 'shorten handoff time' or 'improve safety' denumeralized forms appear."
+    },
+    {
+      "text": "No regulatory constraints — regulatory frameworks are absent (those belong in design-constraints)",
+      "passed": true,
+      "evidence": "HIPAA, Joint Commission, and similar regulatory frames are absent from the criteria."
+    },
+    {
+      "text": "No craft-hygiene criteria — accessibility execution, design-system conformance, state completeness, semantic HTML, responsive CSS absent",
+      "passed": true,
+      "evidence": "No contrast ratios, ARIA, touch targets, tokens, or responsive CSS appear; properties stay at strategic level."
+    },
+    {
+      "text": "No direction-specific criteria — every criterion applies to all viable directions for this brief, not to one specific candidate",
+      "passed": true,
+      "evidence": "None of the six properties presuppose a specific candidate (no voice-first, card-based, timeline view, AI summary); each applies across viable directions."
+    },
+    {
+      "text": "Length appropriate — 4–6 short paragraphs, one per property",
+      "passed": true,
+      "evidence": "Six paragraphs, one per property, each focused (within 4-6 range)."
+    }
+  ]
+}

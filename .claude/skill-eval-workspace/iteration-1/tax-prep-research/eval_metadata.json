@@ -1,0 +1,61 @@
+{
+  "eval_id": 4,
+  "eval_name": "tax-prep-research",
+  "doc_type": "research",
+  "skill": "design-research",
+  "brief": "/Users/kcwolff/Developer/GitHub/auto-designer/experiments/briefs/tax-prep.md",
+  "threshold": "\u22658 of 10 Pass, 0 Fail",
+  "prompt": "Write a research document to support the design brief. (with_skill condition: use design-research skill with its inline rubric forcing function; without_skill condition: no skill reference.)",
+  "assertions": [
+    {
+      "text": "Audience characterized at a useful specificity \u2014 narrow enough that some direction shapes are clearly right and some clearly wrong",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Current state of the landscape named \u2014 what tools or services the audience uses today, and the named ways those tools fail",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Real research signals only \u2014 aggregate signals, sourced findings, paraphrased user behavior; no fabricated quotes; no composite case studies with first-name attribution",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Citations or (Inferred) markers on empirical claims \u2014 sources cited where claims are empirical; (Inferred) marks extensions",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Source-quality hierarchy respected AND the highest-tier source available was reached for \u2014 primary government, peer-reviewed, or established non-profit sources used where they exist for this domain",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Strategic, not execution \u2014 every claim passes the operational test; no rendering-layer guidance appears",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "No success criteria smuggled in \u2014 quantified targets and KPIs are absent",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "No direction candidates smuggled in for the design \u2014 solution-shape proposals for the design are absent; landscape players (what the audience confronts today) is fine",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "No execution-layer guidance \u2014 no typography, contrast, sizing, motion, ARIA, copy-pattern specifics",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Length appropriate \u2014 4\u20136 short paragraphs",
+      "passed": null,
+      "evidence": ""
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "eval_id": 9,
+  "eval_name": "manager-1on1-constraints",
+  "doc_type": "constraints",
+  "skill": "design-constraints",
+  "brief": "/Users/kcwolff/Developer/GitHub/auto-designer/experiments/briefs/manager-1on1.md",
+  "threshold": "\u22659 of 11 Pass, 0 Fail",
+  "prompt": "Write a constraints document to support the design brief. (with_skill condition: use design-constraints skill with its inline rubric forcing function; without_skill condition: no skill reference.)",
+  "assertions": [
+    {
+      "text": "Strategic-vs-execution test passes \u2014 every constraint passes the operational test; no rendering-layer guidance (sizing, contrast, motion, copy patterns) appears as if it filters the exploration space",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Applicable regulatory frameworks named \u2014 the author has identified the specific frameworks that constitute deal-breakers for this brief's audience and use case",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Target surface(s) declared \u2014 first sentence states the target surface(s): specific surface, surface mix, or explicit `open` marker",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Audience reach realities named where they filter viability \u2014 phrased as exploration-space filters; not as execution-layer accessibility-rendering rules",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Cognitive / institutional / operational realities at the strategic level \u2014 phrased as filters on the exploration space, not as rendering rules for the prototype",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Hard data and access realities surfaced where applicable \u2014 when the data, institutional relationship, or audience-side context doesn't exist",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "No execution-layer guidance \u2014 none of the cross-reference categories (typography, color, motion, contrast, sizing, copy patterns, response-time targets) appears in the body",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "No success criteria \u2014 design properties for evaluation and their failure-modes-of-overpursuit are absent (those belong in design-evaluation)",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "No research findings beyond what's needed to make a constraint relevant \u2014 research findings appear only where they ground a constraint's relevance",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Length appropriate \u2014 4\u20136 short paragraphs",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Empirical claims sourced or marked (Inferred) \u2014 sourced claims have citations; extensions are marked (Inferred); qualitative magnitude language used where no source is available",
+      "passed": null,
+      "evidence": ""
+    }
+  ]
+}

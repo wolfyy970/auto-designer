@@ -1,0 +1,54 @@
+{
+  "expectations": [
+    {
+      "text": "Audience characterized at a useful specificity — narrow enough that some direction shapes are clearly right and some clearly wrong",
+      "passed": true,
+      "evidence": "Para 1 narrows from 'small-business owner' to 'sole proprietor or single-member LLC filing a Schedule C, not a payroll-having S-corp' with explicit market segmentation; specific enough to filter directions."
+    },
+    {
+      "text": "Current state of the landscape named — what tools or services the audience uses today, and the named ways those tools fail",
+      "passed": true,
+      "evidence": "Para 2 names four landscape categories (TurboTax/H&R Block consumer software, paid preparers, IRS Free File/Direct File, bookkeeping-first tools like QuickBooks/Bench) each with documented failure modes."
+    },
+    {
+      "text": "Real research signals only — aggregate signals, sourced findings, paraphrased user behavior; no fabricated quotes; no composite case studies with first-name attribution",
+      "passed": true,
+      "evidence": "All aggregate signals; cites named bodies and authors (ProPublica's Elliott and Kiel; Slemrod). No invented personas or first-name composites."
+    },
+    {
+      "text": "Citations or (Inferred) markers on empirical claims — sources cited where claims are empirical; (Inferred) marks extensions",
+      "passed": true,
+      "evidence": "IRS SOI, NTA Annual Reports, GAO, NACAA, FTC 2024 order, Pew, JPMC Institute, NFIB, Federal Reserve, Slemrod all cited; four (Inferred) markers explicitly flag extensions."
+    },
+    {
+      "text": "Source-quality hierarchy respected AND the highest-tier source available was reached for — primary government, peer-reviewed, or established non-profit sources used where they exist for this domain",
+      "passed": true,
+      "evidence": "Primary government (IRS, GAO, NTA, FTC, Federal Reserve), peer-reviewed (Slemrod), established research orgs (Pew, JPMC Institute, NFIB); ProPublica only used for landscape-failure claims not covered by gov sources."
+    },
+    {
+      "text": "Strategic, not execution — every claim passes the operational test; no rendering-layer guidance appears",
+      "passed": true,
+      "evidence": "All claims affect which directions are worth pursuing; no rendering, component, or visual-design content."
+    },
+    {
+      "text": "No success criteria smuggled in — quantified targets and KPIs are absent",
+      "passed": true,
+      "evidence": "No quantified targets for the design. Magnitudes used qualitatively or tied to sourced regulatory measures, not the design's success bar."
+    },
+    {
+      "text": "No direction candidates smuggled in for the design — solution-shape proposals for the design are absent; landscape players (what the audience confronts today) is fine",
+      "passed": true,
+      "evidence": "Final paragraph names the strategic gap without proposing solution shapes; landscape items are existing players the audience confronts, not design proposals."
+    },
+    {
+      "text": "No execution-layer guidance — no typography, contrast, sizing, motion, ARIA, copy-pattern specifics",
+      "passed": true,
+      "evidence": "No execution-layer rendering content anywhere in the doc."
+    },
+    {
+      "text": "Length appropriate — 4–6 short paragraphs",
+      "passed": true,
+      "evidence": "Five short paragraphs (audience; landscape; behavioral context; audience variance; strategic positioning); within range."
+    }
+  ]
+}

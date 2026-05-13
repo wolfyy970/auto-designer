@@ -1,0 +1,54 @@
+{
+  "expectations": [
+    {
+      "text": "Audience characterized at a useful specificity — narrow enough that some direction shapes are clearly right and some clearly wrong",
+      "passed": true,
+      "evidence": "Para 1-2 distinguish 27M nonemployer firms from employer firms, name the Schedule C sole prop with $40K receipts vs ten-person S-corp distinction; specific enough to filter directions."
+    },
+    {
+      "text": "Current state of the landscape named — what tools or services the audience uses today, and the named ways those tools fail",
+      "passed": true,
+      "evidence": "Para 3-4 name four bands (consumer DIY software, bookkeeping software, done-for-you services, traditional adviser channel) with named products and specific failure modes; Bench shutdown detail."
+    },
+    {
+      "text": "Real research signals only — aggregate signals, sourced findings, paraphrased user behavior; no fabricated quotes; no composite case studies with first-name attribution",
+      "passed": true,
+      "evidence": "Aggregate signals only; references to small-business owner reviews, podcasts, forums (r/smallbusiness, r/tax) as aggregate sources. No invented quotes or first-name composite personas."
+    },
+    {
+      "text": "Citations or (Inferred) markers on empirical claims — sources cited where claims are empirical; (Inferred) marks extensions",
+      "passed": true,
+      "evidence": "Many citations with URLs (SBA, JPMC, NFIB, NSA, AICPA, TIGTA, TechCrunch); two (Inferred) markers explicitly flag extensions ('Inferred from the volume of shoebox-to-Schedule-C', 'Inferred from the dominance of ugh, dread, and overwhelm language')."
+    },
+    {
+      "text": "Source-quality hierarchy respected AND the highest-tier source available was reached for — primary government, peer-reviewed, or established non-profit sources used where they exist for this domain",
+      "passed": true,
+      "evidence": "SBA Office of Advocacy (government), TIGTA (government), JPMC Institute, NFIB, Pew, AICPA; trade press (TechCrunch, Axios, Accounting Today) only for Bench shutdown specifics."
+    },
+    {
+      "text": "Strategic, not execution — every claim passes the operational test; no rendering-layer guidance appears",
+      "passed": true,
+      "evidence": "All claims affect direction choice (entity type segmentation, bookkeeping vs filing UI, human-in-the-loop need); no rendering or visual-design content."
+    },
+    {
+      "text": "No success criteria smuggled in — quantified targets and KPIs are absent",
+      "passed": true,
+      "evidence": "Numerical references ($300-$600 typical fee, 80 hours compliance, 17% decline in graduates) are facts about the landscape, not targets for the design."
+    },
+    {
+      "text": "No direction candidates smuggled in for the design — solution-shape proposals for the design are absent; landscape players (what the audience confronts today) is fine",
+      "passed": false,
+      "evidence": "Final paragraph explicitly lists solution shapes for the design: 'Whether that's a software product with embedded expert review, a service productized down-market, or something else is what the design problem will need to choose between.' This is exactly the 'could be X, Y, or Z' direction-candidate pattern the rubric flags."
+    },
+    {
+      "text": "No execution-layer guidance — no typography, contrast, sizing, motion, ARIA, copy-pattern specifics",
+      "passed": true,
+      "evidence": "No execution-layer rendering content anywhere in the doc."
+    },
+    {
+      "text": "Length appropriate — 4–6 short paragraphs",
+      "passed": false,
+      "evidence": "Document has 8 paragraphs (audience size; unmet-need concentration; landscape four-bands; failure modes; done-for-you and adviser; audience variance axes; lived experience; strategic positioning), with several being very long. Exceeds 4-6 short paragraphs threshold."
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "eval_id": 8,
+  "eval_name": "manager-1on1-objectives",
+  "doc_type": "objectives",
+  "skill": "design-evaluation",
+  "brief": "/Users/kcwolff/Developer/GitHub/auto-designer/experiments/briefs/manager-1on1.md",
+  "threshold": "\u22657 of 8 Pass, 0 Fail",
+  "prompt": "Write a objectives document to support the design brief. (with_skill condition: use design-evaluation skill with its inline rubric forcing function; without_skill condition: no skill reference.)",
+  "assertions": [
+    {
+      "text": "Each criterion is a design property \u2014 something an internal reviewer can score from the artifact itself, not a downstream user outcome that requires post-ship measurement, not a business metric",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Each property has a named failure-mode-of-overpursuit \u2014 the trade-off is explicit: 'the failure mode to avoid is X'",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "User-side outcomes translated to design-side properties \u2014 the brief's outcome is not restated verbatim with 'The design must' prepended; the design move that would produce the outcome is what's named",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "No business metrics including denumeralized ones \u2014 KPIs, conversion targets, retention rates, engagement metrics, growth metrics absent (and 'accelerate / increase / reduce X' patterns absent)",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "No regulatory constraints \u2014 regulatory frameworks are absent (those belong in design-constraints)",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "No craft-hygiene criteria \u2014 accessibility execution, design-system conformance, state completeness, semantic HTML, responsive CSS absent",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "No direction-specific criteria \u2014 every criterion applies to all viable directions for this brief, not to one specific candidate",
+      "passed": null,
+      "evidence": ""
+    },
+    {
+      "text": "Length appropriate \u2014 4\u20136 short paragraphs, one per property",
+      "passed": null,
+      "evidence": ""
+    }
+  ]
+}

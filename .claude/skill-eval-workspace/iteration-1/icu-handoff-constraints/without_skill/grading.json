@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "Strategic-vs-execution test passes — every constraint passes the operational test; no rendering-layer guidance (sizing, contrast, motion, copy patterns) appears as if it filters the exploration space",
+      "passed": false,
+      "evidence": "Body smuggles in rendering-layer guidance as filters: touch-target sizes (44x44pt iOS / 48x48dp Android), contrast ratios (4.5:1, 3:1), 'no information may be conveyed by color alone', 3-second cold-start target, 'no more than one primary action per screen', 'must fit a single patient's critical state above the fold on iPhone SE 4.7'.\""
+    },
+    {
+      "text": "Applicable regulatory frameworks named — the author has identified the specific frameworks that constitute deal-breakers for this brief's audience and use case",
+      "passed": true,
+      "evidence": "Names HIPAA, FDA Class II software classification (with regard to clinical decision support), Joint Commission handoff standard, EHR vendor integration constraints — specific to ICU handoff context."
+    },
+    {
+      "text": "Target surface(s) declared — first sentence states the target surface(s): specific surface, surface mix, or explicit `open` marker",
+      "passed": false,
+      "evidence": "First sentence is preamble ('These are the non-negotiable boundaries the design must respect'). Surface declaration is buried in section 3.1, not in the opening line as the skill's section 1.2 requires."
+    },
+    {
+      "text": "Audience reach realities named where they filter viability — phrased as exploration-space filters; not as execution-layer accessibility-rendering rules",
+      "passed": false,
+      "evidence": "Section 2.1: 'WCAG 2.1 AA conformance is the floor, not the goal' — canonical accessibility-as-floor anti-pattern named in skill section 1.5. 2.1–2.3 list rendering criteria (touch targets, contrast, audio cues, haptic, font legibility) framed as accessibility constraints, not as audience-reach filters."
+    },
+    {
+      "text": "Cognitive / institutional / operational realities at the strategic level — phrased as filters on the exploration space, not as rendering rules for the prototype",
+      "passed": false,
+      "evidence": "Section 4 imposes rendering rules: '~10 seconds for a single piece of information', '20 seconds with no more than three taps to start and one to commit', '30 seconds of opening that patient's record', 'No more than one primary action per screen' — these are component-level interaction patterns, not viability filters."
+    },
+    {
+      "text": "Hard data and access realities surfaced where applicable — when the data, institutional relationship, or audience-side context doesn't exist",
+      "passed": true,
+      "evidence": "Section 6.2 names EHR-as-upstream constraint (FHIR / sanctioned integration; nurses do not re-enter); section 4.3 names the 'I have a feeling' content category as a data-shape constraint."
+    },
+    {
+      "text": "No execution-layer guidance — none of the cross-reference categories (typography, color, motion, contrast, sizing, copy patterns, response-time targets) appears in the body",
+      "passed": false,
+      "evidence": "Contrast ratios (4.5:1, 3:1), touch-target sizes (44x44 pt / 48x48 dp), color-as-encoding rules, response-time target (3-second cold start), screen layout rules ('above the fold on iPhone SE 4.7\"'), copy pattern guidance ('bullet-friendly, scannable layouts'), encryption specifics (AES-256, TLS 1.2+) all appear in body."
+    },
+    {
+      "text": "No success criteria — design properties for evaluation and their failure-modes-of-overpursuit are absent (those belong in design-evaluation)",
+      "passed": false,
+      "evidence": "Section 9 'What Will Cause the Design To Be Rejected on Sight' enumerates rejection criteria framed as design evaluation. C-4.1 'Net-positive documentation burden is a rejection criterion' is a success/evaluation criterion. Section 5.3 'must be undoable for at least 10 seconds' is a measurable success property."
+    },
+    {
+      "text": "No research findings beyond what's needed to make a constraint relevant — research findings appear only where they ground a constraint's relevance",
+      "passed": true,
+      "evidence": "Research findings mostly appear as parenthetical rationale (e.g., 'because the other hand is frequently holding something') and do not duplicate an audience-research narrative. Pass on this criterion despite other heavy drift."
+    },
+    {
+      "text": "Length appropriate — 4–6 short paragraphs",
+      "passed": false,
+      "evidence": "9 major sections (Regulatory, Accessibility, Surface, Time & Cognitive Load, Trust/Safety/Authority, Workflow Fit, Privacy, Scope Boundaries, Rejection Summary) with multiple sub-sections each — vastly exceeds the 4–6-paragraph target."
+    },
+    {
+      "text": "Empirical claims sourced or marked (Inferred) — sourced claims have citations; extensions are marked (Inferred); qualitative magnitude language used where no source is available",
+      "passed": false,
+      "evidence": "Specific numbers asserted without citation: 6-year audit retention, AES-256/TLS 1.2+, 2/5-minute auto-lock, 44x44/48x48 touch targets, 3-second cold start, 30-minute offline window, 7.5 minutes per patient, 60–90 seconds per patient. No '(Inferred)' markers; no source attribution."
+    }
+  ]
+}

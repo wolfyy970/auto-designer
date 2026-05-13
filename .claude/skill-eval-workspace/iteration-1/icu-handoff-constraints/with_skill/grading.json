@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "Strategic-vs-execution test passes — every constraint passes the operational test; no rendering-layer guidance (sizing, contrast, motion, copy patterns) appears as if it filters the exploration space",
+      "passed": true,
+      "evidence": "Every paragraph filters direction viability (surface choice, HIPAA/TJC, glove/fluid reach, 30/4 time ceiling, EHR data availability). Rendering specifics (contrast levels, target sizing, sound design) are explicitly redirected to execution in the audience-reach paragraph."
+    },
+    {
+      "text": "Applicable regulatory frameworks named — the author has identified the specific frameworks that constitute deal-breakers for this brief's audience and use case",
+      "passed": true,
+      "evidence": "Names HIPAA (45 CFR Parts 160 and 164), Joint Commission NPSG.02.03.01 (with historical PC.02.02.01 ID), and state nurse-practice acts — specific to ICU handoff in accredited US hospitals."
+    },
+    {
+      "text": "Target surface(s) declared — first sentence states the target surface(s): specific surface, surface mix, or explicit `open` marker",
+      "passed": true,
+      "evidence": "First sentence (bold): 'Target surface: mobile-native or mobile-web on the scrub-pocket smartphone, paired with the workstation-on-wheels EHR display as the reference surface.' Native-vs-web is open for hypotheses."
+    },
+    {
+      "text": "Audience reach realities named where they filter viability — phrased as exploration-space filters; not as execution-layer accessibility-rendering rules",
+      "passed": true,
+      "evidence": "Glove/fluid interaction and night-shift/fatigue/ambient-lighting framed as 'directions that... are not viable for the surface as actually used at the bedside.' Parenthetical explicitly routes rendering accommodations to execution."
+    },
+    {
+      "text": "Cognitive / institutional / operational realities at the strategic level — phrased as filters on the exploration space, not as rendering rules for the prototype",
+      "passed": true,
+      "evidence": "30-min/4-patient ceiling phrased as 'directions that require more than approximately 7 minutes... are not viable.' CLT/working-memory (Sweller, Cowan) applied at viability level; SBAR/I-PASS/verbal-report incumbent reality phrased as change-management filter."
+    },
+    {
+      "text": "Hard data and access realities surfaced where applicable — when the data, institutional relationship, or audience-side context doesn't exist",
+      "passed": true,
+      "evidence": "EHR vendor landscape (Epic/Cerner/Meditech) with FHIR R4/HL7 v2 integration named as feasibility gate; the 'has a feeling' content explicitly identified as the inverse data-access problem; family context partially-nowhere."
+    },
+    {
+      "text": "No execution-layer guidance — none of the cross-reference categories (typography, color, motion, contrast, sizing, copy patterns, response-time targets) appears in the body",
+      "passed": true,
+      "evidence": "Body contains no typography, color tokens, motion, contrast specifics, sizing rules, or rendering-level response-time targets. Where the topic could drift (accessibility, ambient conditions), the parenthetical redirects to execution."
+    },
+    {
+      "text": "No success criteria — design properties for evaluation and their failure-modes-of-overpursuit are absent (those belong in design-evaluation)",
+      "passed": true,
+      "evidence": "No 'the design must achieve X' or 'success criterion is Y' framing. Language consistently 'directions that... are not viable' — filter language, not evaluation language."
+    },
+    {
+      "text": "No research findings beyond what's needed to make a constraint relevant — research findings appear only where they ground a constraint's relevance",
+      "passed": true,
+      "evidence": "Research citations (Sweller, Cowan, Starmer/NEJM 2014, CDC standard precautions) appear only as grounding for specific filters; no standalone audience narrative or research-doc duplication."
+    },
+    {
+      "text": "Length appropriate — 4–6 short paragraphs",
+      "passed": true,
+      "evidence": "Five paragraphs total: surface, regulatory, audience-reach, cognitive/institutional/operational, data/access."
+    },
+    {
+      "text": "Empirical claims sourced or marked (Inferred) — sourced claims have citations; extensions are marked (Inferred); qualitative magnitude language used where no source is available",
+      "passed": true,
+      "evidence": "45 CFR cite, NPSG.02.03.01 ID, NEJM 2014 (Starmer et al.), named cognitive frameworks (Sweller, Cowan), CDC standard precautions. Inferences (shift-end cognitive load, time-budget arithmetic) explicitly marked '(Inferred)'."
+    }
+  ]
+}

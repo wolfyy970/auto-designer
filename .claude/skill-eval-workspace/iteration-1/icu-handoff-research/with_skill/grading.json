@@ -1,0 +1,54 @@
+{
+  "expectations": [
+    {
+      "text": "Audience characterized at a useful specificity — narrow enough that some direction shapes are clearly right and some clearly wrong",
+      "passed": true,
+      "evidence": "Para 1: 'critical-care nurses at the moment of shift change, transferring responsibility for high-acuity patients between outgoing and oncoming nurse' with the tacit/structured layer distinction; narrow enough to filter direction shapes."
+    },
+    {
+      "text": "Current state of the landscape named — what tools or services the audience uses today, and the named ways those tools fail",
+      "passed": true,
+      "evidence": "Para 2 names SBAR, I-PASS, EHR-supported handoff modules, AHRQ-endorsed bedside shift report with specific failure modes (workload adherence barriers, 'too generic' EHR summaries, 34% workaround rate, interruption rates)."
+    },
+    {
+      "text": "Real research signals only — aggregate signals, sourced findings, paraphrased user behavior; no fabricated quotes; no composite case studies with first-name attribution",
+      "passed": true,
+      "evidence": "Aggregate signals only; cites Starmer et al., AHRQ PSNet, Joint Commission, Benner. No invented quotes or first-name personas."
+    },
+    {
+      "text": "Citations or (Inferred) markers on empirical claims — sources cited where claims are empirical; (Inferred) marks extensions",
+      "passed": true,
+      "evidence": "Joint Commission Sentinel Event Annual Review, AHRQ PSNet, I-PASS literature, Nurse Intuition Patient Deterioration Scale all named; one (Inferred) marker on para 3."
+    },
+    {
+      "text": "Source-quality hierarchy respected AND the highest-tier source available was reached for — primary government, peer-reviewed, or established non-profit sources used where they exist for this domain",
+      "passed": true,
+      "evidence": "AHRQ (government), Joint Commission (accrediting body), peer-reviewed patient-safety literature (Starmer/I-PASS), Benner framework. No vendor blogs as foundational sources."
+    },
+    {
+      "text": "Strategic, not execution — every claim passes the operational test; no rendering-layer guidance appears",
+      "passed": true,
+      "evidence": "All claims affect direction choice (which layer to carry, unit variability, expertise variability). No typography, contrast, sizing, motion, or component-level guidance."
+    },
+    {
+      "text": "No success criteria smuggled in — quantified targets and KPIs are absent",
+      "passed": true,
+      "evidence": "Percentages cited (34% workaround rate, interruption ranges) are facts about the landscape, not targets for the design."
+    },
+    {
+      "text": "No direction candidates smuggled in for the design — solution-shape proposals for the design are absent; landscape players (what the audience confronts today) is fine",
+      "passed": true,
+      "evidence": "Strategic-opportunity paragraph names the gap (tacit + decision-horizon layer) without prescribing shape; no 'could be X, Y, or Z' list of design shapes."
+    },
+    {
+      "text": "No execution-layer guidance — no typography, contrast, sizing, motion, ARIA, copy-pattern specifics",
+      "passed": true,
+      "evidence": "No execution-layer rendering content anywhere in the doc."
+    },
+    {
+      "text": "Length appropriate — 4–6 short paragraphs",
+      "passed": true,
+      "evidence": "Four paragraphs (audience, landscape, audience variance, strategic positioning); within the 4-6 range."
+    }
+  ]
+}

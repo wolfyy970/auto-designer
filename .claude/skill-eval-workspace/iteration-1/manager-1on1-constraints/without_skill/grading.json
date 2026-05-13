@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "Strategic-vs-execution test passes — every constraint passes the operational test; no rendering-layer guidance (sizing, contrast, motion, copy patterns) appears as if it filters the exploration space",
+      "passed": false,
+      "evidence": "Body smuggles in rendering-layer guidance as filters: C-2.2 'Output must be skim-readable in under 60 seconds', C-6.1 WCAG 2.2 AA conformance, C-6.2 'must work without audio output', C-6.3 'must work without continuous typing' — these prescribe rendering patterns rather than filter the exploration space."
+    },
+    {
+      "text": "Applicable regulatory frameworks named — the author has identified the specific frameworks that constitute deal-breakers for this brief's audience and use case",
+      "passed": false,
+      "evidence": "No specific frameworks named. C-4.3 references 'GDPR/CCPA-class data minimization principles applied to employee data' generically. Missing the actually-applicable frameworks for employment-context tools: Title VII, ADA, ADEA, EEOC AI guidance, NLRA Section 7, state employee monitoring laws."
+    },
+    {
+      "text": "Target surface(s) declared — first sentence states the target surface(s): specific surface, surface mix, or explicit `open` marker",
+      "passed": false,
+      "evidence": "First sentence is a preamble: 'These are the non-negotiable boundaries that any candidate direction must respect.' Surface declarations appear in section 3 (C-3.1, C-3.3, C-3.4), buried mid-document and never as an explicit opening surface declaration."
+    },
+    {
+      "text": "Audience reach realities named where they filter viability — phrased as exploration-space filters; not as execution-layer accessibility-rendering rules",
+      "passed": false,
+      "evidence": "C-6.1 'WCAG 2.2 AA conformance for any shipped interface. Standard floor for any product targeting professional users' is the canonical floor-framing anti-pattern named in skill section 1.5. Audience reach is not reframed as filter; accessibility appears as rendering rule."
+    },
+    {
+      "text": "Cognitive / institutional / operational realities at the strategic level — phrased as filters on the exploration space, not as rendering rules for the prototype",
+      "passed": false,
+      "evidence": "C-2.2 'Output must be skim-readable in under 60 seconds' is a rendering rule, not a viability filter. C-2.3 'Partial context must be tolerated and usefully degraded' is a state-handling rule. Mixed with strategic constraints but contains explicit rendering prescriptions."
+    },
+    {
+      "text": "Hard data and access realities surfaced where applicable — when the data, institutional relationship, or audience-side context doesn't exist",
+      "passed": false,
+      "evidence": "No surfacing of data realities such as 'the prior 1:1 notes the brief implies often do not exist' or 'cross-tool access requires admin install.' C-3.2 talks about scoping write-access but does not surface the underlying data-availability problem the brief's audience faces."
+    },
+    {
+      "text": "No execution-layer guidance — none of the cross-reference categories (typography, color, motion, contrast, sizing, copy patterns, response-time targets) appears in the body",
+      "passed": false,
+      "evidence": "Body contains response-time/rendering targets ('skim-readable in under 60 seconds'), modality rules (C-6.2 no audio, C-6.3 no continuous typing), and WCAG conformance — all execution-layer categories from the cross-reference table."
+    },
+    {
+      "text": "No success criteria — design properties for evaluation and their failure-modes-of-overpursuit are absent (those belong in design-evaluation)",
+      "passed": false,
+      "evidence": "C-1.3 'First-use value within the first prep session' is a success criterion. C-2.2 'Output must be skim-readable in under 60 seconds' sets a measurable success threshold. The 'How to use this document' section frames the doc as a design-evaluation rubric ('mark each constraint as respected, violated, or at risk')."
+    },
+    {
+      "text": "No research findings beyond what's needed to make a constraint relevant — research findings appear only where they ground a constraint's relevance",
+      "passed": true,
+      "evidence": "Sources are mostly 'brief — ...' and 'behavioral inference' attributions. No standalone research-narrative content duplicating research-doc material."
+    },
+    {
+      "text": "Length appropriate — 4–6 short paragraphs",
+      "passed": false,
+      "evidence": "8 numbered sections (Time and Attention, Cognitive Load, Surface, Privacy, Tone, Accessibility, Scope, Evidentiary) with 20+ sub-constraints, plus 'What is explicitly not a constraint' and 'How to use this document' sections. Vastly exceeds the 4–6-paragraph target."
+    },
+    {
+      "text": "Empirical claims sourced or marked (Inferred) — sourced claims have citations; extensions are marked (Inferred); qualitative magnitude language used where no source is available",
+      "passed": false,
+      "evidence": "Numeric thresholds ('60 seconds', '10 minutes', '15-30 minutes') and behavioral claims asserted without citation. No explicit '(Inferred)' markers used as the skill prescribes; many sources cite back only to 'brief' or 'behavioral inference' without source-quality attribution."
+    }
+  ]
+}

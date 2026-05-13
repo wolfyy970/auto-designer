@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "Strategic-vs-execution test passes — every constraint passes the operational test; no rendering-layer guidance (sizing, contrast, motion, copy patterns) appears as if it filters the exploration space",
+      "passed": true,
+      "evidence": "All constraints are phrased as filters on which directions are viable ('directions that hard-code a threshold value...', 'directions that depend on a unified federal API do not exist as feasible'). Explicit redirects: 'The technical mechanics of resumability live in execution; the strategic constraint is...'"
+    },
+    {
+      "text": "Applicable regulatory frameworks named — the author has identified the specific frameworks that constitute deal-breakers for this brief's audience and use case",
+      "passed": true,
+      "evidence": "Names IRC Title 26, Treasury Regulations, IRS Pubs 334/535/583/463, Schedule C/SE/1040-ES/1065/K-1/1120-S/1120, §6654/§6694/§6651/§6656/§7216/§168/§179/§199A/§6050W/§6501, Wayfair (138 S. Ct. 2080), AB 5 ABC test, CTA / 31 USC §5336, Circular 230, IRS Pub 1345/MeF — specific and applicable."
+    },
+    {
+      "text": "Target surface(s) declared — first sentence states the target surface(s): specific surface, surface mix, or explicit `open` marker",
+      "passed": true,
+      "evidence": "First sentence (bold): 'Target surfaces: open across the tax-year cycle, but the surface choice must survive the audience's actual context.' Includes the explicit `open` marker per skill section 1.2."
+    },
+    {
+      "text": "Audience reach realities named where they filter viability — phrased as exploration-space filters; not as execution-layer accessibility-rendering rules",
+      "passed": true,
+      "evidence": "Hispanic/immigrant/LEP segments, disability composition (cognitive/motor/vision), and time-availability variation phrased as 'Directions that assume a single archetype... reach only a slice of the audience.' Explicit redirect: '(Rendering-level accessibility and localization specifics live in execution work, not here.)'"
+    },
+    {
+      "text": "Cognitive / institutional / operational realities at the strategic level — phrased as filters on the exploration space, not as rendering rules for the prototype",
+      "passed": true,
+      "evidence": "Mullainathan & Shafir Scarcity and Sweller CLT applied at viability level — 'Direction shapes that require the owner to surface every transaction in a single session, that gate progress on a Form 1099... do not survive contact with the audience's actual condition.' No rendering rules attached."
+    },
+    {
+      "text": "Hard data and access realities surfaced where applicable — when the data, institutional relationship, or audience-side context doesn't exist",
+      "passed": true,
+      "evidence": "Names no unified federal API; partial IRS Online Account; e-Services credentialing gate; 50+ state DOR portals; QuickBooks/Xero/Plaid integration heterogeneity; 1099-K threshold flux per Notice 2024-85; IP-PIN identity layer — extensive data/access realities surfaced."
+    },
+    {
+      "text": "No execution-layer guidance — none of the cross-reference categories (typography, color, motion, contrast, sizing, copy patterns, response-time targets) appears in the body",
+      "passed": true,
+      "evidence": "Body contains no typography, color, motion, contrast, sizing, copy-pattern specifics, or response-time targets. Where rendering could intrude (accessibility, resumability mechanics), explicit redirects route to execution."
+    },
+    {
+      "text": "No success criteria — design properties for evaluation and their failure-modes-of-overpursuit are absent (those belong in design-evaluation)",
+      "passed": true,
+      "evidence": "Language is consistently filter-style: 'is not a viable direction,' 'do not exist as feasible,' 'do not survive contact.' No 'the design must achieve X' or success-metric framing."
+    },
+    {
+      "text": "No research findings beyond what's needed to make a constraint relevant — research findings appear only where they ground a constraint's relevance",
+      "passed": false,
+      "evidence": "Paragraph 4 expands into a research narrative on audience composition (33 million small businesses, entity-type distribution from sole-prop through C-corp, tax-knowledge baseline range, language baseline) that goes beyond what is needed to ground reach filters. Paragraph 5 layers extensive research grounding (Mullainathan & Shafir, GAO, TAS) where shorter citation would suffice. Duplicates content that belongs in the research doc."
+    },
+    {
+      "text": "Length appropriate — 4–6 short paragraphs",
+      "passed": false,
+      "evidence": "9 paragraphs total (surface, regulatory, trust/advice posture, audience reach, cognitive/operational, connectivity/resumability, data/access, fraud/identity, deadline-binding) plus dense paragraph lengths — well exceeds the 4–6 short-paragraph target in skill section 1.6."
+    },
+    {
+      "text": "Empirical claims sourced or marked (Inferred) — sourced claims have citations; extensions are marked (Inferred); qualitative magnitude language used where no source is available",
+      "passed": true,
+      "evidence": "Statute and section numbers, IRS Notice 2024-85, Wayfair full citation (138 S. Ct. 2080), AB 5 ABC test, 31 USC §5336, Mullainathan & Shafir 2013 by name, FTC Intuit settlement linked, GAO and TAS named, US Census County Business Patterns and SBA named. Inferences marked where applicable."
+    }
+  ]
+}
