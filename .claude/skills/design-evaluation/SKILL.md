@@ -167,6 +167,7 @@ Surface the rubric scoring underneath the doc so the human reviewer can sanity-c
 3. **Binding regulatory rules.** When a criterion is "the design must comply with X regulation," the regulation is a strategic constraint and belongs in design-constraints, not as an objective the design pursues.
 4. **The brief's user-side outcome restated unchanged as the criterion.** The brief says what the user must accomplish; the evaluation doc must say what the *design* must do to let them. Restating the outcome verbatim skips the translation work.
 5. **Properties without failure-modes-of-overpursuit.** A property that doesn't name its trade-off is incomplete. The pairing is the heart of the pattern.
+6. **Stylistic templating across the corpus.** A second-order failure: when every objective paragraph in a corpus opens with "The design should X" and closes with "The failure mode to avoid: Y" in identical three-beat rhythm across many domain-disparate briefs, the agents are filling a form. The property + failure-mode-of-overpursuit pairing is what the rubric tests for; the exact phrasing template is not required. Let the brief's domain shape the language — sometimes the natural opening is a noun phrase ("State legibility is..."), sometimes a question, sometimes a verb other than "should." Vary the rhythm; the rubric tests for substance, not for ritual.
 
 ## Sourcing process (when authoring an evaluation doc from scratch)
 
