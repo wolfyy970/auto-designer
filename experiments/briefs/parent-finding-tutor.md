@@ -1,17 +1,9 @@
 # A parent finding tutoring for a child struggling in math — design exploration
 
-## Situation
+**Situation.** A child in 4th, 6th, or 8th grade is struggling in math. The grades have slipped; the teacher has sent a note; the standardized test result came back lower than expected. The parent has a few hours over the next two weeks to set something up, working evenings around their own job and the rest of the family's calendar.
 
-A child in 4th, 6th, or 8th grade is struggling in math. The grades have slipped; the teacher has sent a note; the standardized test result came back lower than expected. The parent has a few hours over the next two weeks to set something up, working evenings around their own job and the rest of the family's calendar.
+**Complication.** The parent is facing a tangle of options the landscape currently presents: the local tutoring chain (predictable but expensive, small-group, weekly); a private tutor matched through a friend (variable quality and availability); online tutoring marketplaces and free practice platforms; the school's own intervention program if the kid qualifies; AI-tutor apps that promise personalization. The parent cannot easily tell which option is matched to what works versus what's marketing. They are not the math expert.
 
-## Complication
+**Users.** A parent–child dyad at the moment of choosing help. The parent is the procurer and decider — scheduling, paying, reading reviews, judging fit. The child is the recipient and the one whose engagement determines whether any of this works; they are sensitive to the framing, since *you need a tutor* can feel like a judgment, and a kid who closes off doesn't learn from anyone. Tutor candidates and school staff are stakeholders the design accommodates, not the target.
 
-The parent is facing a tangle of options the landscape currently presents: the local tutoring chain (predictable but expensive, small-group, weekly); a private tutor matched through a friend (variable quality and availability); online tutoring marketplaces and free practice platforms; the school's own intervention program if the kid qualifies; AI-tutor apps that promise personalization. The parent cannot easily tell which option is matched to what works versus what's marketing. They are not the math expert.
-
-## Users
-
-A parent–child dyad at the moment of choosing help. The parent is the procurer and decider — scheduling, paying, reading reviews, judging fit. The child is the recipient and the one whose engagement determines whether any of this works; they are sensitive to the framing, since *you need a tutor* can feel like a judgment, and a kid who closes off doesn't learn from anyone. Tutor candidates and school staff are stakeholders the design accommodates, not the target.
-
-## Cost
-
-Weeks pass while the parent stalls between bad options; the child falls further behind in a subject that compounds; the wrong choice burns money and the child's willingness to try again. The scope is from "we need help" through "we have a plan and a tutor we trust."
+**Cost.** Weeks pass while the parent stalls between bad options; the child falls further behind in a subject that compounds; the wrong choice burns money and the child's willingness to try again. The scope is from "we need help" through "we have a plan and a tutor we trust."

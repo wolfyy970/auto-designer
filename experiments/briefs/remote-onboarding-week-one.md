@@ -1,17 +1,9 @@
 # Remote new-hire onboarding, week one — design exploration
 
-## Situation
+**Situation.** A competent professional joins a remote-first company on Monday. They have never met their team in person. They've done this before — they know how to set up a laptop and learn a new codebase. The HR-built first week is nine meetings Monday, six Tuesday; a stack of documentation; a Notion they still can't fully access; benefits links, security trainings, and a Slack workspace with a hundred channels.
 
-A competent professional joins a remote-first company on Monday. They have never met their team in person. They've done this before — they know how to set up a laptop and learn a new codebase. The HR-built first week is nine meetings Monday, six Tuesday; a stack of documentation; a Notion they still can't fully access; benefits links, security trainings, and a Slack workspace with a hundred channels.
+**Complication.** What's hard isn't the work; it's everything around it. They don't know this team's norms, this manager's actual (not stated) preferences, who is the person you actually ask about benefits. Remote replaces the watercooler, the lunch tag-along, and the overheard standup with calendar invites — which aren't the same thing. By Wednesday the orientation rush slows; by Thursday they're alone with documentation and unsure who to ask what, anxious about asking questions that would mark them as not-yet-onboard.
 
-## Complication
+**Users.** The new hire — a competent professional starting cold inside a remote-first company, navigating their first five working days from a home desk. The hiring manager, peers on the team, HR, and IT provisioning are stakeholders whose work shapes the week but who are not the target of the design.
 
-What's hard isn't the work; it's everything around it. They don't know this team's norms, this manager's actual (not stated) preferences, who is the person you actually ask about benefits. Remote replaces the watercooler, the lunch tag-along, and the overheard standup with calendar invites — which aren't the same thing. By Wednesday the orientation rush slows; by Thursday they're alone with documentation and unsure who to ask what, anxious about asking questions that would mark them as not-yet-onboard.
-
-## Users
-
-The new hire — a competent professional starting cold inside a remote-first company, navigating their first five working days from a home desk. The hiring manager, peers on the team, HR, and IT provisioning are stakeholders whose work shapes the week but who are not the target of the design.
-
-## Cost
-
-The five-day window from joining to belonging is where the relationship is made or lost; new hires who don't feel onboard by Friday carry that uncertainty into the next month, hesitate to ask, and quietly disengage. Companies bleed early-tenure hires at exactly this point. The scope is the first five working days, Monday morning to Friday afternoon.
+**Cost.** The five-day window from joining to belonging is where the relationship is made or lost; new hires who don't feel onboard by Friday carry that uncertainty into the next month, hesitate to ask, and quietly disengage. Companies bleed early-tenure hires at exactly this point. The scope is the first five working days, Monday morning to Friday afternoon.

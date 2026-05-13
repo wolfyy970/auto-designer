@@ -1,17 +1,9 @@
 # First contact with 988, the crisis line — design exploration
 
-## Situation
+**Situation.** Someone is reaching out to the US crisis line — 988 — for the first time. They may be experiencing a suicidal crisis, an acute panic episode, a substance-use crisis, or distress around grief, abuse, or identity. They may be the person in crisis, or a friend or family member trying to help someone else. They are reaching out at a moment of acute vulnerability and have a choice to make about whether to stay on the line.
 
-Someone is reaching out to the US crisis line — 988 — for the first time. They may be experiencing a suicidal crisis, an acute panic episode, a substance-use crisis, or distress around grief, abuse, or identity. They may be the person in crisis, or a friend or family member trying to help someone else. They are reaching out at a moment of acute vulnerability and have a choice to make about whether to stay on the line.
+**Complication.** The first sixty seconds are determinative. What does this look like; will I be judged; what's about to happen; will police be sent to my address if I say the wrong thing. People who have heard that police might be dispatched are hesitant in ways the system has to meet; people who have never reached out before are calibrating from the screen, the voice, the hold music. The decision to keep reaching, or to hang up and not try again, is made before anyone has said anything.
 
-## Complication
+**Users.** The first-time reacher — the person in crisis, or the friend or family member calling on their behalf — in the opening seconds before a counselor has spoken. Counselors and dispatchers are stakeholders the design hands off to, not optimizes for. Scope is the call, text, or chat opening plus the immediate next step; the counselor protocol itself is out of scope.
 
-The first sixty seconds are determinative. What does this look like; will I be judged; what's about to happen; will police be sent to my address if I say the wrong thing. People who have heard that police might be dispatched are hesitant in ways the system has to meet; people who have never reached out before are calibrating from the screen, the voice, the hold music. The decision to keep reaching, or to hang up and not try again, is made before anyone has said anything.
-
-## Users
-
-The first-time reacher — the person in crisis, or the friend or family member calling on their behalf — in the opening seconds before a counselor has spoken. Counselors and dispatchers are stakeholders the design hands off to, not optimizes for. Scope is the call, text, or chat opening plus the immediate next step; the counselor protocol itself is out of scope.
-
-## Cost
-
-When the first sixty seconds don't hold, the person hangs up and does not try again. The next acute moment arrives without a line they trust. The friend who was calling for someone else goes back with nothing to offer.
+**Cost.** When the first sixty seconds don't hold, the person hangs up and does not try again. The next acute moment arrives without a line they trust. The friend who was calling for someone else goes back with nothing to offer.
