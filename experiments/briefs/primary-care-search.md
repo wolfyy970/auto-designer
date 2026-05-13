@@ -1,9 +1,17 @@
 # Finding a primary care doctor after relocating — design exploration
 
-**Situation.** A person has moved to a new city and needs a primary care doctor. They have insurance, and their plan's website hands them an in-network directory — several hundred names, sorted by ZIP code. The directory shows specialties and addresses. It rarely shows which practices are accepting new patients, what the next available appointment actually is, which clinicians speak the languages spoken in the patient's household, whether the office is wheelchair-accessible, or how the practice handles diabetes care, mental-health needs, or pregnancy.
+## Situation
 
-**Complication.** The patient calls one office, sits on hold for ten minutes, navigates a phone tree, and is told the next opening is in five months — or that the practice isn't accepting new patients at all. Then the next call. Then the next. The options they are choosing between in the landscape today include the in-network directory itself, telehealth services their plan covers, federally-qualified health centers in the area, and direct primary care practices that bill outside insurance — none of which the directory surfaces side-by-side.
+A person has moved to a new city and needs a primary care doctor. They have insurance, and their plan's website hands them an in-network directory — several hundred names, sorted by ZIP code. The directory shows specialties and addresses. It rarely shows which practices are accepting new patients, what the next available appointment actually is, which clinicians speak the languages spoken in the patient's household, whether the office is wheelchair-accessible, or how the practice handles diabetes care, mental-health needs, or pregnancy.
 
-**Users.** A patient looking for a primary care doctor in a new city. Some have active conditions — chronic pain, diabetes, anxiety — and need to start care now; others are establishing routine care and re-engage only when something goes wrong. The insurance plan, the in-network directory, the practices, and telehealth providers are stakeholder context the design accommodates, not the target.
+## Complication
 
-**Cost.** Delayed care for people who need it now; undiagnosed conditions for those who give up early; emergency visits for what should have been clinic visits. The scope is from "I need a new doctor" through "I have an appointment booked."
+The patient calls one office, sits on hold for ten minutes, navigates a phone tree, and is told the next opening is in five months — or that the practice isn't accepting new patients at all. Then the next call. Then the next. The options they are choosing between in the landscape today include the in-network directory itself, telehealth services their plan covers, federally-qualified health centers in the area, and direct primary care practices that bill outside insurance — none of which the directory surfaces side-by-side.
+
+## Users
+
+A patient looking for a primary care doctor in a new city. Some have active conditions — chronic pain, diabetes, anxiety — and need to start care now; others are establishing routine care and re-engage only when something goes wrong. The insurance plan, the in-network directory, the practices, and telehealth providers are stakeholder context the design accommodates, not the target.
+
+## Cost
+
+Delayed care for people who need it now; undiagnosed conditions for those who give up early; emergency visits for what should have been clinic visits. The scope is from "I need a new doctor" through "I have an appointment booked."

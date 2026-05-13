@@ -1,9 +1,17 @@
 # Discharge instructions for older adults going home — design exploration
 
-**Situation.** An older adult is being discharged from the hospital this afternoon after a heart-failure exacerbation, a stroke, a fall, or pneumonia. A family caregiver — often an adult child who has travelled in — will run the first week or two at home. The nurse has roughly fifteen minutes to walk through six pages of paperwork before the next admission needs the room.
+## Situation
 
-**Complication.** The patient is in pain, on medications that affect cognition, exhausted and emotionally activated; what they remember of those fifteen minutes once home is fragmentary. The caregiver who will administer the next thirty days is sometimes in the room and sometimes not. A few days later, the patient is trying to figure out which white pill is the new beta-blocker, what "weigh yourself daily and call if you gain more than three pounds in a week" means in practice, whether today's ankle swelling is a warning sign, and what the printed phone number is for after hours. The discharge papers are face-down on the kitchen table next to the medication bottles. The follow-up is in eleven days.
+An older adult is being discharged from the hospital this afternoon after a heart-failure exacerbation, a stroke, a fall, or pneumonia. A family caregiver — often an adult child who has travelled in — will run the first week or two at home. The nurse has roughly fifteen minutes to walk through six pages of paperwork before the next admission needs the room.
 
-**Users.** The dyad post-discharge: the older adult patient recovering at home, and the family caregiver — often an adult child — running the first week or two of medications, warning signs, and follow-up logistics. The discharging nurse and follow-up clinic are stakeholders the design accommodates; the design is for the dyad once paperwork has come home.
+## Complication
 
-**Cost.** Between now and the follow-up, it is the patient and the caregiver and the paperwork. The cost of getting it wrong is a missed warning sign, a doubled medication, a readmission. Scope is the discharge moment plus the first 7–14 days at home; the clinical care plan is out of scope.
+The patient is in pain, on medications that affect cognition, exhausted and emotionally activated; what they remember of those fifteen minutes once home is fragmentary. The caregiver who will administer the next thirty days is sometimes in the room and sometimes not. A few days later, the patient is trying to figure out which white pill is the new beta-blocker, what "weigh yourself daily and call if you gain more than three pounds in a week" means in practice, whether today's ankle swelling is a warning sign, and what the printed phone number is for after hours. The discharge papers are face-down on the kitchen table next to the medication bottles. The follow-up is in eleven days.
+
+## Users
+
+The dyad post-discharge: the older adult patient recovering at home, and the family caregiver — often an adult child — running the first week or two of medications, warning signs, and follow-up logistics. The discharging nurse and follow-up clinic are stakeholders the design accommodates; the design is for the dyad once paperwork has come home.
+
+## Cost
+
+Between now and the follow-up, it is the patient and the caregiver and the paperwork. The cost of getting it wrong is a missed warning sign, a doubled medication, a readmission. Scope is the discharge moment plus the first 7–14 days at home; the clinical care plan is out of scope.
