@@ -231,7 +231,7 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
                       <span className="font-medium text-fg-secondary">Off (default):</span> the
                       incubator generates hypotheses directly from your inputs.{' '}
                       <span className="font-medium text-fg-secondary">On:</span> an extra step
-                      first brainstorms 10–15 wild product directions, then curates 5 for maximum
+                      first brainstorms 10–15 product directions, then curates 5 for maximum
                       spread. Wider variety, ~50% slower. Best for open-ended briefs.
                     </>
                   }
