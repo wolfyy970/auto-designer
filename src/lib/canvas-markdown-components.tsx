@@ -1,6 +1,7 @@
 /**
- * Streamdown overrides for the agent activity timeline: replace system emoji in
- * headings (and plain-text blocks) with Lucide icons that match the design system.
+ * Streamdown overrides for canvas markdown surfaces (variant activity timeline,
+ * build retrospective, etc.): replace system emoji in headings (and plain-text
+ * blocks) with Lucide icons that match the design system.
  */
 import React, {
   createElement,
@@ -225,7 +226,7 @@ function emojiAwarePlainBlock(
 }
 
 /** Pass into Streamdown `components` for canvas variant-run timelines only. */
-export const streamdownTimelineComponents: Partial<Components> = {
+export const canvasMarkdownComponents: Partial<Components> = {
   h1: makeTimelineHeading('h1'),
   h2: makeTimelineHeading('h2'),
   h3: makeTimelineHeading('h3'),

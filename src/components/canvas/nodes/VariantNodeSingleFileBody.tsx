@@ -1,4 +1,5 @@
 import { Loader2, AlertCircle } from 'lucide-react';
+import { PreviewHoverOverlay } from './PreviewHoverOverlay';
 
 type Props = {
   codeLoading: boolean;
@@ -6,6 +7,7 @@ type Props = {
   htmlContent: string;
   variantName: string;
   zoom: number;
+  onExpandPreview: () => void;
 };
 
 /** Single-file complete: loading, missing, or iframe preview. */
@@ -15,6 +17,7 @@ export function VariantNodeSingleFileBody({
   htmlContent,
   variantName,
   zoom,
+  onExpandPreview,
 }: Props) {
   return (
     <>
@@ -34,20 +37,26 @@ export function VariantNodeSingleFileBody({
       )}
 
       {code && (
-        <iframe
-          srcDoc={htmlContent}
-          sandbox="allow-scripts"
-          title={`Preview: ${variantName}`}
-          className="absolute left-0 top-0 border-0 bg-preview-canvas"
-          style={{
-            width: `${100 / zoom}%`,
-            height: `${100 / zoom}%`,
-            transform: `scale(${zoom})`,
-            transformOrigin: '0 0',
-            // Canvas cards are thumbnails; expanded preview/run workspace own design interaction.
-            pointerEvents: 'none',
-          }}
-        />
+        <div className="group absolute inset-0">
+          <iframe
+            srcDoc={htmlContent}
+            sandbox="allow-scripts"
+            title={`Preview: ${variantName}`}
+            className="absolute left-0 top-0 border-0 bg-preview-canvas"
+            style={{
+              width: `${100 / zoom}%`,
+              height: `${100 / zoom}%`,
+              transform: `scale(${zoom})`,
+              transformOrigin: '0 0',
+              // Canvas cards are thumbnails; expanded preview/run workspace own design interaction.
+              pointerEvents: 'none',
+            }}
+          />
+          <PreviewHoverOverlay
+            onClick={onExpandPreview}
+            ariaLabel={`Open ${variantName} preview at full screen`}
+          />
+        </div>
       )}
     </>
   );

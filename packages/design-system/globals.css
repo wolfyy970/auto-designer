@@ -488,48 +488,48 @@
   animation: none !important;
 }
 
-/* ── Streamdown timeline ─────────────────────────────────────────── */
-.streamdown-timeline {
+/* ── Canvas markdown (variant timeline, build retrospective, etc.) ── */
+.canvas-markdown {
   font-size: var(--text-nano);
   line-height: 1.55;
 }
-.streamdown-timeline :where(p, ul, ol, li, blockquote, td, th, a) {
+.canvas-markdown :where(p, ul, ol, li, blockquote, td, th, a) {
   font-size: inherit;
   line-height: inherit;
 }
-.streamdown-timeline :where(h1, h2, h3, h4, h5, h6) {
+.canvas-markdown :where(h1, h2, h3, h4, h5, h6) {
   font-size: inherit;
   line-height: 1.35;
   font-weight: 600;
   margin: 0.65em 0 0.35em;
 }
-.streamdown-timeline :where(h1, h2, h3, h4, h5, h6):first-child {
+.canvas-markdown :where(h1, h2, h3, h4, h5, h6):first-child {
   margin-top: 0;
 }
-.streamdown-timeline :where(code, kbd, samp) {
+.canvas-markdown :where(code, kbd, samp) {
   font-size: inherit !important;
   line-height: inherit;
   font-weight: inherit;
   vertical-align: baseline;
 }
-.streamdown-timeline :where(pre) {
+.canvas-markdown :where(pre) {
   font-size: inherit !important;
   line-height: inherit !important;
   margin: 0.5em 0;
 }
-.streamdown-timeline [data-streamdown='code-block'] {
+.canvas-markdown [data-streamdown='code-block'] {
   font-size: var(--text-nano);
   line-height: 1.45;
   margin-block: 0.5rem;
 }
-.streamdown-timeline [data-streamdown='code-block'] :where(pre, code) {
+.canvas-markdown [data-streamdown='code-block'] :where(pre, code) {
   font-size: inherit !important;
   line-height: inherit !important;
 }
-.streamdown-timeline [data-streamdown='code-block'] pre {
+.canvas-markdown [data-streamdown='code-block'] pre {
   margin: 0;
 }
-.streamdown-timeline [data-streamdown='code-block'] span {
+.canvas-markdown [data-streamdown='code-block'] span {
   font-size: inherit !important;
   line-height: inherit !important;
 }

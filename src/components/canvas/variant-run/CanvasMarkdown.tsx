@@ -1,6 +1,6 @@
 import { lazy, Suspense, type ComponentProps } from 'react';
-import { streamdownTimelineComponents } from '../../../lib/streamdown-timeline-components';
-import { resolveStreamdownTimelineControls } from './streamdown-timeline-controls';
+import { canvasMarkdownComponents } from '../../../lib/canvas-markdown-components';
+import { resolveCanvasMarkdownControls } from './canvas-markdown-controls';
 
 const Streamdown = lazy(() =>
   import('streamdown').then((m) => ({ default: m.Streamdown })),
@@ -17,10 +17,12 @@ function StreamdownFallback() {
 }
 
 /**
- * Streamdown + Mermaid are heavy (~800k min). Load only when the variant activity
- * timeline renders so the main canvas bundle stays smaller.
+ * Streamdown + Mermaid are heavy (~800k min). Load only when a canvas surface
+ * actually renders markdown (variant timeline, build retrospective, etc.) so
+ * the main canvas bundle stays smaller. Applies the canvas's shared markdown
+ * typography overrides via `canvasMarkdownComponents`.
  */
-export function StreamdownTimeline({
+export function CanvasMarkdown({
   components,
   controls,
   ...rest
@@ -28,8 +30,8 @@ export function StreamdownTimeline({
   return (
     <Suspense fallback={<StreamdownFallback />}>
       <Streamdown
-        components={{ ...streamdownTimelineComponents, ...components }}
-        controls={resolveStreamdownTimelineControls(controls)}
+        components={{ ...canvasMarkdownComponents, ...components }}
+        controls={resolveCanvasMarkdownControls(controls)}
         {...rest}
       />
     </Suspense>

@@ -31,7 +31,7 @@ import { VariantNodeGenerating } from './VariantNodeGenerating';
 import { VariantNodeErrorState } from './VariantNodeErrorState';
 import { VariantNodePendingState } from './VariantNodePendingState';
 import { VariantNodeSingleFileBody } from './VariantNodeSingleFileBody';
-import { VariantNodeMultiFileBody } from './VariantNodeMultiFileBody';
+import { VariantNodeMultiFileBody, type VariantNodeTab } from './VariantNodeMultiFileBody';
 import { useVariantNodeDebugExport } from './useVariantNodeDebugExport';
 
 type VariantNodeType = Node<PreviewNodeData, 'preview'>;
@@ -104,7 +104,10 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
     });
   }, [previewDeleteCopy, removeFromCanvas, requestPermanentDelete]);
 
-  const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
+  const [activeTab, setActiveTab] = useState<VariantNodeTab>('preview');
+  const handleExpandPreview = useCallback(() => {
+    setExpandedPreview(id);
+  }, [id, setExpandedPreview]);
   const [activeCodeFile, setActiveCodeFile] = useState<string | undefined>(undefined);
 
   const currentFiles = files ?? result?.liveFiles;
@@ -242,7 +245,7 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
         resetZoom={resetZoom}
         onDownload={() => setDebugExportOpen(true)}
         onDeleteVersion={confirmDeleteVersion}
-        onExpand={() => setExpandedPreview(id)}
+        onExpand={handleExpandPreview}
         onToggleWorkspace={() =>
           isWorkspaceOpen ? closeRunInspector() : setRunInspectorPreview(id)
         }
@@ -289,6 +292,7 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
             htmlContent={htmlContent}
             variantName={variantName}
             zoom={zoom}
+            onExpandPreview={handleExpandPreview}
           />
         )}
 
@@ -301,6 +305,7 @@ function VariantNode({ id, data, selected }: NodeProps<VariantNodeType>) {
             onTabChange={setActiveTab}
             activeCodeFile={activeCodeFile}
             onSelectCodeFile={setActiveCodeFile}
+            onExpandPreview={handleExpandPreview}
           />
         )}
       </div>

@@ -1,18 +1,25 @@
 import { RF_INTERACTIVE } from '../../../constants/canvas';
 import FileExplorer from './FileExplorer';
 import { ArtifactPreviewFrame } from '../variant-run';
+import { VariantBuildTab } from './VariantBuildTab';
+import { PreviewHoverOverlay } from './PreviewHoverOverlay';
+
+export type VariantNodeTab = 'preview' | 'code' | 'build';
+
+const TABS: readonly VariantNodeTab[] = ['preview', 'code', 'build'] as const;
 
 type Props = {
   variantName: string;
   zoom: number;
   currentFiles: Record<string, string>;
-  activeTab: 'preview' | 'code';
-  onTabChange: (tab: 'preview' | 'code') => void;
+  activeTab: VariantNodeTab;
+  onTabChange: (tab: VariantNodeTab) => void;
   activeCodeFile: string | undefined;
   onSelectCodeFile: (path: string | undefined) => void;
+  onExpandPreview: () => void;
 };
 
-/** Multi-file complete: preview/code tabs + explorer. */
+/** Multi-file complete: preview/code/build tabs + explorer. */
 export function VariantNodeMultiFileBody({
   variantName,
   zoom,
@@ -21,11 +28,12 @@ export function VariantNodeMultiFileBody({
   onTabChange,
   activeCodeFile,
   onSelectCodeFile,
+  onExpandPreview,
 }: Props) {
   return (
     <div className="absolute inset-0 flex flex-col">
       <div className="flex border-b border-border-subtle bg-surface shrink-0">
-        {(['preview', 'code'] as const).map((tab) => (
+        {TABS.map((tab) => (
           <button
             key={tab}
             onPointerDown={() => onTabChange(tab)}
@@ -40,7 +48,7 @@ export function VariantNodeMultiFileBody({
         ))}
       </div>
       {activeTab === 'preview' && (
-        <div className="relative flex-1 overflow-hidden">
+        <div className="group relative flex-1 overflow-hidden">
           <ArtifactPreviewFrame
             files={currentFiles}
             title={`Preview: ${variantName}`}
@@ -52,6 +60,10 @@ export function VariantNodeMultiFileBody({
               transform: `scale(${zoom})`,
               transformOrigin: '0 0',
             }}
+          />
+          <PreviewHoverOverlay
+            onClick={onExpandPreview}
+            ariaLabel={`Open ${variantName} preview at full screen`}
           />
         </div>
       )}
@@ -78,6 +90,7 @@ export function VariantNodeMultiFileBody({
           </div>
         </div>
       )}
+      {activeTab === 'build' && <VariantBuildTab files={currentFiles} />}
     </div>
   );
 }

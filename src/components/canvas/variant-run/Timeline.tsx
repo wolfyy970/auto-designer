@@ -8,7 +8,7 @@ import {
 import { Brain, Wrench } from 'lucide-react';
 import { RF_INTERACTIVE, TIMELINE_DOT } from '../../../constants/canvas';
 import type { RunTraceEvent, StreamingToolLiveness, ThinkingTurnSlice } from '../../../types/provider';
-import { StreamdownTimeline } from './StreamdownTimeline.tsx';
+import { CanvasMarkdown } from './CanvasMarkdown.tsx';
 import { formatTokEstimate } from '../../../lib/stream-display-format';
 import {
   TimelineAccordionChrome,
@@ -419,13 +419,13 @@ export function Timeline({
           onScroll={onScroll}
           className={`${RF_INTERACTIVE} max-h-full min-h-0 overflow-y-auto px-3 py-1.5 text-fg-muted`}
         >
-          <StreamdownTimeline
+          <CanvasMarkdown
             mode={isStreaming ? 'streaming' : 'static'}
             isAnimating={isStreaming}
-            className="streamdown-timeline"
+            className="canvas-markdown"
           >
             {streamBodyNoTrace}
-          </StreamdownTimeline>
+          </CanvasMarkdown>
         </div>
         {showJump ? <TimelineJumpToLatest onClick={jumpToLatest} /> : null}
       </div>
@@ -452,13 +452,13 @@ export function Timeline({
             </div>
             {fallbackActivity ? (
               <div className="text-fg-muted">
-                <StreamdownTimeline
+                <CanvasMarkdown
                   mode={isStreaming ? 'streaming' : 'static'}
                   isAnimating={isStreaming}
-                  className="streamdown-timeline"
+                  className="canvas-markdown"
                 >
                   {fallbackActivity}
-                </StreamdownTimeline>
+                </CanvasMarkdown>
               </div>
             ) : null}
           </>
@@ -518,13 +518,13 @@ export function Timeline({
 
                   {rawText ? (
                     <div className="text-fg-muted">
-                      <StreamdownTimeline
+                      <CanvasMarkdown
                         mode={isStreaming && isActive ? 'streaming' : 'static'}
                         isAnimating={isStreaming && isActive}
-                        className="streamdown-timeline"
+                        className="canvas-markdown"
                       >
                         {rawText}
-                      </StreamdownTimeline>
+                      </CanvasMarkdown>
                     </div>
                   ) : null}
                 </div>
