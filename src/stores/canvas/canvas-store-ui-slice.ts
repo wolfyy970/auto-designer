@@ -23,11 +23,16 @@ export const createUiSlice: StateCreator<
     | 'consumePendingFitView'
     | 'requestNodeFocus'
     | 'consumePendingNodeFocus'
+    | 'requestFitToNodes'
+    | 'consumePendingFitNodes'
   >
 > = (set, get) => ({
   consumePendingFitView: () => set({ pendingFitViewAfterTemplate: false }),
   requestNodeFocus: (nodeId) => set({ pendingFocusNodeId: nodeId }),
   consumePendingNodeFocus: () => set({ pendingFocusNodeId: null }),
+  requestFitToNodes: (nodeIds) =>
+    set({ pendingFitNodeIds: nodeIds.length > 0 ? [...nodeIds] : null }),
+  consumePendingFitNodes: () => set({ pendingFitNodeIds: null }),
 
   setViewport: (viewport) => set({ viewport }),
 

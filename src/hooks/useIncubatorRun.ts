@@ -1,11 +1,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { incubateStream } from '../api/client';
 import { EDGE_STATUS } from '../constants/canvas';
-import {
-  hypothesisFocusNodeIdsForIncubator,
-  scheduleCanvasFitView,
-  scheduleCanvasFitViewToNodes,
-} from '../lib/canvas-fit-view';
+import { hypothesisFocusNodeIdsForIncubator } from '../lib/canvas-fit-view';
 import { normalizeError } from '../lib/error-utils';
 import {
   createCanvasOperationController,
@@ -40,7 +36,6 @@ interface UseIncubatorRunParams {
    * undefined (treated as false server-side).
    */
   brainstormBeforeIncubator?: boolean;
-  fitView: Parameters<typeof scheduleCanvasFitView>[0];
   setTaskStreamState: Dispatch<SetStateAction<TaskStreamState>>;
 }
 
@@ -53,7 +48,6 @@ export function useIncubatorRun({
   supportsVision,
   hypothesisCount,
   brainstormBeforeIncubator,
-  fitView,
   setTaskStreamState,
 }: UseIncubatorRunParams): () => Promise<void> {
   const appendStrategiesToNode = useIncubatorStore((s) => s.appendStrategiesToNode);
@@ -63,6 +57,7 @@ export function useIncubatorRun({
   const addPlaceholderHypotheses = useCanvasStore((s) => s.addPlaceholderHypotheses);
   const removePlaceholders = useCanvasStore((s) => s.removePlaceholders);
   const setEdgeStatusBySource = useCanvasStore((s) => s.setEdgeStatusBySource);
+  const requestFitToNodes = useCanvasStore((s) => s.requestFitToNodes);
 
   return useCallback(async () => {
     if (
@@ -128,16 +123,17 @@ export function useIncubatorRun({
       appendStrategiesToNode(incubatorId, map);
       syncAfterIncubate(map.hypotheses, incubatorId);
       setEdgeStatusBySource(incubatorId, EDGE_STATUS.COMPLETE);
+      // Defer the fit to CanvasWorkspace: it watches `useNodesInitialized()` so
+      // the new hypothesis nodes are guaranteed to be measured before fitView
+      // runs. A delay-based call here races React Flow's measurement pass.
       const { nodes: nodesAfterSync, edges: edgesAfterSync } = useCanvasStore.getState();
       const focusNodeIds = hypothesisFocusNodeIdsForIncubator(
         incubatorId,
         nodesAfterSync,
         edgesAfterSync,
       );
-      if (focusNodeIds.length > 1) {
-        scheduleCanvasFitViewToNodes(fitView, focusNodeIds);
-      } else {
-        scheduleCanvasFitView(fitView);
+      if (focusNodeIds.length > 0) {
+        requestFitToNodes(focusNodeIds);
       }
     } catch (err) {
       if (!isCurrentOperation()) return;
@@ -157,13 +153,13 @@ export function useIncubatorRun({
     appendStrategiesToNode,
     brainstormBeforeIncubator,
     edges,
-    fitView,
     hypothesisCount,
     incubatorId,
     modelId,
     nodes,
     providerId,
     removePlaceholders,
+    requestFitToNodes,
     setCompiling,
     setEdgeStatusBySource,
     setError,

@@ -158,6 +158,26 @@ describe('canvas-store smoke', () => {
     expect(useCanvasStore.getState().pendingFocusNodeId).toBeNull();
   });
 
+  it('records and consumes a pending fit-to-nodes request', () => {
+    useCanvasStore.getState().requestFitToNodes(['inc-1', 'hypothesis-a', 'hypothesis-b']);
+    expect(useCanvasStore.getState().pendingFitNodeIds).toEqual([
+      'inc-1',
+      'hypothesis-a',
+      'hypothesis-b',
+    ]);
+
+    useCanvasStore.getState().consumePendingFitNodes();
+    expect(useCanvasStore.getState().pendingFitNodeIds).toBeNull();
+  });
+
+  it('clears pendingFitNodeIds when requestFitToNodes is called with an empty list', () => {
+    useCanvasStore.getState().requestFitToNodes(['inc-1']);
+    expect(useCanvasStore.getState().pendingFitNodeIds).toEqual(['inc-1']);
+
+    useCanvasStore.getState().requestFitToNodes([]);
+    expect(useCanvasStore.getState().pendingFitNodeIds).toBeNull();
+  });
+
   it('does not request node focus when materializing optional inputs from a spec', () => {
     useCanvasStore.getState().materializeOptionalInputNodesFromSpec(
       minimalSpec({

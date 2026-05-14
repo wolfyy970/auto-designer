@@ -31,9 +31,17 @@ export interface CanvasStore {
   connectingFrom: { nodeType: CanvasNodeType; handleType: 'source' | 'target' } | null;
   pendingFitViewAfterTemplate: boolean;
   pendingFocusNodeId: string | null;
+  /**
+   * Node IDs to frame next time React Flow reports all nodes measured. Set by
+   * flows that add nodes (e.g. incubation) so the viewport can wait for
+   * measurement to settle before fitting instead of racing the render.
+   */
+  pendingFitNodeIds: readonly string[] | null;
   consumePendingFitView: () => void;
   requestNodeFocus: (nodeId: string) => void;
   consumePendingNodeFocus: () => void;
+  requestFitToNodes: (nodeIds: readonly string[]) => void;
+  consumePendingFitNodes: () => void;
 
   onNodesChange: (changes: Parameters<typeof applyWorkspaceNodeChanges>[0]) => void;
   onEdgesChange: (changes: Parameters<typeof applyWorkspaceEdgeChanges>[0]) => void;

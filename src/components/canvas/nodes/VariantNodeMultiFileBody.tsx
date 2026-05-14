@@ -4,9 +4,9 @@ import { ArtifactPreviewFrame } from '../variant-run';
 import { VariantBuildTab } from './VariantBuildTab';
 import { PreviewHoverOverlay } from './PreviewHoverOverlay';
 
-export type VariantNodeTab = 'preview' | 'code' | 'build';
+export type VariantNodeTab = 'preview' | 'build' | 'code';
 
-const TABS: readonly VariantNodeTab[] = ['preview', 'code', 'build'] as const;
+const TABS: readonly VariantNodeTab[] = ['preview', 'build', 'code'] as const;
 
 type Props = {
   variantName: string;

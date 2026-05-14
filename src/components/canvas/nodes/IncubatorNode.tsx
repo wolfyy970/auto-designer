@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useState } from 'react';
-import { useReactFlow, type NodeProps, type Node } from '@xyflow/react';
+import { type NodeProps, type Node } from '@xyflow/react';
 import { ArrowRight, Plus, RefreshCw } from 'lucide-react';
 import { Button } from '@ds/components/ui/button';
 import { Badge } from '@ds/components/ui/badge';
@@ -41,7 +41,6 @@ const DEFAULT_COUNT = 5;
 type IncubatorNodeFlowType = Node<IncubatorNodeData, 'incubator'>;
 
 function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>) {
-  const { fitView } = useReactFlow();
   const spec = useSpecStore((s) => s.spec);
   const hasDesignBrief = Boolean(spec.sections['design-brief']?.content?.trim());
 
@@ -113,7 +112,6 @@ function IncubatorNode({ id, data, selected }: NodeProps<IncubatorNodeFlowType>)
     supportsVision,
     hypothesisCount,
     brainstormBeforeIncubator,
-    fitView,
     setTaskStreamState,
   });
 

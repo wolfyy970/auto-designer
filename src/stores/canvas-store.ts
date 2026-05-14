@@ -36,6 +36,7 @@ const initialCanvasState: Pick<
   | 'connectingFrom'
   | 'pendingFitViewAfterTemplate'
   | 'pendingFocusNodeId'
+  | 'pendingFitNodeIds'
 > = {
   nodes: [],
   edges: [],
@@ -50,6 +51,7 @@ const initialCanvasState: Pick<
   connectingFrom: null,
   pendingFitViewAfterTemplate: false,
   pendingFocusNodeId: null,
+  pendingFitNodeIds: null,
 };
 
 export const useCanvasStore = create<CanvasStore>()(

@@ -123,6 +123,7 @@ export const createLayoutSlice: StateCreator<
       lineageEdgeIds: new Set(),
       pendingFitViewAfterTemplate: false,
       pendingFocusNodeId: null,
+      pendingFitNodeIds: null,
     });
     get().initializeCanvas();
   },

@@ -5,6 +5,7 @@ import {
   Background,
   BackgroundVariant,
   ReactFlowProvider,
+  useNodesInitialized,
   useReactFlow,
   useStoreApi,
   type Viewport,
@@ -19,6 +20,7 @@ import { INPUT_GHOST_NODE_TYPE, PREVIEW_NODE_GENERATING_Z_INDEX } from '../../co
 import { getPreviewNodeData } from '../../lib/canvas-node-data';
 import {
   scheduleCanvasFitView,
+  scheduleCanvasFitViewToNodes,
   scheduleCanvasStarterView,
   scheduleCanvasFocusToNode,
   DEFAULT_FIT_VIEW_OPTIONS,
@@ -141,7 +143,10 @@ function CanvasInner() {
   const consumePendingFitView = useCanvasStore((s) => s.consumePendingFitView);
   const pendingFocusNodeId = useCanvasStore((s) => s.pendingFocusNodeId);
   const consumePendingNodeFocus = useCanvasStore((s) => s.consumePendingNodeFocus);
+  const pendingFitNodeIds = useCanvasStore((s) => s.pendingFitNodeIds);
+  const consumePendingFitNodes = useCanvasStore((s) => s.consumePendingFitNodes);
   const runInspectorPreviewNodeId = useCanvasStore((s) => s.runInspectorPreviewNodeId);
+  const nodesInitialized = useNodesInitialized();
 
   useEffect(() => {
     initializeCanvas();
@@ -168,6 +173,23 @@ function CanvasInner() {
       if (id != null) window.clearTimeout(id);
     };
   }, [pendingFitViewAfterTemplate, fitView, setCenter, getNodes, consumePendingFitView, rfStore]);
+
+  // Fit to a specific node set (e.g. incubator + freshly-created hypotheses)
+  // once React Flow reports those nodes are measured. Waiting on
+  // `useNodesInitialized()` avoids the race where a delay-based fit fires
+  // before new nodes have been laid out + measured.
+  useEffect(() => {
+    if (!pendingFitNodeIds || pendingFitNodeIds.length === 0) return;
+    if (!nodesInitialized) return;
+    const id = scheduleCanvasFitViewToNodes(
+      fitView,
+      pendingFitNodeIds,
+      consumePendingFitNodes,
+    );
+    return () => {
+      if (id != null) window.clearTimeout(id);
+    };
+  }, [pendingFitNodeIds, nodesInitialized, fitView, consumePendingFitNodes]);
 
   useEffect(() => {
     if (!pendingFocusNodeId) return;
