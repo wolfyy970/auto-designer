@@ -7,6 +7,7 @@ import {
   scheduleCanvasStarterView,
   starterCanvasCameraTarget,
   starterInputNodeIds,
+  hypothesisFocusNodeIdsForIncubator,
   NODE_FOCUS_MIN_ZOOM,
   STARTER_CANVAS_SCREEN_BOTTOM_PX,
   STARTER_CANVAS_SCREEN_LEFT_PX,
@@ -88,6 +89,60 @@ describe('scheduleCanvasFitViewToNodes', () => {
     vi.runAllTimers();
     expect(fitView).toHaveBeenCalledTimes(1);
     expect(fitView.mock.calls[0][0]).not.toHaveProperty('nodes');
+  });
+});
+
+describe('hypothesisFocusNodeIdsForIncubator', () => {
+  const baseNodes = [
+    { id: 'inc-1', type: 'incubator', position: { x: 0, y: 0 } },
+    { id: 'hypothesis-a', type: 'hypothesis', position: { x: 0, y: 0 } },
+    { id: 'hypothesis-b', type: 'hypothesis', position: { x: 0, y: 0 } },
+    { id: 'preview-x', type: 'preview', position: { x: 0, y: 0 } },
+    { id: 'inc-2', type: 'incubator', position: { x: 0, y: 0 } },
+    { id: 'hypothesis-c', type: 'hypothesis', position: { x: 0, y: 0 } },
+  ];
+
+  it('returns the incubator plus its directly downstream hypothesis nodes', () => {
+    const edges = [
+      { source: 'inc-1', target: 'hypothesis-a' },
+      { source: 'inc-1', target: 'hypothesis-b' },
+      { source: 'inc-1', target: 'preview-x' }, // non-hypothesis target, excluded
+      { source: 'inc-2', target: 'hypothesis-c' }, // different incubator, excluded
+    ];
+
+    expect(hypothesisFocusNodeIdsForIncubator('inc-1', baseNodes, edges)).toEqual([
+      'inc-1',
+      'hypothesis-a',
+      'hypothesis-b',
+    ]);
+  });
+
+  it('returns just the incubator when it has no hypothesis edges yet', () => {
+    expect(hypothesisFocusNodeIdsForIncubator('inc-1', baseNodes, [])).toEqual(['inc-1']);
+  });
+
+  it('does not double-include a hypothesis reached by duplicate edges', () => {
+    const edges = [
+      { source: 'inc-1', target: 'hypothesis-a' },
+      { source: 'inc-1', target: 'hypothesis-a' },
+    ];
+
+    expect(hypothesisFocusNodeIdsForIncubator('inc-1', baseNodes, edges)).toEqual([
+      'inc-1',
+      'hypothesis-a',
+    ]);
+  });
+
+  it('ignores edges whose target is not present in the node list', () => {
+    const edges = [
+      { source: 'inc-1', target: 'hypothesis-a' },
+      { source: 'inc-1', target: 'hypothesis-ghost' },
+    ];
+
+    expect(hypothesisFocusNodeIdsForIncubator('inc-1', baseNodes, edges)).toEqual([
+      'inc-1',
+      'hypothesis-a',
+    ]);
   });
 });
 

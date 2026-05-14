@@ -1,7 +1,11 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { incubateStream } from '../api/client';
 import { EDGE_STATUS } from '../constants/canvas';
-import { scheduleCanvasFitView } from '../lib/canvas-fit-view';
+import {
+  hypothesisFocusNodeIdsForIncubator,
+  scheduleCanvasFitView,
+  scheduleCanvasFitViewToNodes,
+} from '../lib/canvas-fit-view';
 import { normalizeError } from '../lib/error-utils';
 import {
   createCanvasOperationController,
@@ -124,7 +128,17 @@ export function useIncubatorRun({
       appendStrategiesToNode(incubatorId, map);
       syncAfterIncubate(map.hypotheses, incubatorId);
       setEdgeStatusBySource(incubatorId, EDGE_STATUS.COMPLETE);
-      scheduleCanvasFitView(fitView);
+      const { nodes: nodesAfterSync, edges: edgesAfterSync } = useCanvasStore.getState();
+      const focusNodeIds = hypothesisFocusNodeIdsForIncubator(
+        incubatorId,
+        nodesAfterSync,
+        edgesAfterSync,
+      );
+      if (focusNodeIds.length > 1) {
+        scheduleCanvasFitViewToNodes(fitView, focusNodeIds);
+      } else {
+        scheduleCanvasFitView(fitView);
+      }
     } catch (err) {
       if (!isCurrentOperation()) return;
       removePlaceholders(placeholderIds);

@@ -86,6 +86,28 @@ export function starterInputNodeIds(nodes: readonly CanvasFitViewNode[]): string
   });
 }
 
+/**
+ * Node IDs to frame after an incubator generates hypotheses: the incubator
+ * itself plus every hypothesis node currently downstream of it via the edge
+ * graph. Used by post-incubation fitView so newly-created hypothesis nodes are
+ * guaranteed to be in the viewport, regardless of measurement timing.
+ */
+export function hypothesisFocusNodeIdsForIncubator(
+  incubatorId: string,
+  nodes: readonly CanvasFitViewNode[],
+  edges: readonly { source: string; target: string }[],
+): string[] {
+  const hypothesisIds = new Set<string>();
+  for (const edge of edges) {
+    if (edge.source !== incubatorId) continue;
+    const target = nodes.find((n) => n.id === edge.target);
+    if (target?.type === NODE_TYPES.HYPOTHESIS) {
+      hypothesisIds.add(target.id);
+    }
+  }
+  return [incubatorId, ...hypothesisIds];
+}
+
 function nodeWidth(node: CanvasFitViewNode): number {
   return node.measured?.width ?? node.width ?? 320;
 }
