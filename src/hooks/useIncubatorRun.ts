@@ -76,6 +76,12 @@ export function useIncubatorRun({
     setEdgeStatusBySource(incubatorId, EDGE_STATUS.PROCESSING);
 
     const placeholderIds = addPlaceholderHypotheses(incubatorId, hypothesisCount);
+    // Zoom out to frame the incubator + every placeholder the moment they
+    // appear, so the user sees all N "Incubating…" cards while the agent
+    // works (not just after generation completes).
+    if (placeholderIds.length > 0) {
+      requestFitToNodes([incubatorId, ...placeholderIds]);
+    }
     const operation = createCanvasOperationController();
     const isCurrentOperation = () => isCurrentCanvasSession(operation.generation);
 
