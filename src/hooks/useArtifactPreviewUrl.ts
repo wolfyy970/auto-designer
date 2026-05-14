@@ -12,7 +12,8 @@ type PreviewState = {
 
 /**
  * Registers virtual files with the API for URL-backed iframe preview (multi-page-safe).
- * Falls back to bundled srcDoc when registration or the first preview load fails.
+ * Bundles a `srcDoc` fallback ONLY when URL registration fails — exposing both upfront
+ * causes a visible double-render (srcDoc iframe paints, then unmounts when URL arrives).
  */
 export function useArtifactPreviewUrl(
   files: Record<string, string> | null | undefined,
@@ -32,16 +33,19 @@ export function useArtifactPreviewUrl(
     }
 
     let cancelled = false;
-    let bundledFallback: string | null = null;
-    try {
-      bundledFallback = bundleVirtualFS(files);
-    } catch (bundleErr) {
-      console.warn(
-        '[preview] bundleVirtualFS fallback failed:',
-        normalizeError(bundleErr),
-      );
-    }
-    setState({ previewSrc: null, fallbackSrcDoc: bundledFallback, isPending: true });
+    setState({ previewSrc: null, fallbackSrcDoc: null, isPending: true });
+
+    const computeFallback = (): string | null => {
+      try {
+        return bundleVirtualFS(files);
+      } catch (bundleErr) {
+        console.warn(
+          '[preview] bundleVirtualFS fallback failed:',
+          normalizeError(bundleErr),
+        );
+        return null;
+      }
+    };
 
     const timer = window.setTimeout(() => {
       void (async () => {
@@ -71,7 +75,7 @@ export function useArtifactPreviewUrl(
           if (cancelled) return;
           setState({
             previewSrc,
-            fallbackSrcDoc: bundledFallback,
+            fallbackSrcDoc: null,
             isPending: false,
           });
         } catch (registerErr) {
@@ -85,7 +89,11 @@ export function useArtifactPreviewUrl(
             normalizeError(registerErr),
           );
           if (!cancelled) {
-            setState({ previewSrc: null, fallbackSrcDoc: bundledFallback, isPending: false });
+            setState({
+              previewSrc: null,
+              fallbackSrcDoc: computeFallback(),
+              isPending: false,
+            });
           }
         }
       })();

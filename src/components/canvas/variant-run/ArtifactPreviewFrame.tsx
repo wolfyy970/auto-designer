@@ -30,7 +30,7 @@ export default function ArtifactPreviewFrame({
     setUrlPreviewFailed(false);
   }, [previewSrc]);
 
-  if (isPending && !fallbackSrcDoc) {
+  if (isPending) {
     return (
       <div
         className={`flex h-full items-center justify-center bg-surface ${className ?? ''}`}
