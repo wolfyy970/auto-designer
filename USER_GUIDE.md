@@ -48,7 +48,7 @@ There is no in-app prompt editor. Change prompt and skill files in the repo, res
 
 ### Version history
 
-If you edit a **skill** (`packages/auto-designer-pi/skills/<key>/SKILL.md`), a **prompt template** (`packages/auto-designer-pi/prompts/<name>.md`, including `_designer-system.md` and `artifact-conventions.md`), or **`config/rubric-weights.json`** yourself (this app's prompts live in the repo — there is no in-app editor), you can keep a history without snapshotting *before* every edit.
+If you edit a **skill** (`packages/auto-designer-pi/skills/<key>/SKILL.md`), a **prompt template** (`packages/auto-designer-pi/prompts/<name>.md`, including `_designer-system.md`), or **`config/rubric-weights.json`** yourself (this app's prompts live in the repo — there is no in-app editor), you can keep a history without snapshotting *before* every edit.
 
 **What gets saved**
 
@@ -127,7 +127,7 @@ The Design System is intentionally outside hypothesis incubation. Non-default de
 Hypothesis nodes appear to the right of the Incubator. Each represents a hypothesis strategy with:
 
 - **Name** — Editable label (double-click or pencil icon)
-- **Hypothesis** — The core design bet
+- **Hypothesis** — The core design hypothesis
 - **Details** (expandable) — Rationale, measurements
 
 Edit these before generation. Remove strategies not worth exploring.

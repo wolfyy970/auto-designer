@@ -14,7 +14,6 @@ const PROMPTS_DIR = join(PKG_ROOT, 'prompts');
 
 const EXPECTED_SKILLS = [
   'accessibility',
-  'design-generation',
   'design-quality',
 ] as const;
 
@@ -31,7 +30,6 @@ const EXPECTED_PROMPTS = [
   'gen-objectives.md',
   'gen-research.md',
   'revise.md',
-  'artifact-conventions.md',
   '_designer-system.md',
 ] as const;
 

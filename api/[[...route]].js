@@ -2,6 +2,7 @@ import { handle } from "@hono/node-server/vercel";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { bodyLimit } from "hono/body-limit";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { Bash } from "just-bash";
 import { minimatch } from "minimatch";
@@ -18,7 +19,6 @@ import { streamSSE } from "hono/streaming";
 import fs$1, { readFile, mkdir, writeFile } from "node:fs/promises";
 import { parse } from "yaml";
 import { performance } from "node:perf_hooks";
-import { randomUUID } from "node:crypto";
 import { chromium } from "playwright";
 import { Buffer as Buffer$1 } from "node:buffer";
 function generateId() {
@@ -1686,10 +1686,11 @@ const PACKAGE_PROMPT_FILES = {
   "inputs-gen-research-context": "gen-research.md",
   "inputs-gen-objectives-metrics": "gen-objectives.md",
   "inputs-gen-design-constraints": "gen-constraints.md",
+  "incubator-brainstorm-system": "gen-brainstorm.md",
+  "incubator-curation-system": "gen-curation.md",
   "design-system-extract-system": "ds-extract.md",
   "design-system-extract-user-input": "ds-extract-input.md",
   "designer-agentic-revision-user": "revise.md",
-  "agents-md-file": "artifact-conventions.md",
   "designer-agent-instructions": "design-agent-instructions.md"
 };
 async function getPromptBody(key) {
@@ -3694,9 +3695,28 @@ function toolCallsForLog(m) {
 function wrapPiStreamWithLogging(inner, params) {
   return ((model, context, options) => {
     const streamMax = piStreamCompletionMaxTokens(model, context, options?.maxTokens);
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[pi-llm-log] streamFn invoked", {
+        provider: params.providerId,
+        model: params.modelId || model.id,
+        source: params.source,
+        phase: params.phase,
+        correlationId: params.correlationId,
+        turnMessages: context.messages.length
+      });
+    }
     return Promise.resolve(
       inner(model, context, { ...options, maxTokens: streamMax })
     ).then((stream) => {
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("[pi-llm-log] streamFn resolved (stream object received)", {
+          provider: params.providerId,
+          model: params.modelId || model.id,
+          source: params.source,
+          phase: params.phase,
+          correlationId: params.correlationId
+        });
+      }
       const t0 = performance.now();
       const pv = providerLogFields(params.providerId);
       const modelLabel = params.modelId || model.id;
@@ -3712,34 +3732,64 @@ function wrapPiStreamWithLogging(inner, params) {
         ...params.correlationId ? { correlationId: params.correlationId } : {}
       });
       params.turnLogRef.current = logId;
-      void (async () => {
-        try {
-          const final = await stream.result();
-          const formatted = formatAssistantForLog(final);
-          const streamed = getLlmLogResponseSnapshot(logId) ?? "";
-          const response = mergeStreamedAndFormattedAssistantResponse(streamed, formatted);
-          const toolCalls = toolCallsForLog(final);
-          finalizeLlmCall(logId, {
-            response,
-            durationMs: Math.round(performance.now() - t0),
-            promptTokens: final.usage?.input,
-            completionTokens: final.usage?.output,
-            totalTokens: final.usage?.totalTokens,
-            truncated: final.stopReason === "length",
-            toolCalls: toolCalls.length ? toolCalls : void 0,
-            error: final.stopReason === "error" || final.stopReason === "aborted" ? final.errorMessage ?? final.stopReason : void 0
-          });
-        } catch (err) {
-          failLlmCall(logId, normalizeError(err), Math.round(performance.now() - t0));
-        } finally {
-          if (params.turnLogRef.current === logId) {
-            params.turnLogRef.current = void 0;
-          }
-        }
-      })();
+      const finalizePromise = finalizeLogFromStream(stream, {
+        logId,
+        t0,
+        params
+      });
+      if (params.pendingLogFinalizers) {
+        params.pendingLogFinalizers.add(finalizePromise);
+        void finalizePromise.finally(() => {
+          params.pendingLogFinalizers?.delete(finalizePromise);
+        });
+      }
       return stream;
     });
   });
+}
+async function finalizeLogFromStream(stream, args) {
+  const { logId, t0, params } = args;
+  try {
+    const final = await stream.result();
+    const formatted = formatAssistantForLog(final);
+    const streamed = getLlmLogResponseSnapshot(logId) ?? "";
+    const response = mergeStreamedAndFormattedAssistantResponse(streamed, formatted);
+    const toolCalls = toolCallsForLog(final);
+    const durationMs = Math.round(performance.now() - t0);
+    finalizeLlmCall(logId, {
+      response,
+      durationMs,
+      promptTokens: final.usage?.input,
+      completionTokens: final.usage?.output,
+      totalTokens: final.usage?.totalTokens,
+      truncated: final.stopReason === "length",
+      toolCalls: toolCalls.length ? toolCalls : void 0,
+      error: final.stopReason === "error" || final.stopReason === "aborted" ? final.errorMessage ?? final.stopReason : void 0
+    });
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[pi-llm-log] logging finalized", {
+        logId,
+        durationMs,
+        correlationId: params.correlationId,
+        stopReason: final.stopReason
+      });
+    }
+  } catch (err) {
+    const durationMs = Math.round(performance.now() - t0);
+    failLlmCall(logId, normalizeError(err), durationMs);
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[pi-llm-log] logging failed", {
+        logId,
+        durationMs,
+        correlationId: params.correlationId,
+        error: normalizeError(err)
+      });
+    }
+  } finally {
+    if (params.turnLogRef.current === logId) {
+      params.turnLogRef.current = void 0;
+    }
+  }
 }
 function findLastAssistantMessage(messages) {
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -4212,6 +4262,20 @@ function subscribePiSessionBridge(session, ctx) {
   });
 }
 const NO_FILES_MESSAGE = "Agent completed without creating design files in the sandbox. Try a model that supports tool use, or ensure the bash tool runs successfully.";
+class StreamIdleError extends Error {
+  name = "StreamIdleError";
+  idleMs;
+  correlationId;
+  constructor(idleMs, correlationId) {
+    super(
+      `Pi session aborted: no stream activity for ${(idleMs / 1e3).toFixed(0)}s` + (correlationId ? ` (correlationId=${correlationId})` : "") + ". Likely a server-side stall mid-stream after the request was accepted."
+    );
+    this.idleMs = idleMs;
+    this.correlationId = correlationId;
+  }
+}
+const STREAM_IDLE_LIMIT_MS = 45e3;
+const STREAM_IDLE_CHECK_INTERVAL_MS = 3e3;
 async function resolveProviderConfig(providerId, modelId) {
   if (providerId !== "openrouter" && providerId !== "lmstudio") {
     throw new Error(`pi-agent-runtime: unsupported provider "${providerId}"`);
@@ -4335,6 +4399,7 @@ async function runPiAgentSession(params, onEvent) {
   };
   const handle2 = await dispatchSessionFactory(params.sessionType, baseOpts, params.seedFiles);
   const llmTurnLogRef = {};
+  const pendingLogFinalizers = /* @__PURE__ */ new Set();
   const prevStream = handle2.session.agent.streamFn;
   handle2.session.agent.streamFn = wrapPiStreamWithLogging(prevStream, {
     providerId: params.providerId,
@@ -4342,9 +4407,10 @@ async function runPiAgentSession(params, onEvent) {
     source: mapSessionTypeToLlmLogSource(params.sessionType),
     phase: params.phase === "revision" ? PI_LLM_LOG_PHASE.REVISION : PI_LLM_LOG_PHASE.AGENTIC_TURN,
     turnLogRef: llmTurnLogRef,
-    correlationId: params.correlationId
+    correlationId: params.correlationId,
+    pendingLogFinalizers
   });
-  const unsubscribeBridge = subscribePiSessionBridge(handle2.session, {
+  const bridgeCtx = {
     onEvent,
     trace: createTraceEvent,
     toolPathByCallId: /* @__PURE__ */ new Map(),
@@ -4355,7 +4421,8 @@ async function runPiAgentSession(params, onEvent) {
     modelTurnId: { current: 0 },
     pendingToolCallsRef: { current: 0 },
     onStreamDeliveryFailure: () => handle2.session.agent.abort()
-  });
+  };
+  const unsubscribeBridge = subscribePiSessionBridge(handle2.session, bridgeCtx);
   if (env.isDev) {
     console.debug("[pi-agent-runtime] session start", {
       correlationId: params.correlationId,
@@ -4366,10 +4433,30 @@ async function runPiAgentSession(params, onEvent) {
       sessionType: params.sessionType
     });
   }
+  let watchdogReject;
+  const watchdogPromise = new Promise((_, rej) => {
+    watchdogReject = rej;
+  });
+  const watchdogTimer = setInterval(() => {
+    const idleMs = Date.now() - bridgeCtx.streamActivityAt.current;
+    if (idleMs > STREAM_IDLE_LIMIT_MS) {
+      clearInterval(watchdogTimer);
+      if (env.isDev) {
+        console.warn("[pi-agent-runtime] stream-idle watchdog firing", {
+          correlationId: params.correlationId,
+          idleMs,
+          modelTurnId: bridgeCtx.modelTurnId.current,
+          pendingToolCalls: bridgeCtx.pendingToolCallsRef?.current
+        });
+      }
+      void handle2.session.agent.abort();
+      watchdogReject?.(new StreamIdleError(idleMs, params.correlationId));
+    }
+  }, STREAM_IDLE_CHECK_INTERVAL_MS);
   let result;
   try {
     const t0 = performance.now();
-    result = await handle2.run();
+    result = await Promise.race([handle2.run(), watchdogPromise]);
     if (env.isDev) {
       console.debug("[pi-agent-runtime] session done", {
         correlationId: params.correlationId,
@@ -4384,9 +4471,16 @@ async function runPiAgentSession(params, onEvent) {
       console.error("[pi-agent-runtime] handle.run failed", normalizeError(err), err);
     }
     await onEvent({ type: "error", payload: `Agent error: ${normalizeProviderError(err)}` });
+    if (err instanceof StreamIdleError) {
+      throw err;
+    }
     return null;
   } finally {
+    clearInterval(watchdogTimer);
     unsubscribeBridge();
+    if (pendingLogFinalizers.size > 0) {
+      await Promise.allSettled([...pendingLogFinalizers]);
+    }
   }
   if (result.errorMessage) {
     await onEvent({ type: "error", payload: result.errorMessage });
@@ -4616,6 +4710,80 @@ function runTaskAgentRoute(c, options) {
     });
   });
 }
+async function runBrainstormPrelude(input) {
+  const trimmedBrief = input.designBrief.trim();
+  if (!trimmedBrief) {
+    throw new Error("Brainstorm prelude requires a non-empty design brief.");
+  }
+  const brainstormGuidance = await getPromptBody("incubator-brainstorm-system");
+  const brainstormPrompt = `${brainstormGuidance}
+
+<brief>
+${trimmedBrief}
+</brief>`;
+  const brainstormSession = await runTaskAgentPiSession(
+    {
+      userPrompt: brainstormPrompt,
+      providerId: input.providerId,
+      modelId: input.modelId,
+      sessionType: "inputs-gen",
+      signal: input.signal,
+      correlationId: input.correlationId,
+      initialProgressMessage: "Brainstorming directions…"
+    },
+    async () => {
+    }
+  );
+  if (!brainstormSession.sessionResult) {
+    throw new Error("Brainstorm prelude returned no session result.");
+  }
+  const brainstormResolved = resolveTaskAgentResultFile({
+    files: brainstormSession.sessionResult.files,
+    resultFile: "result.md",
+    fallback: "firstNonEmptyFile"
+  });
+  if (!brainstormResolved || !brainstormResolved.result.trim()) {
+    throw new Error("Brainstorm prelude returned no result.");
+  }
+  const brainstormText = brainstormResolved.result.trim();
+  const curationGuidance = await getPromptBody("incubator-curation-system");
+  const curationPrompt = `${curationGuidance}
+
+<brainstorm_directions>
+${brainstormText}
+</brainstorm_directions>`;
+  const curationSession = await runTaskAgentPiSession(
+    {
+      userPrompt: curationPrompt,
+      providerId: input.providerId,
+      modelId: input.modelId,
+      sessionType: "inputs-gen",
+      signal: input.signal,
+      correlationId: randomUUID(),
+      initialProgressMessage: "Curating top 5…"
+    },
+    async () => {
+    }
+  );
+  if (!curationSession.sessionResult) {
+    throw new Error("Curation prelude returned no session result.");
+  }
+  const curationResolved = resolveTaskAgentResultFile({
+    files: curationSession.sessionResult.files,
+    resultFile: "result.md",
+    fallback: "firstNonEmptyFile"
+  });
+  if (!curationResolved || !curationResolved.result.trim()) {
+    throw new Error("Curation prelude returned no result.");
+  }
+  const curatedText = curationResolved.result.trim();
+  const augmentedBrief = `${trimmedBrief}
+
+<product_shape_candidates>
+${curatedText}
+</product_shape_candidates>`;
+  return { augmentedBrief, curatedText };
+}
 const ReferenceImageSchema = z.object({
   id: z.string(),
   filename: z.string(),
@@ -4794,7 +4962,16 @@ const InputsGenerateRequestSchema = z.object({
 });
 const IncubatorPromptOptionsSchema = z.object({
   count: z.number().int().positive().optional(),
-  existingStrategies: z.array(HypothesisStrategySchema).optional()
+  existingStrategies: z.array(HypothesisStrategySchema).optional(),
+  /**
+   * When true, the incubate route runs a brainstorm + curation prelude
+   * before the main incubator call. The curated 5 product-shape candidates
+   * are stitched into the design brief as a `<product_shape_candidates>`
+   * block so every downstream stage sees them. Promoted from the
+   * experiments tool's "ideation" flow after a 384-cell matrix showed
+   * ~15% more distinct themes vs canonical at +50% wall-time cost.
+   */
+  brainstormFirst: z.boolean().optional()
 });
 const IncubateRequestSchema = z.object({
   spec: DesignSpecSchema,
@@ -4904,11 +5081,46 @@ const LLMResponseSchema = z.object({
     (v) => HypothesisStrategyParseSchema.parse(typeof v === "object" && v !== null ? v : {})
   )
 }));
+async function applyBrainstormPrelude(c, body, brief) {
+  try {
+    const { augmentedBrief } = await runBrainstormPrelude({
+      designBrief: brief,
+      providerId: body.providerId,
+      modelId: body.modelId,
+      signal: c.req.raw.signal,
+      correlationId: randomUUID()
+    });
+    const briefSection = body.spec.sections["design-brief"];
+    if (briefSection) {
+      body.spec.sections["design-brief"] = {
+        ...briefSection,
+        content: augmentedBrief
+      };
+    }
+    return void 0;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (env.isDev) {
+      console.debug("[incubate] brainstorm prelude failed", { message });
+    }
+    return c.json(
+      { error: `Brainstorm prelude failed: ${message}` },
+      500
+    );
+  }
+}
 incubate.post("/", async (c) => {
   const parsed = await parseRequestJson(c, IncubateRequestSchema);
   if (!parsed.ok) return parsed.response;
   const pinned = clampProviderModel(parsed.data.providerId, parsed.data.modelId, "incubate");
   const body = { ...parsed.data, providerId: pinned.providerId, modelId: pinned.modelId };
+  if (body.promptOptions?.brainstormFirst === true) {
+    const brief = body.spec.sections["design-brief"]?.content?.trim();
+    if (brief) {
+      const preludeError = await applyBrainstormPrelude(c, body, brief);
+      if (preludeError) return preludeError;
+    }
+  }
   const userPromptTemplate = await getPromptBody("incubator-user-inputs");
   const assembledSpec = buildIncubatorUserPrompt(
     body.spec,

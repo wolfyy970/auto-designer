@@ -103,12 +103,10 @@ Eval body`,
   it('returns only the @auto-designer/pi package skills for the default catalog (design session)', async () => {
     const out = await buildAgenticSystemContext({ sessionType: 'design' });
     const keys = out.skillCatalog.map((entry) => entry.key).sort();
-    expect(keys).toEqual(['accessibility', 'design-generation', 'design-quality', 'working-depth']);
+    expect(keys).toEqual(['accessibility', 'design-quality']);
     expect(out.loadedSkills.map((s) => s.key).sort()).toEqual([
       'accessibility',
-      'design-generation',
       'design-quality',
-      'working-depth',
     ]);
   });
 });

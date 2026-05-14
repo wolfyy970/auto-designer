@@ -85,7 +85,7 @@ These are the principles we've established that should shape critique. Update wi
 
 - **Scope must be inferred from the brief, not forced into a fixed taxonomy.** If a critique reads as "this should have been a flow / a feature / an app", check whether the brief actually implied that — and whether the language used to characterize it is open-ended (a flow, a cluster, *something that doesn't fit those examples*) or pigeonhole-shaped.
 - **Scope must travel through hypothesis prose, not metadata.** Each `hypothesis` field should make the slice it tests legible to a designer. If you can't read a hypothesis and infer "this is testing a single decisive screen" or "this is testing a 3-step flow," flag it.
-- **Scope contradiction is a hard signal.** If `measurements` describe checks that imply a different scope than the `hypothesis` prose claims (e.g. measurements demand multi-step flow inspection while the hypothesis bets on a single screen), score `hypothesis_adherence` and `expresses_bet` down.
+- **Scope contradiction is a hard signal.** If `measurements` describe checks that imply a different scope than the `hypothesis` prose claims (e.g. measurements demand multi-step flow inspection while the hypothesis bets on a single screen), score `hypothesis_adherence` and `expresses_hypothesis` down.
 
 ### Hypothesis quality
 

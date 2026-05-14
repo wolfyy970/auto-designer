@@ -7,8 +7,8 @@
  * - Incubator nuance → packages/auto-designer-pi/prompts/gen-hypotheses.md
  * - Hypothesis-stage design instructions → packages/auto-designer-pi/prompts/design-agent-instructions.md
  *   (inlined via `{{DESIGN_AGENT_INSTRUCTIONS}}`)
- * - Implementation/craft nuance → packages/auto-designer-pi/skills/design-generation/SKILL.md
- *   + packages/auto-designer-pi/prompts/_designer-system.md
+ * - Design craft (hypothesis-aware quality lens) → packages/auto-designer-pi/skills/design-quality/SKILL.md
+ * - Sandbox + artifact-output constraints → packages/auto-designer-pi/prompts/_designer-system.md
  *
  * To change how inputs are interpreted, edit the bundled prompt or skill, not the XML
  * layout here.

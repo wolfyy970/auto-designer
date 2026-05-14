@@ -2,7 +2,7 @@
 
 **Canonical instructions for AI coding agents** working in this repository—commands, where to read architecture (including Pi/just-bash sandbox), and gotchas. Follows the vendor-neutral [AGENTS.md](https://agents.md) convention (Cursor, Codex, Windsurf, and similar tools commonly load this filename).
 
-**Claude Code** still discovers `**CLAUDE.md`** at the repo root first; that file is a **stub** pointing here. **Do not confuse** this document with the `**agents-md-file`** skill: that skill's body is for the Pi agent and is seeded into the agent's VFS at session start (loaded by the agent via `read` against the printed `<location>`), not from this repo-root file.
+**Claude Code** still discovers `**CLAUDE.md`** at the repo root first; that file is a **stub** pointing here.
 
 ## Session continuity
 
