@@ -99,7 +99,7 @@ export {
 } from './resource-loader.ts';
 
 // ────────────────────────────────────────────────────────────────────────────
-// Designer extension (todo_write, validate_js, validate_html, compaction hook)
+// Designer extension (todo_write, validate_js, validate_html, validate_artifact, compaction hook)
 
 export {
   createDesignerExtensionFactory,
@@ -117,6 +117,7 @@ export {
   createTodoWriteTool,
   createValidateJsTool,
   createValidateHtmlTool,
+  createValidateArtifactTool,
 } from './extension/designer-tools.ts';
 
 // ────────────────────────────────────────────────────────────────────────────

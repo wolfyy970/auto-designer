@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createAgentBashSandbox, sandboxProjectAbsPath } from '../src/sandbox/virtual-workspace';
 import {
   createTodoWriteTool,
+  createValidateArtifactTool,
   createValidateHtmlTool,
   createValidateJsTool,
 } from '../src/extension/designer-tools';
@@ -119,5 +120,77 @@ describe('validate_html', () => {
     const tool = createValidateHtmlTool(bash);
     const result = await tool.execute('tc', { path: 'index.html' }, undefined, undefined, NO_OP_CTX);
     expect((result.content[0] as { text: string }).text).toMatch(/structure OK/);
+  });
+});
+
+describe('validate_artifact', () => {
+  it('returns "cross-references resolve" when every JS ref matches an HTML id', async () => {
+    const bash = createAgentBashSandbox({
+      seedFiles: {
+        'index.html':
+          '<!DOCTYPE html><html><head><script src="app.js"></script></head><body><button id="go"></button></body></html>',
+        'app.js': "document.getElementById('go').addEventListener('click', () => {});",
+      },
+    });
+    const tool = createValidateArtifactTool(bash);
+    const result = await tool.execute('tc', {}, undefined, undefined, NO_OP_CTX);
+    const text = (result.content[0] as { text: string }).text;
+    expect(text).toMatch(/cross-references resolve/);
+    expect(text).toContain('1 linked JS file');
+  });
+
+  it('flags JS getElementById calls whose id is not in the HTML', async () => {
+    const bash = createAgentBashSandbox({
+      seedFiles: {
+        'index.html':
+          '<!DOCTYPE html><html><head><script src="app.js"></script></head><body><button id="real"></button></body></html>',
+        'app.js': "document.getElementById('phantom').click();",
+      },
+    });
+    const tool = createValidateArtifactTool(bash);
+    const result = await tool.execute('tc', {}, undefined, undefined, NO_OP_CTX);
+    const text = (result.content[0] as { text: string }).text;
+    expect(text).toContain('1 issue');
+    expect(text).toContain("getElementById('phantom')");
+    expect(text).toContain('app.js');
+  });
+
+  it('checks inline <script> blocks when no external JS is linked', async () => {
+    const bash = createAgentBashSandbox({
+      seedFiles: {
+        'index.html':
+          '<!DOCTYPE html><html><body><button id="real"></button><script>document.getElementById("nope").click();</script></body></html>',
+      },
+    });
+    const tool = createValidateArtifactTool(bash);
+    const result = await tool.execute('tc', {}, undefined, undefined, NO_OP_CTX);
+    const text = (result.content[0] as { text: string }).text;
+    expect(text).toContain('1 issue');
+    expect(text).toContain('inline-script');
+  });
+
+  it('reports file not found when the entry HTML is missing', async () => {
+    const bash = createAgentBashSandbox();
+    const tool = createValidateArtifactTool(bash);
+    const result = await tool.execute('tc', {}, undefined, undefined, NO_OP_CTX);
+    expect((result.content[0] as { text: string }).text).toBe('File not found: index.html');
+  });
+
+  it('accepts a custom entry path', async () => {
+    const bash = createAgentBashSandbox({
+      seedFiles: {
+        'pages/about.html':
+          '<!DOCTYPE html><html><body><h1 id="hero">Hi</h1><script>document.getElementById("hero")</script></body></html>',
+      },
+    });
+    const tool = createValidateArtifactTool(bash);
+    const result = await tool.execute(
+      'tc',
+      { entry: 'pages/about.html' },
+      undefined,
+      undefined,
+      NO_OP_CTX,
+    );
+    expect((result.content[0] as { text: string }).text).toMatch(/cross-references resolve/);
   });
 });

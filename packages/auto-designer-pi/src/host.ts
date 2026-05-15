@@ -33,6 +33,7 @@ import {
 } from './tools/virtual-tools.ts';
 import {
   createTodoWriteTool,
+  createValidateArtifactTool,
   createValidateHtmlTool,
   createValidateJsTool,
 } from './extension/designer-tools.ts';
@@ -193,6 +194,11 @@ export async function createSession(opts: SessionRunnerOptions): Promise<Session
       kind: 'auto-designer-extension',
       name: 'validate_html',
       register: (api) => api.registerTool(createValidateHtmlTool(bash)),
+    })
+    .add({
+      kind: 'auto-designer-extension',
+      name: 'validate_artifact',
+      register: (api) => api.registerTool(createValidateArtifactTool(bash)),
     });
 
   const built = surface.build();

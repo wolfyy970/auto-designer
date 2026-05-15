@@ -1,5 +1,6 @@
 /**
- * Per-session designer extension: registers todo_write / validate_js / validate_html.
+ * Per-session designer extension: registers todo_write / validate_js /
+ * validate_html / validate_artifact.
  * Closes over the host-built bash sandbox so the validators can read VFS files
  * without going through Pi's tool layer.
  *
@@ -13,6 +14,7 @@ import type { Bash } from 'just-bash';
 import type { ExtensionAPI, ExtensionFactory } from '../internal/pi-types.ts';
 import {
   createTodoWriteTool,
+  createValidateArtifactTool,
   createValidateHtmlTool,
   createValidateJsTool,
 } from './designer-tools.ts';
@@ -32,5 +34,6 @@ export function createDesignerExtensionFactory(opts: DesignerExtensionOptions): 
     pi.registerTool(createTodoWriteTool(opts.todoState, opts.onTodos));
     pi.registerTool(createValidateJsTool(opts.bash));
     pi.registerTool(createValidateHtmlTool(opts.bash));
+    pi.registerTool(createValidateArtifactTool(opts.bash));
   };
 }

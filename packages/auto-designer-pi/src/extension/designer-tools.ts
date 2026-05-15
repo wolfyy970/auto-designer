@@ -1,5 +1,6 @@
 /**
- * Tools registered by the designer Pi extension: todo_write, validate_js, validate_html.
+ * Tools registered by the designer Pi extension: todo_write, validate_js,
+ * validate_html, validate_artifact.
  *
  * VFS-backed tools (read/write/edit/ls/find/grep/bash) stay outside the extension
  * because they need direct access to the per-session bash handle through closures
@@ -16,6 +17,8 @@ import type { Bash } from 'just-bash';
 import type { ExtensionContext, ToolDefinition } from '../internal/pi-types.ts';
 import { sandboxProjectAbsPath } from '../sandbox/virtual-workspace.ts';
 import { validateHtmlWorkspaceContent } from '../internal/html-validation.ts';
+import { checkArtifactCrossRefs } from '../internal/artifact-cross-ref.ts';
+import { classifyAssetRef, resolveVirtualAssetPath } from '../internal/resolve-virtual-asset-path.ts';
 import type { TodoItem } from '../types.ts';
 
 async function readProjectFile(bash: Bash, rel: string): Promise<string | undefined> {
@@ -156,6 +159,55 @@ export function createValidateHtmlTool(bash: Bash): ToolDefinition {
         issues.length === 0
           ? `${path}: structure OK`
           : `${path}: ${issues.length} issue(s)\n${issues.map((i) => `- ${i}`).join('\n')}`;
+
+      return { content: [{ type: 'text', text }], details: null };
+    },
+  };
+}
+
+// ── validate_artifact ────────────────────────────────────────────────────────
+
+const validateArtifactSchema = Type.Object({
+  entry: Type.Optional(
+    Type.String({
+      description:
+        'Entry HTML path (defaults to "index.html"). The tool follows its <script src> references to find associated JS files.',
+    }),
+  ),
+});
+
+export function createValidateArtifactTool(bash: Bash): ToolDefinition {
+  return {
+    name: 'validate_artifact',
+    label: 'validate_artifact',
+    description:
+      'Use `validate_artifact` to cross-check that every DOM id your JS references (getElementById, querySelector("#…")) exists in the entry HTML. The closest equivalent to `tsc` for this static-web project — catches dead-on-arrival handlers and stale selectors after substantive working-depth changes, before the artifact ships.',
+    parameters: validateArtifactSchema,
+    async execute(_toolCallId, params, _signal, _onUpdate, _ctx: ExtensionContext) {
+      const { entry = 'index.html' } = params as { entry?: string };
+      const htmlContent = await readProjectFile(bash, entry);
+      if (htmlContent === undefined) {
+        return { content: [{ type: 'text', text: `File not found: ${entry}` }], details: null };
+      }
+
+      const jsFiles: Array<{ path: string; content: string }> = [];
+      for (const match of htmlContent.matchAll(
+        /<script\s+[^>]*src=["']([^"']+)["'][^>]*><\/script>/gi,
+      )) {
+        const ref = match[1] ?? '';
+        if (classifyAssetRef(ref) !== 'relative') continue;
+        const resolved = resolveVirtualAssetPath(ref, entry);
+        if (!resolved) continue;
+        const content = await readProjectFile(bash, resolved);
+        if (content !== undefined) jsFiles.push({ path: resolved, content });
+      }
+
+      const issues = checkArtifactCrossRefs({ htmlPath: entry, htmlContent, jsFiles });
+
+      const text =
+        issues.length === 0
+          ? `${entry}: cross-references resolve (${jsFiles.length} linked JS file${jsFiles.length === 1 ? '' : 's'} checked)`
+          : `${entry}: ${issues.length} issue(s)\n${issues.map((i) => `- ${i.context}`).join('\n')}`;
 
       return { content: [{ type: 'text', text }], details: null };
     },

@@ -12,7 +12,7 @@
  * the real disk.
  *
  * On top of Pi's seven we also register *auto-designer extension tools*
- * (today: `todo_write`, `validate_js`, `validate_html`) — domain helpers
+ * (today: `todo_write`, `validate_js`, `validate_html`, `validate_artifact`) — domain helpers
  * that are not Pi tools but are sandboxed to the same VFS through the same
  * `pi.registerTool` API.
  *

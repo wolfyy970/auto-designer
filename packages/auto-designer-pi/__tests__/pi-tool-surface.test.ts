@@ -14,6 +14,7 @@ import {
   createAgentBashSandbox,
   createSandboxToolContext,
   createTodoWriteTool,
+  createValidateArtifactTool,
   createValidateHtmlTool,
   createValidateJsTool,
   type PiBuiltinToolName,
@@ -65,6 +66,11 @@ function buildHostSurface(): ToolSurface {
       kind: 'auto-designer-extension',
       name: 'validate_html',
       register: (api) => api.registerTool(createValidateHtmlTool(bash)),
+    })
+    .add({
+      kind: 'auto-designer-extension',
+      name: 'validate_artifact',
+      register: (api) => api.registerTool(createValidateArtifactTool(bash)),
     });
 }
 
@@ -83,17 +89,18 @@ describe('ToolSurface contract', () => {
         'todo_write',
         'validate_js',
         'validate_html',
+        'validate_artifact',
       ]);
       expect(typeof built.extensionFactory).toBe('function');
     });
 
-    it('the extension factory registers all 10 tools through pi.registerTool', () => {
+    it('the extension factory registers all 11 tools through pi.registerTool', () => {
       const registered: Array<{ name: string }> = [];
       const { extensionFactory } = buildHostSurface().build();
       extensionFactory({
         registerTool: (tool: { name: string }) => registered.push(tool),
       } as unknown as Parameters<typeof extensionFactory>[0]);
-      // Sandboxed Pi overrides + auto-designer extensions = 10 names total.
+      // Sandboxed Pi overrides (7) + auto-designer extensions (4) = 11 names total.
       expect(registered.map((t) => t.name).sort()).toEqual([
         'bash',
         'edit',
@@ -102,6 +109,7 @@ describe('ToolSurface contract', () => {
         'ls',
         'read',
         'todo_write',
+        'validate_artifact',
         'validate_html',
         'validate_js',
         'write',
