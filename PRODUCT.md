@@ -86,7 +86,7 @@ Start a run with **Design** on the Hypothesis node. With **Auto-improve** disabl
 
 **Live evaluation status.** When evaluation runs, SSE **`evaluation_worker_done`** updates the preview run workspace **Evaluation** tab (and tab affordance) with per-worker progress before the merged report.
 
-**Multi-file output.** Agentic previews show a file explorer sidebar, Preview/Code tab bar, and a download button that produces a `.zip` file.
+**Multi-file output.** Agentic previews show a file explorer sidebar, **Preview / Build / Code** tab bar, and a download button that produces a `.zip` file. The Build tab surfaces the agent's `BUILD.md` retrospective — scope, working features (with the user-observable behavior of each), and stubbed features — so the viewer can tell which parts of the prototype actually work end-to-end.
 
 ## Providers
 
