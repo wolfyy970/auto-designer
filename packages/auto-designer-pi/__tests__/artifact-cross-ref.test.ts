@@ -143,4 +143,115 @@ describe('checkArtifactCrossRefs', () => {
     });
     expect(issues).toHaveLength(2);
   });
+
+  // ── class-selector checks (v2) ──────────────────────────────────────────
+
+  it('returns no issues when every JS class selector matches an HTML class', () => {
+    const html = `<!doctype html><html><body>
+      <div class="user-selector active"></div>
+      <button class="primary"></button>
+    </body></html>`;
+    const js = `
+      document.querySelector('.user-selector').innerHTML = '';
+      document.querySelectorAll('.primary');
+      document.getElementsByClassName('active');
+    `;
+    expect(
+      checkArtifactCrossRefs({
+        htmlPath: 'index.html',
+        htmlContent: html,
+        jsFiles: [{ path: 'app.js', content: js }],
+      }),
+    ).toEqual([]);
+  });
+
+  it('flags querySelector class selectors whose class is not in the HTML', () => {
+    // Simulates the production "renderUserSelector" failure: JS reaches for
+    // `.user-selector` to set innerHTML, but the HTML never declared that class.
+    const html = `<!doctype html><html><body><div class="something-else"></div></body></html>`;
+    const js = `document.querySelector('.user-selector').innerHTML = 'x';`;
+    const issues = checkArtifactCrossRefs({
+      htmlPath: 'index.html',
+      htmlContent: html,
+      jsFiles: [{ path: 'app.js', content: js }],
+    });
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.kind).toBe('unresolved-class');
+    expect(issues[0]?.reference).toBe('user-selector');
+    expect(issues[0]?.context).toContain("querySelector('.user-selector')");
+  });
+
+  it('flags getElementsByClassName whose class is not in the HTML', () => {
+    const html = `<!doctype html><html><body></body></html>`;
+    const js = `document.getElementsByClassName('phantom-row');`;
+    const issues = checkArtifactCrossRefs({
+      htmlPath: 'index.html',
+      htmlContent: html,
+      jsFiles: [{ path: 'app.js', content: js }],
+    });
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.kind).toBe('unresolved-class');
+    expect(issues[0]?.reference).toBe('phantom-row');
+  });
+
+  it('counts classes added dynamically via classList.add / className = / setAttribute', () => {
+    const html = `<!doctype html><html><body></body></html>`;
+    const js = `
+      const el = document.createElement('div');
+      el.classList.add('runtime-card');
+      const other = document.createElement('div');
+      other.className = 'name-set';
+      const third = document.createElement('div');
+      third.setAttribute('class', 'attr-set');
+      document.body.appendChild(el);
+      document.body.appendChild(other);
+      document.body.appendChild(third);
+      document.querySelector('.runtime-card');
+      document.querySelector('.name-set');
+      document.querySelector('.attr-set');
+    `;
+    expect(
+      checkArtifactCrossRefs({
+        htmlPath: 'index.html',
+        htmlContent: html,
+        jsFiles: [{ path: 'app.js', content: js }],
+      }),
+    ).toEqual([]);
+  });
+
+  it('does not flag compound class selectors (".foo .bar", ".foo > .bar", ".foo.bar")', () => {
+    // Compound selectors are too dynamic to validate statically without false
+    // positives — they're not exercised by the single-class regex.
+    const html = `<!doctype html><html><body><div class="actual"></div></body></html>`;
+    const js = `
+      document.querySelector('.outer .inner');
+      document.querySelector('.foo > .bar');
+      document.querySelector('.left.right');
+    `;
+    const issues = checkArtifactCrossRefs({
+      htmlPath: 'index.html',
+      htmlContent: html,
+      jsFiles: [{ path: 'app.js', content: js }],
+    });
+    expect(issues).toEqual([]);
+  });
+
+  it('splits multi-class class attribute values', () => {
+    const html = `<!doctype html><html><body>
+      <div class="alpha beta gamma"></div>
+    </body></html>`;
+    const js = `
+      document.querySelector('.alpha');
+      document.querySelector('.beta');
+      document.querySelector('.gamma');
+      document.querySelector('.delta');
+    `;
+    const issues = checkArtifactCrossRefs({
+      htmlPath: 'index.html',
+      htmlContent: html,
+      jsFiles: [{ path: 'app.js', content: js }],
+    });
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.reference).toBe('delta');
+  });
 });

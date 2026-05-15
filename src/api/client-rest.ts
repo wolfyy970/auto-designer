@@ -88,12 +88,19 @@ export async function listProviders(): Promise<ProviderInfo[]> {
   return getParsedList('/models', ProvidersListResponseSchema, []);
 }
 
-/** Forward run-trace events to the server observability ring (best-effort, dev). */
+/**
+ * Forward run-trace events to the server observability ring (best-effort, dev only).
+ * The server route is intentionally 404 in production (see
+ * `server/routes/__tests__/production-gates.test.ts`); calling it would flood the
+ * browser console with failed-resource entries. Short-circuit in production so the
+ * client mirrors the server gate.
+ */
 export async function postTraceEvents(body: {
   correlationId?: string;
   resultId?: string;
   events: RunTraceEvent[];
 }): Promise<boolean> {
+  if (import.meta.env.PROD) return false;
   try {
     const response = await fetch(`${API_BASE}/logs/trace`, {
       method: 'POST',

@@ -193,4 +193,19 @@ describe('validate_artifact', () => {
     );
     expect((result.content[0] as { text: string }).text).toMatch(/cross-references resolve/);
   });
+
+  it('flags querySelector(".class") references whose class is not in the HTML', async () => {
+    const bash = createAgentBashSandbox({
+      seedFiles: {
+        'index.html':
+          '<!DOCTYPE html><html><head><script src="app.js"></script></head><body><div class="real"></div></body></html>',
+        'app.js': "document.querySelector('.user-selector').innerHTML = 'x';",
+      },
+    });
+    const tool = createValidateArtifactTool(bash);
+    const result = await tool.execute('tc', {}, undefined, undefined, NO_OP_CTX);
+    const text = (result.content[0] as { text: string }).text;
+    expect(text).toContain('1 issue');
+    expect(text).toContain("querySelector('.user-selector')");
+  });
 });

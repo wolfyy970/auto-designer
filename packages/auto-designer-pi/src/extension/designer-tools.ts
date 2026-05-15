@@ -181,7 +181,7 @@ export function createValidateArtifactTool(bash: Bash): ToolDefinition {
     name: 'validate_artifact',
     label: 'validate_artifact',
     description:
-      'Use `validate_artifact` to cross-check that every DOM id your JS references (getElementById, querySelector("#…")) exists in the entry HTML. The closest equivalent to `tsc` for this static-web project — catches dead-on-arrival handlers and stale selectors after substantive working-depth changes, before the artifact ships.',
+      'Use `validate_artifact` to cross-check that every DOM id and single-class selector your JS references (getElementById, querySelector("#…"), querySelector(".…"), querySelectorAll, getElementsByClassName) exists in the entry HTML — or gets assigned dynamically by JS (`el.id = …`, `el.className = …`, `classList.add(…)`). The closest equivalent to `tsc` for this static-web project — catches dead-on-arrival handlers and stale selectors after substantive working-depth changes, before the artifact ships.',
     parameters: validateArtifactSchema,
     async execute(_toolCallId, params, _signal, _onUpdate, _ctx: ExtensionContext) {
       const { entry = 'index.html' } = params as { entry?: string };
