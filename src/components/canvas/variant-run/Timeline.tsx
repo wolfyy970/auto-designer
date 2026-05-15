@@ -313,27 +313,28 @@ export function Timeline({
 
   const fallbackActivity = activityLog?.join('') ?? '';
 
+  // Default during streaming: every turn's thinking + tool-use panels stay
+  // open, not just the active one — the viewer wants to see the agent's
+  // activity unfolding, not a wall of collapsed skeletons. After streaming
+  // ends, the default flips to closed so the historical view stays scannable.
   const resolvedThinkingOpen = useCallback(
     (turnId: number) => {
       if (thinkingExpanded[turnId] !== undefined) {
         return thinkingExpanded[turnId]!;
       }
-      return isStreaming && turnId === activeTurnId;
+      return isStreaming;
     },
-    [thinkingExpanded, isStreaming, activeTurnId],
+    [thinkingExpanded, isStreaming],
   );
 
   const toggleThinking = useCallback(
     (turnId: number) => {
       setThinkingExpanded((prev) => {
-        const currentlyOpen =
-          prev[turnId] !== undefined
-            ? prev[turnId]!
-            : isStreaming && turnId === activeTurnId;
+        const currentlyOpen = prev[turnId] !== undefined ? prev[turnId]! : isStreaming;
         return { ...prev, [turnId]: !currentlyOpen };
       });
     },
-    [isStreaming, activeTurnId],
+    [isStreaming],
   );
 
   const resolvedToolUseOpen = useCallback(
@@ -341,22 +342,19 @@ export function Timeline({
       if (toolUseExpanded[turnId] !== undefined) {
         return toolUseExpanded[turnId]!;
       }
-      return isStreaming && turnId === activeTurnId;
+      return isStreaming;
     },
-    [toolUseExpanded, isStreaming, activeTurnId],
+    [toolUseExpanded, isStreaming],
   );
 
   const toggleToolUse = useCallback(
     (turnId: number) => {
       setToolUseExpanded((prev) => {
-        const currentlyOpen =
-          prev[turnId] !== undefined
-            ? prev[turnId]!
-            : isStreaming && turnId === activeTurnId;
+        const currentlyOpen = prev[turnId] !== undefined ? prev[turnId]! : isStreaming;
         return { ...prev, [turnId]: !currentlyOpen };
       });
     },
-    [isStreaming, activeTurnId],
+    [isStreaming],
   );
 
   const scrollFingerprint = useMemo(() => {
