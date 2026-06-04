@@ -259,18 +259,10 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
                       <button
                         type="button"
                         onClick={() => handleDelete(s.id, s.title)}
-                        disabled={isActive || busy}
-                        className={`rounded p-1 ${
-                          isActive
-                            ? 'cursor-not-allowed text-fg-faint'
-                            : 'text-fg-muted hover:bg-error-subtle hover:text-error'
-                        }`}
+                        disabled={busy}
+                        className="rounded p-1 text-fg-muted hover:bg-error-subtle hover:text-error"
                         aria-label="Delete canvas"
-                        title={
-                          isActive
-                            ? 'Cannot delete the active canvas'
-                            : 'Delete canvas'
-                        }
+                        title={isActive ? 'Delete this canvas (stays open until you reload)' : 'Delete canvas'}
                       >
                         <Trash2 size={14} />
                       </button>

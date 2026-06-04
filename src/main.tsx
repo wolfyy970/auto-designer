@@ -7,10 +7,12 @@ import { ensureCanvasSnapshotStore } from './services/idb-storage';
 
 initLogRocket();
 
-// Repair canvas-snapshot DBs left without a `snapshots` store by an earlier migration bug,
-// then rename legacy app storage keys and move localStorage → IndexedDB, before stores hydrate.
-ensureCanvasSnapshotStore()
-  .then(() => migrateLegacyStoragePrefixes())
+// Warm up + self-heal the canvas-snapshot DB in the background. It must NOT gate boot: a
+// blocked open (e.g. another tab pinning an older version) would otherwise hang the whole app.
+void ensureCanvasSnapshotStore();
+
+// Rename legacy app storage keys, then move localStorage → IndexedDB, before stores hydrate.
+migrateLegacyStoragePrefixes()
   .then(() => migrateToIndexedDB())
   .then(async () => {
     const { default: App } = await import('./App');

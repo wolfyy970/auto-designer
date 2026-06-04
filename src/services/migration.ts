@@ -38,6 +38,10 @@ export async function migrateLegacyStoragePrefixes(): Promise<void> {
     }
 
     for (const name of IDB_DATABASE_KEY_NAMES) {
+      // Canvas snapshots are a new feature with no legacy `lattice-*` data, and the DB is owned
+      // by a versioned opener (idb-storage). Touching it here with idb-keyval's unversioned open
+      // would create it at the wrong version and can hang behind a pending upgrade.
+      if (name === 'IDB_CANVAS_SNAPSHOTS') continue;
       const newDb = STORAGE_KEYS[name];
       const suffix = newDb.startsWith(NEW_PREFIX) ? newDb.slice(NEW_PREFIX.length) : newDb;
       const oldDb = LEGACY_PREFIX + suffix;

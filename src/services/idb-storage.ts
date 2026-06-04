@@ -12,55 +12,87 @@ import type { SavedCanvasSnapshot } from '../types/saved-canvas';
 const codeStore = createStore(STORAGE_KEYS.IDB_CODE, IDB_STORE_NAMES.IDB_CODE);
 const provenanceStore = createStore(STORAGE_KEYS.IDB_PROVENANCE, IDB_STORE_NAMES.IDB_PROVENANCE);
 const filesStore = createStore(STORAGE_KEYS.IDB_FILES, IDB_STORE_NAMES.IDB_FILES);
-const canvasSnapshotStore = createStore(
-  STORAGE_KEYS.IDB_CANVAS_SNAPSHOTS,
-  IDB_STORE_NAMES.IDB_CANVAS_SNAPSHOTS,
-);
 
-/**
- * Bumping this version triggers `onupgradeneeded` on next open, which is how we add the
- * `snapshots` store to databases that an earlier migration bug created with a `files`
- * store instead. idb-keyval opens databases without a version, so it can never add a
- * missing store on its own.
- */
+// ── Canvas-snapshot DB (owned directly, not via idb-keyval) ───────────
+//
+// idb-keyval opens databases WITHOUT a version, so it can neither create a missing object
+// store on an existing DB nor cooperate with an upgrade — a legacy bug once created this DB
+// with a `files` store instead of `snapshots`, and any blocked/queued open then hung forever
+// (breaking every Canvas Manager action). We own this one DB with an explicit versioned open:
+//   • `onupgradeneeded` guarantees the `snapshots` store exists on every open path (self-heals
+//     a poisoned or fresh DB regardless of boot order), and
+//   • `onversionchange` closes our connection so another tab's upgrade is never blocked.
 const CANVAS_SNAPSHOT_DB_VERSION = 2;
+const CANVAS_SNAPSHOT_STORE = IDB_STORE_NAMES.IDB_CANVAS_SNAPSHOTS;
+// If a stale connection (e.g. an old-build tab that predates `onversionchange`) blocks the
+// upgrade, fail loud instead of hanging silently so the action surfaces an error.
+const CANVAS_SNAPSHOT_OPEN_TIMEOUT_MS = 8000;
 
-/**
- * Repair canvas-snapshot databases poisoned by the legacy-prefix migration, which used to
- * create `auto-designer-canvas-snapshots` with a `files` object store rather than
- * `snapshots`. Once that DB exists at v1, idb-keyval's unversioned open never fires
- * `onupgradeneeded`, so the real `snapshots` store can't be added and every snapshot write
- * throws `NotFoundError` — breaking all canvas-manager actions.
- *
- * Opening with an explicit, higher version lets us add the `snapshots` store if it's
- * absent. No snapshot data is ever lost: the broken store could never have been written to.
- * Must run before idb-keyval first touches this database (i.e. before migrations and before
- * any canvas snapshot read/write).
- */
-export function ensureCanvasSnapshotStore(): Promise<void> {
-  if (typeof indexedDB === 'undefined') return Promise.resolve();
-  return new Promise((resolve) => {
-    let request: IDBOpenDBRequest;
-    try {
-      request = indexedDB.open(STORAGE_KEYS.IDB_CANVAS_SNAPSHOTS, CANVAS_SNAPSHOT_DB_VERSION);
-    } catch {
-      resolve();
-      return;
-    }
+let canvasSnapshotDbPromise: Promise<IDBDatabase> | null = null;
+
+function openCanvasSnapshotDB(): Promise<IDBDatabase> {
+  if (canvasSnapshotDbPromise) return canvasSnapshotDbPromise;
+  canvasSnapshotDbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(STORAGE_KEYS.IDB_CANVAS_SNAPSHOTS, CANVAS_SNAPSHOT_DB_VERSION);
+    const timer = setTimeout(() => {
+      canvasSnapshotDbPromise = null;
+      reject(
+        new Error(
+          'Canvas storage is blocked by another tab. Close other tabs of this app and retry.',
+        ),
+      );
+    }, CANVAS_SNAPSHOT_OPEN_TIMEOUT_MS);
     request.onupgradeneeded = () => {
       const db = request.result;
-      if (!db.objectStoreNames.contains(IDB_STORE_NAMES.IDB_CANVAS_SNAPSHOTS)) {
-        db.createObjectStore(IDB_STORE_NAMES.IDB_CANVAS_SNAPSHOTS);
+      if (!db.objectStoreNames.contains(CANVAS_SNAPSHOT_STORE)) {
+        db.createObjectStore(CANVAS_SNAPSHOT_STORE);
       }
     };
     request.onsuccess = () => {
-      request.result.close();
-      resolve();
+      clearTimeout(timer);
+      const db = request.result;
+      // Drop our connection if another tab needs to upgrade, and forget the cache on close so
+      // the next operation reopens cleanly.
+      db.onversionchange = () => db.close();
+      db.onclose = () => {
+        canvasSnapshotDbPromise = null;
+      };
+      resolve(db);
     };
-    // Best-effort: a blocked or errored open shouldn't wedge app startup.
-    request.onerror = () => resolve();
-    request.onblocked = () => resolve();
+    request.onerror = () => {
+      clearTimeout(timer);
+      canvasSnapshotDbPromise = null;
+      reject(request.error ?? new Error('Failed to open canvas snapshot database'));
+    };
+    // `onblocked` means another connection is pinning an older version; the timeout above
+    // turns an indefinite wait into a clear error.
   });
+  return canvasSnapshotDbPromise;
+}
+
+function runCanvasSnapshotTx<T>(
+  mode: IDBTransactionMode,
+  op: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
+  return openCanvasSnapshotDB().then(
+    (db) =>
+      new Promise<T>((resolve, reject) => {
+        const tx = db.transaction(CANVAS_SNAPSHOT_STORE, mode);
+        const request = op(tx.objectStore(CANVAS_SNAPSHOT_STORE));
+        request.onsuccess = () => resolve(request.result);
+        tx.onerror = () => reject(tx.error ?? request.error);
+        tx.onabort = () => reject(tx.error ?? request.error);
+      }),
+  );
+}
+
+/** Warm up (and self-heal) the canvas-snapshot DB without blocking app boot. */
+export function ensureCanvasSnapshotStore(): Promise<void> {
+  if (typeof indexedDB === 'undefined') return Promise.resolve();
+  return openCanvasSnapshotDB().then(
+    () => undefined,
+    () => undefined,
+  );
 }
 
 // ── Generated code ────────────────────────────────────────────────────
@@ -157,15 +189,19 @@ export function saveCanvasSnapshot(
   canvasId: string,
   snapshot: SavedCanvasSnapshot,
 ): Promise<void> {
-  return set(canvasId, snapshot, canvasSnapshotStore);
+  return runCanvasSnapshotTx('readwrite', (store) => store.put(snapshot, canvasId)).then(
+    () => undefined,
+  );
 }
 
 export function loadCanvasSnapshot(canvasId: string): Promise<SavedCanvasSnapshot | undefined> {
-  return get(canvasId, canvasSnapshotStore);
+  return runCanvasSnapshotTx<SavedCanvasSnapshot | undefined>('readonly', (store) =>
+    store.get(canvasId),
+  );
 }
 
 export function deleteCanvasSnapshot(canvasId: string): Promise<void> {
-  return del(canvasId, canvasSnapshotStore);
+  return runCanvasSnapshotTx('readwrite', (store) => store.delete(canvasId)).then(() => undefined);
 }
 
 /**
@@ -178,10 +214,12 @@ export async function garbageCollectCanvasSnapshots(
   activeCanvasIds: Set<string>,
 ): Promise<number> {
   let removed = 0;
-  const snapshotKeys = (await keys(canvasSnapshotStore)) as string[];
+  const snapshotKeys = await runCanvasSnapshotTx<IDBValidKey[]>('readonly', (store) =>
+    store.getAllKeys(),
+  );
   for (const key of snapshotKeys) {
-    if (!activeCanvasIds.has(key)) {
-      await del(key, canvasSnapshotStore);
+    if (typeof key === 'string' && !activeCanvasIds.has(key)) {
+      await runCanvasSnapshotTx('readwrite', (store) => store.delete(key));
       removed++;
     }
   }

@@ -1,50 +1,47 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+// Real IndexedDB semantics via fake-indexeddb. Covers the canvas-snapshot DB's versioned
+// opener: it must self-heal a DB poisoned with a `files` store (the legacy bug) and round-trip
+// save/load/delete/GC. (The store is owned directly, not through idb-keyval.)
+import 'fake-indexeddb/auto';
+import { describe, it, expect } from 'vitest';
+import {
+  saveCanvasSnapshot,
+  loadCanvasSnapshot,
+  deleteCanvasSnapshot,
+  garbageCollectCanvasSnapshots,
+} from '../idb-storage';
+import type { SavedCanvasSnapshot } from '../../types/saved-canvas';
 
-// idb-keyval is mocked: createStore returns an opaque sentinel; keys/del are observed.
-const m = vi.hoisted(() => ({ keys: vi.fn(), del: vi.fn() }));
+const snap = (id: string): SavedCanvasSnapshot =>
+  ({ schemaVersion: 1, savedAt: 't', spec: { id, title: id } } as unknown as SavedCanvasSnapshot);
 
-vi.mock('idb-keyval', () => ({
-  createStore: vi.fn(() => ({})),
-  get: vi.fn(),
-  set: vi.fn(),
-  del: m.del,
-  keys: m.keys,
-  clear: vi.fn(),
-}));
+describe('canvas-snapshot store (versioned opener)', () => {
+  it('self-heals a DB poisoned with a "files" store and round-trips a snapshot', async () => {
+    // Pre-create the poisoned DB exactly like the legacy migration bug, BEFORE the module opens it.
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.open('auto-designer-canvas-snapshots', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('files');
+      req.onsuccess = () => { req.result.close(); resolve(); };
+      req.onerror = () => reject(req.error);
+    });
 
-import { garbageCollectCanvasSnapshots } from '../idb-storage';
-
-describe('garbageCollectCanvasSnapshots', () => {
-  beforeEach(() => {
-    m.keys.mockReset();
-    m.del.mockReset().mockResolvedValue(undefined);
+    await saveCanvasSnapshot('a', snap('a'));
+    expect((await loadCanvasSnapshot('a'))?.spec.id).toBe('a');
   });
 
-  it('deletes snapshot keys that are not in the active set', async () => {
-    m.keys.mockResolvedValue(['keep-1', 'orphan', 'keep-2']);
-
-    const removed = await garbageCollectCanvasSnapshots(new Set(['keep-1', 'keep-2']));
-
-    expect(removed).toBe(1);
-    expect(m.del).toHaveBeenCalledTimes(1);
-    expect(m.del).toHaveBeenCalledWith('orphan', expect.anything());
+  it('deletes a snapshot', async () => {
+    await saveCanvasSnapshot('b', snap('b'));
+    expect(await loadCanvasSnapshot('b')).toBeDefined();
+    await deleteCanvasSnapshot('b');
+    expect(await loadCanvasSnapshot('b')).toBeUndefined();
   });
 
-  it('keeps every snapshot when all keys are active', async () => {
-    m.keys.mockResolvedValue(['a', 'b']);
+  it('garbage-collects snapshot ids not in the active set, keeps the active ones', async () => {
+    await saveCanvasSnapshot('keep', snap('keep'));
+    await saveCanvasSnapshot('drop', snap('drop'));
 
-    const removed = await garbageCollectCanvasSnapshots(new Set(['a', 'b']));
+    await garbageCollectCanvasSnapshots(new Set(['keep']));
 
-    expect(removed).toBe(0);
-    expect(m.del).not.toHaveBeenCalled();
-  });
-
-  it('is a no-op on an empty store', async () => {
-    m.keys.mockResolvedValue([]);
-
-    const removed = await garbageCollectCanvasSnapshots(new Set(['a']));
-
-    expect(removed).toBe(0);
-    expect(m.del).not.toHaveBeenCalled();
+    expect(await loadCanvasSnapshot('keep')).toBeDefined();
+    expect(await loadCanvasSnapshot('drop')).toBeUndefined();
   });
 });

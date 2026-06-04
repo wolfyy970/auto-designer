@@ -1,7 +1,7 @@
 {
   "name": "auto-designer",
   "private": true,
-  "version": "0.3.210",
+  "version": "0.3.211",
   "packageManager": "pnpm@10.10.0",
   "type": "module",
   "scripts": {
@@ -68,6 +68,7 @@
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "fake-indexeddb": "^6.2.5",
     "globals": "^16.5.0",
     "husky": "^9.1.7",
     "jsdom": "^29.0.2",
