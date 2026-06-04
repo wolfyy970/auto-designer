@@ -5,6 +5,7 @@
 import { createStore, get, set, keys } from 'idb-keyval';
 import {
   IDB_DATABASE_KEY_NAMES,
+  IDB_STORE_NAMES,
   PERSISTED_LOCAL_STORAGE_KEY_NAMES,
   STORAGE_KEYS,
 } from '../lib/storage-keys';
@@ -16,12 +17,6 @@ const LEGACY_PREFIX_MIGRATION_FLAG = 'auto-designer-legacy-prefix-migrated-v1';
 
 const MIGRATION_FLAG = STORAGE_KEYS.MIGRATION_FLAG;
 const GENERATION_STORE_KEY = STORAGE_KEYS.GENERATION;
-
-function idbObjectStoreName(name: (typeof IDB_DATABASE_KEY_NAMES)[number]): string {
-  if (name === 'IDB_CODE') return 'code';
-  if (name === 'IDB_PROVENANCE') return 'provenance';
-  return 'files';
-}
 
 /**
  * Copy data from legacy `lattice-*` localStorage / IndexedDB into `auto-designer-*`.
@@ -46,7 +41,7 @@ export async function migrateLegacyStoragePrefixes(): Promise<void> {
       const newDb = STORAGE_KEYS[name];
       const suffix = newDb.startsWith(NEW_PREFIX) ? newDb.slice(NEW_PREFIX.length) : newDb;
       const oldDb = LEGACY_PREFIX + suffix;
-      const store = idbObjectStoreName(name);
+      const store = IDB_STORE_NAMES[name];
       const legacy = createStore(oldDb, store);
       const next = createStore(newDb, store);
       const nextKeyList = await keys(next);

@@ -80,13 +80,6 @@ export async function saveSnapshotToLibrary(snapshot: SavedCanvasSnapshot): Prom
   await saveCanvasSnapshot(snapshot.spec.id, snapshot);
 }
 
-/** Legacy helper retained for imports/tests that still save spec-only entries. */
-export function saveSpecToLibrary(spec: DesignSpec): void {
-  const index = getAllCanvasIndex();
-  index[spec.id] = spec;
-  setAllCanvasIndex(index);
-}
-
 export function getSavedSpec(specId: string): DesignSpec | null {
   const index = getAllCanvasIndex();
   const entry = index[specId] ?? Object.values(index).find((s) => s.id === specId);
@@ -99,10 +92,19 @@ export async function getSavedCanvasSnapshot(specId: string): Promise<SavedCanva
   const index = getAllCanvasIndex();
   const entry = index[specId] ?? Object.values(index).find((s) => s.id === specId);
   if (!entry) return null;
-  if (isSavedCanvasListEntry(entry)) {
-    return (await loadCanvasSnapshot(entry.id)) ?? null;
+  if (!isSavedCanvasListEntry(entry)) return null;
+  const snapshot = await loadCanvasSnapshot(entry.id);
+  if (!snapshot) return null;
+  // Identity guard: the blob at this key must be the canvas we asked for. A mismatch means
+  // the snapshot store drifted from the index (corruption / interrupted write) — treat as
+  // missing so callers fall back to the not-found path rather than loading the wrong canvas.
+  if (snapshot.spec.id !== entry.id) {
+    console.warn(
+      `Saved canvas "${entry.id}" resolved a snapshot for "${snapshot.spec.id}"; treating as corrupt`,
+    );
+    return null;
   }
-  return null;
+  return snapshot;
 }
 
 export async function deleteCanvasFromLibrary(specId: string): Promise<void> {
@@ -112,21 +114,16 @@ export async function deleteCanvasFromLibrary(specId: string): Promise<void> {
   await deleteCanvasSnapshot(specId);
 }
 
-/** Legacy name retained for call sites while Canvas Manager migrates to full snapshots. */
-export function deleteSpecFromLibrary(specId: string): void {
-  const index = getAllCanvasIndex();
-  delete index[specId];
-  setAllCanvasIndex(index);
-  if (typeof indexedDB !== 'undefined') {
-    void deleteCanvasSnapshot(specId);
-  }
-}
-
 export function getCanvasList(): Array<{ id: string; title: string; lastModified: string }> {
   const index = getAllCanvasIndex();
   return Object.values(index)
     .map((s) => ({ id: s.id, title: s.title, lastModified: s.lastModified }))
     .sort((a, b) => b.lastModified.localeCompare(a.lastModified));
+}
+
+/** The set of canvas ids the library knows about — the source of truth for snapshot GC. */
+export function getSavedCanvasIds(): Set<string> {
+  return new Set(Object.values(getAllCanvasIndex()).map((s) => s.id));
 }
 
 export function exportSnapshot(snapshot: SavedCanvasSnapshot): void {
@@ -138,19 +135,6 @@ export function exportSnapshot(snapshot: SavedCanvasSnapshot): void {
   const a = document.createElement('a');
   a.href = url;
   a.download = `${snapshot.spec.title.replace(/\s+/g, '-').toLowerCase()}-canvas.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-/** Legacy name retained; exports spec-only JSON for old callers. */
-export function exportCanvas(spec: DesignSpec): void {
-  const blob = new Blob([JSON.stringify(spec, null, 2)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${spec.title.replace(/\s+/g, '-').toLowerCase()}-canvas.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -183,10 +167,4 @@ export async function importCanvasSnapshotOrSpec(file: File): Promise<SavedCanva
     throw new Error('Invalid canvas file: missing required fields');
   }
   return result.data;
-}
-
-export async function importCanvas(file: File): Promise<DesignSpec> {
-  const imported = await importCanvasSnapshotOrSpec(file);
-  if ('schemaVersion' in imported) return imported.spec;
-  return imported;
 }

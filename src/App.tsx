@@ -3,7 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useThemeEffect } from './hooks/useThemeEffect';
 import { useGenerationStore } from './stores/generation-store';
-import { garbageCollect } from './services/idb-storage';
+import { garbageCollect, garbageCollectCanvasSnapshots } from './services/idb-storage';
+import { getSavedCanvasIds } from './services/persistence';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { LogRocketRouteTracker } from './components/shared/LogRocketRouteTracker';
 import { ViewportGate } from './components/shared/ViewportGate';
@@ -52,6 +53,11 @@ export default function App() {
           console.log(
             `[gc] Removed ${codesRemoved} orphaned code(s), ${provenanceRemoved} provenance(s) from IndexedDB`,
           );
+        }
+      });
+      garbageCollectCanvasSnapshots(getSavedCanvasIds()).then((removed) => {
+        if (import.meta.env.DEV && removed > 0) {
+          console.log(`[gc] Removed ${removed} orphaned canvas snapshot(s) from IndexedDB`);
         }
       });
     }, 3000); // Defer 3s to not compete with initial render

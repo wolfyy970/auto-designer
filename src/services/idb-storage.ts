@@ -6,13 +6,62 @@
  */
 import { createStore, get, set, del, keys, clear } from 'idb-keyval';
 import type { Provenance } from '../types/provider';
-import { STORAGE_KEYS } from '../lib/storage-keys';
+import { IDB_STORE_NAMES, STORAGE_KEYS } from '../lib/storage-keys';
 import type { SavedCanvasSnapshot } from '../types/saved-canvas';
 
-const codeStore = createStore(STORAGE_KEYS.IDB_CODE, 'code');
-const provenanceStore = createStore(STORAGE_KEYS.IDB_PROVENANCE, 'provenance');
-const filesStore = createStore(STORAGE_KEYS.IDB_FILES, 'files');
-const canvasSnapshotStore = createStore(STORAGE_KEYS.IDB_CANVAS_SNAPSHOTS, 'snapshots');
+const codeStore = createStore(STORAGE_KEYS.IDB_CODE, IDB_STORE_NAMES.IDB_CODE);
+const provenanceStore = createStore(STORAGE_KEYS.IDB_PROVENANCE, IDB_STORE_NAMES.IDB_PROVENANCE);
+const filesStore = createStore(STORAGE_KEYS.IDB_FILES, IDB_STORE_NAMES.IDB_FILES);
+const canvasSnapshotStore = createStore(
+  STORAGE_KEYS.IDB_CANVAS_SNAPSHOTS,
+  IDB_STORE_NAMES.IDB_CANVAS_SNAPSHOTS,
+);
+
+/**
+ * Bumping this version triggers `onupgradeneeded` on next open, which is how we add the
+ * `snapshots` store to databases that an earlier migration bug created with a `files`
+ * store instead. idb-keyval opens databases without a version, so it can never add a
+ * missing store on its own.
+ */
+const CANVAS_SNAPSHOT_DB_VERSION = 2;
+
+/**
+ * Repair canvas-snapshot databases poisoned by the legacy-prefix migration, which used to
+ * create `auto-designer-canvas-snapshots` with a `files` object store rather than
+ * `snapshots`. Once that DB exists at v1, idb-keyval's unversioned open never fires
+ * `onupgradeneeded`, so the real `snapshots` store can't be added and every snapshot write
+ * throws `NotFoundError` — breaking all canvas-manager actions.
+ *
+ * Opening with an explicit, higher version lets us add the `snapshots` store if it's
+ * absent. No snapshot data is ever lost: the broken store could never have been written to.
+ * Must run before idb-keyval first touches this database (i.e. before migrations and before
+ * any canvas snapshot read/write).
+ */
+export function ensureCanvasSnapshotStore(): Promise<void> {
+  if (typeof indexedDB === 'undefined') return Promise.resolve();
+  return new Promise((resolve) => {
+    let request: IDBOpenDBRequest;
+    try {
+      request = indexedDB.open(STORAGE_KEYS.IDB_CANVAS_SNAPSHOTS, CANVAS_SNAPSHOT_DB_VERSION);
+    } catch {
+      resolve();
+      return;
+    }
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(IDB_STORE_NAMES.IDB_CANVAS_SNAPSHOTS)) {
+        db.createObjectStore(IDB_STORE_NAMES.IDB_CANVAS_SNAPSHOTS);
+      }
+    };
+    request.onsuccess = () => {
+      request.result.close();
+      resolve();
+    };
+    // Best-effort: a blocked or errored open shouldn't wedge app startup.
+    request.onerror = () => resolve();
+    request.onblocked = () => resolve();
+  });
+}
 
 // ── Generated code ────────────────────────────────────────────────────
 
@@ -117,6 +166,26 @@ export function loadCanvasSnapshot(canvasId: string): Promise<SavedCanvasSnapsho
 
 export function deleteCanvasSnapshot(canvasId: string): Promise<void> {
   return del(canvasId, canvasSnapshotStore);
+}
+
+/**
+ * Delete snapshot blobs whose canvas id is not in the active set. Reclaims orphans left by a
+ * failed delete or a partial save (index written but snapshot orphaned, or vice-versa), so the
+ * snapshot store can't grow without bound. Pass the live ids from the canvas index (the source
+ * of truth). Returns the number removed.
+ */
+export async function garbageCollectCanvasSnapshots(
+  activeCanvasIds: Set<string>,
+): Promise<number> {
+  let removed = 0;
+  const snapshotKeys = (await keys(canvasSnapshotStore)) as string[];
+  for (const key of snapshotKeys) {
+    if (!activeCanvasIds.has(key)) {
+      await del(key, canvasSnapshotStore);
+      removed++;
+    }
+  }
+  return removed;
 }
 
 // ── Garbage collection ────────────────────────────────────────────────

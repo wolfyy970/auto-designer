@@ -110,4 +110,4 @@ Start a run with **Design** on the Hypothesis node. With **Auto-improve** disabl
 - In-memory fields (`liveCode`, `liveFiles`, `liveFilesPlan`) are stripped from localStorage persistence
 - Canvas Manager: full-workspace save, load, duplicate, delete, and export/import canvas JSON bundles. Replacing actions checkpoint the current canvas first; legacy spec-only imports still load.
 - Canvas state persists across sessions (nodes, edges, viewport, layout preferences)
-- Automatic garbage collection removes orphaned IndexedDB entries (code, provenance, and files stores) on app startup
+- Automatic garbage collection removes orphaned IndexedDB entries (code, provenance, files, and saved-canvas snapshot stores) on app startup

@@ -10,6 +10,7 @@ import { useCanvasStore } from '../stores/canvas-store';
 import { useWorkspaceDomainStore } from '../stores/workspace-domain-store';
 import { GENERATION_STATUS } from '../constants/generation';
 import {
+  deleteCanvasFromLibrary,
   exportSnapshot,
   getSavedCanvasSnapshot,
   getSavedSpec,
@@ -50,6 +51,17 @@ function resetSessionStores(): void {
     userBestOverrides: {},
   });
   useCanvasStore.getState().resetCanvas();
+}
+
+/**
+ * Checkpoint the current canvas to the library, then clear the session for a fresh start.
+ * Only for flows where nothing happens between save and reset; `activateSavedSpecById`,
+ * `activateImportedSpecFile`, and `duplicateCurrentSpec` defer the reset until after they
+ * load/parse/capture, so they sequence the two steps themselves.
+ */
+async function checkpointAndReset(): Promise<void> {
+  await saveCurrentCanvasSnapshot({ stopActiveWork: true });
+  resetSessionStores();
 }
 
 export type ActivateSavedSpecResult =
@@ -102,8 +114,7 @@ export async function activateImportedSpecFile(file: File): Promise<void> {
 }
 
 export async function startNewCanvasAfterCheckpoint(title?: string): Promise<void> {
-  await saveCurrentCanvasSnapshot({ stopActiveWork: true });
-  resetSessionStores();
+  await checkpointAndReset();
   useSpecStore.getState().createNewCanvas(title);
 }
 
@@ -111,13 +122,16 @@ export async function startNewCanvasAfterCheckpoint(title?: string): Promise<voi
 export async function duplicateCurrentSpec(): Promise<void> {
   await saveCurrentCanvasSnapshot({ stopActiveWork: true });
   const snapshot = await captureCurrentCanvasSnapshot();
+  // Capture happens before reset so the copy reflects the live workspace. Trim + fall back so
+  // a blank title never yields a bare " (copy)" name.
+  const baseTitle = snapshot.spec.title.trim() || 'Untitled';
   const duplicated = {
     ...snapshot,
     savedAt: now(),
     spec: {
       ...snapshot.spec,
       id: generateId(),
-      title: `${snapshot.spec.title} (copy)`,
+      title: `${baseTitle} (copy)`,
       createdAt: now(),
       lastModified: now(),
     },
@@ -127,13 +141,17 @@ export async function duplicateCurrentSpec(): Promise<void> {
   await restoreCanvasSnapshot(duplicated);
 }
 
+/** Remove a saved canvas (list entry + snapshot). Routed here so the UI talks only to this module. */
+export async function deleteSavedCanvas(specId: string): Promise<void> {
+  await deleteCanvasFromLibrary(specId);
+}
+
 export async function exportCurrentCanvas(): Promise<void> {
   exportSnapshot(await captureCurrentCanvasSnapshot());
 }
 
 export async function resetCanvasAfterCheckpoint(): Promise<void> {
-  await saveCurrentCanvasSnapshot({ stopActiveWork: true });
-  resetSessionStores();
+  await checkpointAndReset();
 }
 
 let titleLibrarySyncTimer: ReturnType<typeof setTimeout> | null = null;

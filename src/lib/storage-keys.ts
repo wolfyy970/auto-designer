@@ -81,3 +81,17 @@ export const IDB_DATABASE_KEY_NAMES = [
   'IDB_FILES',
   'IDB_CANVAS_SNAPSHOTS',
 ] as const satisfies ReadonlyArray<keyof typeof STORAGE_KEYS>;
+
+/**
+ * The single idb-keyval object-store name inside each IndexedDB database above.
+ * Single source of truth shared by idb-storage and the legacy-prefix migration —
+ * `satisfies Record<…>` forces every database to declare its store name, so a new
+ * database can't silently fall through to the wrong store (the bug that left the
+ * canvas-snapshots DB with a `files` store and no `snapshots` store).
+ */
+export const IDB_STORE_NAMES = {
+  IDB_CODE: 'code',
+  IDB_PROVENANCE: 'provenance',
+  IDB_FILES: 'files',
+  IDB_CANVAS_SNAPSHOTS: 'snapshots',
+} as const satisfies Record<(typeof IDB_DATABASE_KEY_NAMES)[number], string>;

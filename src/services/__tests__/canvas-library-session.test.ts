@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   mockGetSavedCanvasSnapshot: vi.fn(),
   mockGetSavedSpec: vi.fn(),
   mockImportCanvasSnapshotOrSpec: vi.fn(),
+  mockDeleteCanvasFromLibrary: vi.fn(),
   mockLoadCanvas: vi.fn(),
   mockCreateNewCanvas: vi.fn(),
   mockIncubatorReset: vi.fn(),
@@ -73,6 +74,7 @@ vi.mock('../persistence.ts', () => ({
   getSavedCanvasSnapshot: mocks.mockGetSavedCanvasSnapshot,
   getSavedSpec: mocks.mockGetSavedSpec,
   importCanvasSnapshotOrSpec: mocks.mockImportCanvasSnapshotOrSpec,
+  deleteCanvasFromLibrary: mocks.mockDeleteCanvasFromLibrary,
 }));
 
 vi.mock('../../lib/generation-abort-registry.ts', () => ({
@@ -124,6 +126,8 @@ vi.mock('../../stores/workspace-domain-store.ts', () => ({
 
 import {
   activateSavedSpecById,
+  deleteSavedCanvas,
+  duplicateCurrentSpec,
   saveCurrentCanvasSnapshot,
   startNewCanvasAfterCheckpoint,
 } from '../canvas-library-session';
@@ -193,5 +197,39 @@ describe('canvas-library-session', () => {
     expect(mocks.mockGenerationSetState).toHaveBeenCalled();
     expect(mocks.mockResetCanvas).toHaveBeenCalledOnce();
     expect(mocks.mockCreateNewCanvas).toHaveBeenCalledWith('Fresh');
+  });
+
+  it('duplicateCurrentSpec checkpoints, then saves and restores a copy under a fresh id', async () => {
+    await duplicateCurrentSpec();
+
+    // First save is the checkpoint of the active canvas; second is the duplicate.
+    expect(mocks.mockSaveSnapshotToLibrary).toHaveBeenCalledTimes(2);
+    expect(mocks.mockSaveSnapshotToLibrary).toHaveBeenNthCalledWith(1, activeSnapshot);
+
+    const duplicated = mocks.mockSaveSnapshotToLibrary.mock.calls[1][0] as SavedCanvasSnapshot;
+    expect(duplicated.spec.id).not.toBe(activeSpec.id);
+    expect(duplicated.spec.id).toBeTruthy();
+    expect(duplicated.spec.title).toBe('Active (copy)');
+
+    // Reset happens only after the copy is captured + saved, then the copy is restored.
+    expect(mocks.mockResetCanvas).toHaveBeenCalledOnce();
+    expect(mocks.mockRestoreCanvasSnapshot).toHaveBeenCalledWith(duplicated);
+  });
+
+  it('duplicateCurrentSpec falls back to "Untitled" when the source title is blank', async () => {
+    mocks.mockCaptureCurrentCanvasSnapshot.mockResolvedValue({
+      ...activeSnapshot,
+      spec: { ...activeSpec, title: '   ' },
+    });
+
+    await duplicateCurrentSpec();
+
+    const duplicated = mocks.mockSaveSnapshotToLibrary.mock.calls[1][0] as SavedCanvasSnapshot;
+    expect(duplicated.spec.title).toBe('Untitled (copy)');
+  });
+
+  it('deleteSavedCanvas delegates to persistence.deleteCanvasFromLibrary', async () => {
+    await deleteSavedCanvas('canvas-x');
+    expect(mocks.mockDeleteCanvasFromLibrary).toHaveBeenCalledWith('canvas-x');
   });
 });

@@ -4,13 +4,11 @@ import { normalizeError } from '../../lib/error-utils';
 import { useSpecStore } from '../../stores/spec-store';
 import { FEEDBACK_DISMISS_MS } from '../../lib/constants';
 import {
-  deleteCanvasFromLibrary,
-} from '../../services/persistence';
-import {
   activateSavedSpecById,
   activateImportedSpecFile,
   startNewCanvasAfterCheckpoint,
   duplicateCurrentSpec,
+  deleteSavedCanvas,
   exportCurrentCanvas,
   saveCurrentCanvasSnapshot,
   type ActivateSavedSpecResult,
@@ -37,11 +35,13 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
   const [busy, setBusy] = useState(false);
 
   const runManagerAction = useCallback(
-    async (action: () => Promise<void>) => {
+    async (action: () => Promise<void>, errorLabel: string) => {
       setBusy(true);
       try {
         await action();
         refresh();
+      } catch (err) {
+        alert(normalizeError(err, errorLabel));
       } finally {
         setBusy(false);
       }
@@ -54,7 +54,7 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
       await saveCurrentCanvasSnapshot();
       setSavedFeedback(true);
       setTimeout(() => setSavedFeedback(false), FEEDBACK_DISMISS_MS);
-    });
+    }, 'Save failed');
   }, [runManagerAction]);
 
   const finalizeLoadResult = useCallback(
@@ -73,7 +73,7 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
     (specId: string) => {
       void runManagerAction(async () => {
         finalizeLoadResult(await activateSavedSpecById(specId));
-      });
+      }, 'Load failed');
     },
     [finalizeLoadResult, runManagerAction],
   );
@@ -83,7 +83,7 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
       if (!window.confirm(CANVAS_MANAGER_RELOAD_CONFIRM)) return;
       void runManagerAction(async () => {
         finalizeLoadResult(await activateSavedSpecById(specId, { skipCheckpoint: true }));
-      });
+      }, 'Reload failed');
     },
     [finalizeLoadResult, runManagerAction],
   );
@@ -98,28 +98,24 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
         return;
       }
       void runManagerAction(async () => {
-        await deleteCanvasFromLibrary(specId);
-      });
+        await deleteSavedCanvas(specId);
+      }, 'Delete failed');
     },
     [runManagerAction],
   );
 
   const handleExport = useCallback(() => {
-    void runManagerAction(exportCurrentCanvas);
+    void runManagerAction(exportCurrentCanvas, 'Export failed');
   }, [runManagerAction]);
 
   const handleImport = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      try {
-        await runManagerAction(async () => {
-          await activateImportedSpecFile(file);
-          onClose();
-        });
-      } catch (err) {
-        alert(normalizeError(err, 'Import failed'));
-      }
+      await runManagerAction(async () => {
+        await activateImportedSpecFile(file);
+        onClose();
+      }, 'Import failed');
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
     [runManagerAction, onClose],
@@ -129,14 +125,14 @@ export default function SpecManager({ open, onClose }: SpecManagerProps) {
     void runManagerAction(async () => {
       await duplicateCurrentSpec();
       onClose();
-    });
+    }, 'Duplicate failed');
   }, [runManagerAction, onClose]);
 
   const handleNew = useCallback(() => {
     void runManagerAction(async () => {
       await startNewCanvasAfterCheckpoint();
       onClose();
-    });
+    }, 'Could not create a new canvas');
   }, [runManagerAction, onClose]);
 
   return (

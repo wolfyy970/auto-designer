@@ -1,15 +1,30 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { STORAGE_KEYS } from '../../lib/storage-keys';
 import {
-  saveSpecToLibrary,
   getSavedSpec,
-  deleteSpecFromLibrary,
   getCanvasList,
-  importCanvas,
+  getSavedCanvasIds,
+  getSavedCanvasSnapshot,
+  saveSnapshotToLibrary,
+  deleteCanvasFromLibrary,
   importCanvasSnapshotOrSpec,
 } from '../persistence';
 import type { DesignSpec, SpecSection, SpecSectionId } from '../../types/spec';
 import type { SavedCanvasSnapshot } from '../../types/saved-canvas';
+
+// IndexedDB tier is mocked: tests assert the localStorage index mutations and that the snapshot
+// store is called with the right keys (jsdom has no real IndexedDB).
+const idb = vi.hoisted(() => ({
+  saveCanvasSnapshot: vi.fn(),
+  loadCanvasSnapshot: vi.fn(),
+  deleteCanvasSnapshot: vi.fn(),
+}));
+
+vi.mock('../idb-storage', () => ({
+  saveCanvasSnapshot: idb.saveCanvasSnapshot,
+  loadCanvasSnapshot: idb.loadCanvasSnapshot,
+  deleteCanvasSnapshot: idb.deleteCanvasSnapshot,
+}));
 
 // Mock localStorage
 const storage = new Map<string, string>();
@@ -20,6 +35,9 @@ beforeEach(() => {
     setItem: (key: string, val: string) => storage.set(key, val),
     removeItem: (key: string) => storage.delete(key),
   });
+  idb.saveCanvasSnapshot.mockReset().mockResolvedValue(undefined);
+  idb.loadCanvasSnapshot.mockReset().mockResolvedValue(undefined);
+  idb.deleteCanvasSnapshot.mockReset().mockResolvedValue(undefined);
 });
 
 function makeSection(id: SpecSectionId): SpecSection {
@@ -129,51 +147,111 @@ describe('getSavedSpec / getAllCanvases validation', () => {
   });
 });
 
-// ── saveSpecToLibrary / getSavedSpec / deleteSpecFromLibrary ──────────────────
+// ── getSavedSpec (legacy spec-only read path) ─────────────────────────────
 
-describe('saveSpecToLibrary and getSavedSpec', () => {
-  it('round-trips a spec through save and load', () => {
+describe('getSavedSpec', () => {
+  it('resolves a legacy spec-only entry', () => {
     const spec = makeSpec({ id: 'spec-1', title: 'My Spec' });
-    saveSpecToLibrary(spec);
-    const loaded = getSavedSpec('spec-1');
-    expect(loaded?.title).toBe('My Spec');
+    storage.set(STORAGE_KEYS.CANVASES, JSON.stringify({ 'spec-1': spec }));
+    expect(getSavedSpec('spec-1')?.title).toBe('My Spec');
   });
 
-  it('getSavedSpec resolves spec when localStorage key differs from spec.id (legacy blobs)', () => {
+  it('resolves spec when localStorage key differs from spec.id (legacy blobs)', () => {
     const spec = makeSpec({ id: 'real-id', title: 'Legacy' });
     storage.set(STORAGE_KEYS.CANVASES, JSON.stringify({ 'wrong-key': spec }));
     expect(getSavedSpec('real-id')).toEqual(spec);
     expect(getSavedSpec('wrong-key')).toEqual(spec);
   });
+});
 
-  it('deleteSpecFromLibrary removes a spec', () => {
-    const spec = makeSpec({ id: 'spec-del' });
-    saveSpecToLibrary(spec);
-    expect(getSavedSpec('spec-del')).not.toBeNull();
-    deleteSpecFromLibrary('spec-del');
-    expect(getSavedSpec('spec-del')).toBeNull();
+// ── saveSnapshotToLibrary / getSavedCanvasSnapshot / deleteCanvasFromLibrary ──
+
+describe('saved canvas snapshots', () => {
+  it('saveSnapshotToLibrary writes the index entry and the snapshot blob', async () => {
+    const snapshot = makeSnapshot();
+    await saveSnapshotToLibrary(snapshot);
+
+    expect(getCanvasList()).toEqual([
+      { id: 'canvas-1', title: 'Full Canvas', lastModified: '2024-01-01' },
+    ]);
+    expect(idb.saveCanvasSnapshot).toHaveBeenCalledWith('canvas-1', snapshot);
+  });
+
+  it('getSavedCanvasSnapshot returns the blob when its spec.id matches the entry', async () => {
+    const snapshot = makeSnapshot();
+    await saveSnapshotToLibrary(snapshot);
+    idb.loadCanvasSnapshot.mockResolvedValue(snapshot);
+
+    expect(await getSavedCanvasSnapshot('canvas-1')).toBe(snapshot);
+  });
+
+  it('getSavedCanvasSnapshot returns null when the blob spec.id drifts from the key (identity guard)', async () => {
+    await saveSnapshotToLibrary(makeSnapshot());
+    // Store returns a blob belonging to a different canvas — must not load the wrong one.
+    idb.loadCanvasSnapshot.mockResolvedValue(makeSnapshot({ spec: makeSpec({ id: 'other', title: 'Other' }) }));
+
+    expect(await getSavedCanvasSnapshot('canvas-1')).toBeNull();
+  });
+
+  it('getSavedCanvasSnapshot returns null for an unknown id', async () => {
+    expect(await getSavedCanvasSnapshot('missing')).toBeNull();
+    expect(idb.loadCanvasSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('deleteCanvasFromLibrary removes the index entry and the snapshot blob', async () => {
+    await saveSnapshotToLibrary(makeSnapshot());
+    expect(getCanvasList()).toHaveLength(1);
+
+    await deleteCanvasFromLibrary('canvas-1');
+
+    expect(getCanvasList()).toHaveLength(0);
+    expect(idb.deleteCanvasSnapshot).toHaveBeenCalledWith('canvas-1');
+  });
+
+  it('deleteCanvasFromLibrary is a no-op for an unknown id but still clears any orphan blob', async () => {
+    await deleteCanvasFromLibrary('missing');
+    expect(getCanvasList()).toHaveLength(0);
+    expect(idb.deleteCanvasSnapshot).toHaveBeenCalledWith('missing');
+  });
+});
+
+// ── getSavedCanvasIds (snapshot GC source of truth) ───────────────────────
+
+describe('getSavedCanvasIds', () => {
+  it('returns the set of canvas ids in the index', async () => {
+    await saveSnapshotToLibrary(makeSnapshot({ spec: makeSpec({ id: 'a', title: 'A' }) }));
+    await saveSnapshotToLibrary(makeSnapshot({ spec: makeSpec({ id: 'b', title: 'B' }) }));
+    expect(getSavedCanvasIds()).toEqual(new Set(['a', 'b']));
+  });
+
+  it('returns an empty set when nothing is saved', () => {
+    expect(getSavedCanvasIds()).toEqual(new Set());
   });
 });
 
 // ── getCanvasList ──────────────────────────────────────────────────────
 
 describe('getCanvasList', () => {
-  it('returns specs sorted by lastModified descending', () => {
-    saveSpecToLibrary(makeSpec({ id: 's1', title: 'Old', lastModified: '2024-01-01' }));
-    saveSpecToLibrary(makeSpec({ id: 's2', title: 'New', lastModified: '2024-06-01' }));
+  it('returns entries sorted by lastModified descending', async () => {
+    await saveSnapshotToLibrary(
+      makeSnapshot({ spec: makeSpec({ id: 's1', title: 'Old', lastModified: '2024-01-01' }) }),
+    );
+    await saveSnapshotToLibrary(
+      makeSnapshot({ spec: makeSpec({ id: 's2', title: 'New', lastModified: '2024-06-01' }) }),
+    );
     const list = getCanvasList();
     expect(list[0].title).toBe('New');
     expect(list[1].title).toBe('Old');
   });
 
-  it('returns empty array when no specs saved', () => {
+  it('returns empty array when nothing saved', () => {
     expect(getCanvasList()).toEqual([]);
   });
 });
 
-// ── importCanvas validation ────────────────────────────────────────────
+// ── importCanvasSnapshotOrSpec validation ─────────────────────────────────
 
-describe('importCanvas', () => {
+describe('importCanvasSnapshotOrSpec', () => {
   function makeFile(content: string): File {
     return new File([content], 'test.json', { type: 'application/json' });
   }
@@ -181,33 +259,34 @@ describe('importCanvas', () => {
   it('accepts a valid spec file', async () => {
     const spec = makeSpec({ id: 'imp-1' });
     const file = makeFile(JSON.stringify(spec));
-    const result = await importCanvas(file);
-    expect(result.id).toBe('imp-1');
+    const result = await importCanvasSnapshotOrSpec(file);
+    expect('schemaVersion' in result).toBe(false);
+    expect((result as DesignSpec).id).toBe('imp-1');
   });
 
   it('rejects file without id', async () => {
     const file = makeFile(JSON.stringify({ title: 'No ID', sections: {} }));
-    await expect(importCanvas(file)).rejects.toThrow('missing required fields');
+    await expect(importCanvasSnapshotOrSpec(file)).rejects.toThrow('missing required fields');
   });
 
   it('rejects file without title', async () => {
     const file = makeFile(JSON.stringify({ id: 'x', sections: {} }));
-    await expect(importCanvas(file)).rejects.toThrow('missing required fields');
+    await expect(importCanvasSnapshotOrSpec(file)).rejects.toThrow('missing required fields');
   });
 
   it('rejects file with non-object sections', async () => {
     const file = makeFile(JSON.stringify({ id: 'x', title: 'T', sections: 'string' }));
-    await expect(importCanvas(file)).rejects.toThrow('missing required fields');
+    await expect(importCanvasSnapshotOrSpec(file)).rejects.toThrow('missing required fields');
   });
 
   it('rejects file with null sections', async () => {
     const file = makeFile(JSON.stringify({ id: 'x', title: 'T', sections: null }));
-    await expect(importCanvas(file)).rejects.toThrow('missing required fields');
+    await expect(importCanvasSnapshotOrSpec(file)).rejects.toThrow('missing required fields');
   });
 
   it('rejects unparseable JSON', async () => {
     const file = makeFile('not json');
-    await expect(importCanvas(file)).rejects.toThrow('could not parse JSON');
+    await expect(importCanvasSnapshotOrSpec(file)).rejects.toThrow('could not parse JSON');
   });
 
   it('accepts a full saved canvas bundle', async () => {
