@@ -47,3 +47,8 @@ experiments/.cost-ledger.jsonl
 
 # Excel temp lock files
 ~$*
+
+# Standard rules added for health
+.env
+.env.local
+build/
